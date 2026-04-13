@@ -28,10 +28,10 @@ export default function FeedCard({ spot }: FeedCardProps) {
   const showBadge = hasRecentStory(spot.latest_story_at) && recentStories.length > 0;
 
   return (
-    <Link href={`/spot/${spot.slug}`} className="block" style={{ borderRadius: '8px', overflow: 'hidden' }}>
+    <Link href={`/spot/${spot.slug}`} className="block" style={{ borderRadius: '12px', overflow: 'hidden' }}>
       <div
         className="relative"
-        style={{ aspectRatio: '4/3', background: '#2a2d33', borderRadius: '8px', overflow: 'hidden' }}
+        style={{ aspectRatio: '4/3', background: '#f3f4f6', borderRadius: '12px', overflow: 'hidden' }}
       >
         {thumbnail ? (
           <Image
@@ -43,11 +43,13 @@ export default function FeedCard({ spot }: FeedCardProps) {
           />
         ) : (
           <div
-            className="w-full h-full"
+            className="w-full h-full flex items-center justify-center"
             style={{
-              background: 'linear-gradient(135deg, #2a2d33 0%, #3a3d43 50%, #1e2127 100%)',
+              background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #f9fafb 100%)',
             }}
-          />
+          >
+            <span style={{ fontSize: '28px', opacity: 0.4 }}>🍺</span>
+          </div>
         )}
 
         {showBadge && (
@@ -59,16 +61,16 @@ export default function FeedCard({ spot }: FeedCardProps) {
               borderRadius: '999px',
             }}
           >
-            스토리 {recentStories.length}개
+            스토리 {recentStories.length}
           </span>
         )}
       </div>
 
       <div className="pt-2 pb-1 px-0.5">
-        <p className="font-semibold text-sm truncate" style={{ color: '#ffffff' }}>
+        <p className="font-semibold text-sm truncate" style={{ color: '#111827' }}>
           {spot.name}
         </p>
-        <p className="text-xs mt-0.5 truncate" style={{ color: '#888888' }}>
+        <p className="text-xs mt-0.5 truncate" style={{ color: '#6b7280' }}>
           {getRegionLabel(spot.region)} · {getCategoryLabel(spot.category)}
         </p>
       </div>

@@ -4,39 +4,87 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const NAV_ITEMS = [
-  { href: '/', label: '맵', icon: '📍' },
-  { href: '/feed', label: '피드', icon: '📷' },
-  { href: '/community', label: '커뮤', icon: '💬' },
+  { href: '/', label: '맵', icon: MapIcon },
+  { href: '/feed', label: '피드', icon: FeedIcon },
+  { href: '/community', label: '커뮤', icon: CommunityIcon },
 ];
+
+function MapIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#111827' : '#9ca3af'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function FeedIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#111827' : '#9ca3af'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" />
+      <rect x="14" y="3" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" />
+    </svg>
+  );
+}
+
+function CommunityIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#111827' : '#9ca3af'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
 
 export default function BottomNav() {
   const pathname = usePathname();
 
+  // Hide on map page (map has its own layout)
+  const isMapPage = pathname === '/';
+
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around"
       style={{
-        height: '56px',
-        background: '#16191E',
-        borderTop: '1px solid #2a2d33',
+        position: 'fixed',
+        bottom: isMapPage ? '24px' : '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '6px 8px',
+        background: 'rgba(255, 255, 255, 0.97)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderRadius: '999px',
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.06)',
       }}
     >
       {NAV_ITEMS.map((item) => {
-        const isActive = pathname === item.href;
+        const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+        const Icon = item.icon;
         return (
           <Link
             key={item.href}
             href={item.href}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full"
-            style={{ color: isActive ? '#F59E0B' : '#888888' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 18px',
+              borderRadius: '999px',
+              background: isActive ? '#f3f4f6' : 'transparent',
+              color: isActive ? '#111827' : '#9ca3af',
+              fontWeight: isActive ? 600 : 500,
+              fontSize: '13px',
+              textDecoration: 'none',
+              transition: 'all 0.2s ease',
+            }}
           >
-            <span className="text-xl leading-none">{item.icon}</span>
-            <span
-              className="text-xs font-medium leading-none"
-              style={{ color: isActive ? '#F59E0B' : '#888888' }}
-            >
-              {item.label}
-            </span>
+            <Icon active={isActive} />
+            <span>{item.label}</span>
           </Link>
         );
       })}

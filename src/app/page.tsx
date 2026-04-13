@@ -118,7 +118,6 @@ function MapPageInner() {
   useEffect(() => {
     if (!mapInstanceRef.current || !window.naver?.maps) return;
 
-    // Remove old overlays
     overlaysRef.current.forEach((o) => o.setMap(null));
     overlaysRef.current = [];
 
@@ -126,22 +125,24 @@ function MapPageInner() {
       const hasStory = !!spot.latest_story_at;
       const storyTime = hasStory ? relativeTime(spot.latest_story_at!) : null;
       const label = hasStory ? `${spot.name} · ${storyTime}` : spot.name;
-      const borderColor = hasStory ? '#22c55e' : '#cccccc';
+      const bgColor = hasStory ? '#3B82F6' : '#ffffff';
+      const textColor = hasStory ? '#ffffff' : '#374151';
+      const borderColor = hasStory ? '#2563EB' : '#d1d5db';
 
       const content = `
         <div
           onclick="window.location.href='/spot/${spot.slug}'"
           style="
-            background: #ffffff;
-            border: 2px solid ${borderColor};
+            background: ${bgColor};
+            border: 1.5px solid ${borderColor};
             border-radius: 999px;
             padding: 4px 10px;
             font-size: 12px;
             font-weight: 600;
-            color: #111111;
+            color: ${textColor};
             white-space: nowrap;
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
           "
         >${label}</div>
       `;
@@ -171,28 +172,62 @@ function MapPageInner() {
   };
 
   return (
-    <div className="relative w-full" style={{ height: '100dvh', background: '#16191E' }}>
+    <div className="relative w-full" style={{ height: '100dvh', background: '#f8f9fa' }}>
       {/* Header */}
       <header
         className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4"
-        style={{ height: '52px', background: 'rgba(22,25,30,0.92)', backdropFilter: 'blur(8px)' }}
+        style={{
+          height: '56px',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid #f0f0f0',
+        }}
       >
-        <span className="font-bold text-lg" style={{ color: '#F59E0B' }}>
-          제주혼술
-        </span>
+        <div className="flex flex-col justify-center" style={{ gap: '1px' }}>
+          <span
+            className="font-bold leading-tight"
+            style={{ color: '#111827', fontSize: '17px', letterSpacing: '-0.3px' }}
+          >
+            혼술맵
+          </span>
+          <span
+            className="leading-tight"
+            style={{ color: '#b0b8c1', fontSize: '11px', letterSpacing: '0.1px' }}
+          >
+            제주 혼술바 실시간
+          </span>
+        </div>
         <Link
           href="/write"
-          className="px-3 py-1.5 text-sm font-semibold"
-          style={{ background: '#F59E0B', color: '#111111', borderRadius: '6px' }}
+          className="flex items-center gap-1.5"
+          style={{
+            padding: '6px 12px',
+            fontSize: '13px',
+            fontWeight: 500,
+            color: '#4b5563',
+            border: '1px solid #d1d5db',
+            borderRadius: '7px',
+            background: '#ffffff',
+            letterSpacing: '-0.1px',
+          }}
         >
-          현황 제보
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          제보하기
         </Link>
       </header>
 
       {/* Region Filter */}
       <div
         className="absolute z-20 left-0 right-0"
-        style={{ top: '52px', background: 'rgba(22,25,30,0.85)', backdropFilter: 'blur(4px)' }}
+        style={{
+          top: '56px',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(8px)',
+          borderBottom: '1px solid #f0f0f0',
+        }}
       >
         <RegionFilter selected={region} onChange={handleRegionChange} />
       </div>
@@ -207,103 +242,99 @@ function MapPageInner() {
         {!mapReady && (
           <div
             className="w-full h-full flex items-center justify-center"
-            style={{ background: '#1e2127' }}
+            style={{ background: '#f3f4f6' }}
           >
-            <span className="text-sm" style={{ color: '#888888' }}>
+            <span className="text-sm" style={{ color: '#9ca3af' }}>
               지도 로딩 중...
             </span>
           </div>
         )}
       </div>
 
-      {/* Floating Ad Banner */}
-      <div
-        className="absolute z-20 flex justify-center"
-        style={{ bottom: sheetOpen ? '340px' : '80px', left: 0, right: 0, transition: 'bottom 0.3s ease' }}
-      >
-        <AdBannerInline size="320x50" />
-      </div>
-
       {/* FAB buttons */}
       <div
         className="absolute z-30 flex flex-col gap-2"
-        style={{ bottom: '80px', right: '16px' }}
+        style={{ bottom: '100px', right: '16px' }}
       >
         <button
           onClick={handleGps}
-          className="w-12 h-12 flex items-center justify-center text-xl shadow-lg"
-          style={{ background: '#ffffff', borderRadius: '50%', color: '#111111' }}
+          className="w-11 h-11 flex items-center justify-center shadow-lg"
+          style={{ background: '#ffffff', borderRadius: '50%', border: '1px solid #e5e7eb' }}
           aria-label="현재 위치"
         >
-          📍
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="3" />
+            <line x1="12" y1="2" x2="12" y2="6" />
+            <line x1="12" y1="18" x2="12" y2="22" />
+            <line x1="2" y1="12" x2="6" y2="12" />
+            <line x1="18" y1="12" x2="22" y2="12" />
+          </svg>
         </button>
         <button
           onClick={() => setSheetOpen((v) => !v)}
-          className="w-12 h-12 flex items-center justify-center text-sm font-bold shadow-lg"
-          style={{ background: '#F59E0B', borderRadius: '50%', color: '#111111' }}
+          className="w-11 h-11 flex items-center justify-center shadow-lg"
+          style={{ background: '#3B82F6', borderRadius: '50%' }}
           aria-label="목록 보기"
         >
-          목록
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
         </button>
       </div>
-
-      {/* FABWrite */}
-      <Link
-        href="/write"
-        className="absolute z-30 w-14 h-14 flex items-center justify-center text-2xl shadow-xl"
-        style={{
-          bottom: '80px',
-          left: '16px',
-          background: '#F59E0B',
-          borderRadius: '50%',
-          color: '#111111',
-        }}
-        aria-label="글쓰기"
-      >
-        ✏️
-      </Link>
 
       {/* Bottom Sheet */}
       <div
         className="absolute left-0 right-0 z-25 overflow-hidden"
         style={{
-          bottom: '56px',
-          height: '300px',
-          background: '#16191E',
-          borderTop: '1px solid #2a2d33',
+          bottom: 0,
+          height: '340px',
+          background: '#ffffff',
+          borderTop: '1px solid #e5e7eb',
           borderRadius: '16px 16px 0 0',
           transform: sheetOpen ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 0.3s ease',
+          boxShadow: sheetOpen ? '0 -4px 20px rgba(0,0,0,0.08)' : 'none',
         }}
       >
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="font-semibold text-sm" style={{ color: '#ffffff' }}>
+        {/* Handle */}
+        <div className="flex justify-center pt-2 pb-1">
+          <div style={{ width: '36px', height: '4px', background: '#d1d5db', borderRadius: '2px' }} />
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-2">
+          <span className="font-semibold text-sm" style={{ color: '#111827' }}>
             가게 목록 {spots.length > 0 && `(${spots.length})`}
           </span>
           <button
             onClick={() => setSheetOpen(false)}
             className="text-sm"
-            style={{ color: '#888888' }}
+            style={{ color: '#9ca3af' }}
           >
             닫기
           </button>
         </div>
 
-        <div className="overflow-y-auto px-4" style={{ height: '240px' }}>
+        <div className="overflow-y-auto px-4" style={{ height: '260px' }}>
           {loading ? (
             <div className="flex items-center justify-center h-24">
-              <span className="text-sm" style={{ color: '#888888' }}>
+              <span className="text-sm" style={{ color: '#9ca3af' }}>
                 불러오는 중...
               </span>
             </div>
           ) : spots.length === 0 ? (
             <div className="flex items-center justify-center h-24">
-              <span className="text-sm" style={{ color: '#888888' }}>
+              <span className="text-sm" style={{ color: '#9ca3af' }}>
                 가게가 없습니다
               </span>
             </div>
           ) : (
-            <ul className="divide-y" style={{ borderColor: '#2a2d33' }}>
+            <ul className="divide-y" style={{ borderColor: '#f3f4f6' }}>
               {spots.map((spot) => (
                 <li key={spot.id}>
                   <Link
@@ -311,19 +342,19 @@ function MapPageInner() {
                     className="flex items-center justify-between py-3"
                   >
                     <div>
-                      <p className="text-sm font-medium" style={{ color: '#ffffff' }}>
+                      <p className="text-sm font-medium" style={{ color: '#111827' }}>
                         {spot.name}
                       </p>
-                      <p className="text-xs mt-0.5" style={{ color: '#888888' }}>
+                      <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
                         {spot.address}
                       </p>
                     </div>
                     {spot.latest_story_at && (
                       <span
-                        className="text-xs px-2 py-0.5 ml-2 flex-shrink-0"
+                        className="text-xs font-medium px-2 py-0.5 ml-2 flex-shrink-0"
                         style={{
-                          background: '#14532d',
-                          color: '#4ade80',
+                          background: '#EDE9FE',
+                          color: '#7C3AED',
                           borderRadius: '999px',
                         }}
                       >
@@ -347,9 +378,9 @@ export default function MapPage() {
       fallback={
         <div
           className="w-full flex items-center justify-center"
-          style={{ height: '100dvh', background: '#16191E' }}
+          style={{ height: '100dvh', background: '#f8f9fa' }}
         >
-          <span className="text-sm" style={{ color: '#888888' }}>
+          <span className="text-sm" style={{ color: '#9ca3af' }}>
             로딩 중...
           </span>
         </div>

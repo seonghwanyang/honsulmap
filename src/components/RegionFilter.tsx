@@ -10,8 +10,8 @@ interface RegionFilterProps {
 export default function RegionFilter({ selected, onChange }: RegionFilterProps) {
   return (
     <div
-      className="flex gap-2 overflow-x-auto py-2 px-3"
-      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      className="flex overflow-x-auto hide-scrollbar"
+      style={{ gap: '7px', padding: '9px 16px 10px' }}
     >
       {REGIONS.map((region) => {
         const isSelected = selected === region.value;
@@ -19,13 +19,18 @@ export default function RegionFilter({ selected, onChange }: RegionFilterProps) 
           <button
             key={region.value}
             onClick={() => onChange(region.value)}
-            className="flex-shrink-0 px-3 py-1 text-sm font-medium transition-colors"
+            className="flex-shrink-0 transition-colors"
             style={{
+              padding: '5px 14px',
+              fontSize: '13px',
+              fontWeight: isSelected ? 600 : 400,
+              letterSpacing: '-0.1px',
               borderRadius: '999px',
-              background: isSelected ? '#F59E0B' : '#ffffff',
-              color: isSelected ? '#ffffff' : '#555555',
-              border: isSelected ? '1px solid #F59E0B' : '1px solid #F0F0F0',
+              background: isSelected ? '#111827' : '#ffffff',
+              color: isSelected ? '#ffffff' : '#6b7280',
+              border: isSelected ? '1px solid #111827' : '1px solid #e5e7eb',
               cursor: 'pointer',
+              lineHeight: '1.4',
             }}
           >
             {region.label}

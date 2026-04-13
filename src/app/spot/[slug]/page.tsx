@@ -3,22 +3,22 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import Link from 'next/link';
 import AdBannerInline from '@/components/AdBannerInline';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
-
-// ---- Inline sub-components (placeholders for components not yet created) ----
 
 function BackButton() {
   return (
     <button
       onClick={() => window.history.back()}
       className="flex items-center gap-1 text-sm"
-      style={{ color: '#aaaaaa' }}
+      style={{ color: '#6b7280' }}
       aria-label="뒤로가기"
     >
-      ← 뒤로
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      뒤로
     </button>
   );
 }
@@ -50,18 +50,17 @@ function LikeButton({ targetType, targetId, initialCount }: { targetType: string
   return (
     <button
       onClick={handleLike}
-      className="flex flex-col items-center gap-1 px-3 py-2"
+      className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
       style={{
-        background: liked ? '#7c3aed' : '#2a2d33',
-        borderRadius: '8px',
-        color: liked ? '#ffffff' : '#aaaaaa',
-        border: 'none',
+        background: liked ? '#EFF6FF' : '#f8f9fa',
+        borderRadius: '10px',
+        color: liked ? '#3B82F6' : '#6b7280',
+        border: liked ? '1.5px solid #3B82F6' : '1.5px solid #e5e7eb',
         cursor: 'pointer',
-        minWidth: '56px',
       }}
     >
-      <span className="text-lg">♥</span>
-      <span className="text-xs">{count}</span>
+      <span>{liked ? '♥' : '♡'}</span>
+      <span>{count}</span>
     </button>
   );
 }
@@ -95,23 +94,43 @@ function MoodVoteButton({ spotId, upCount, downCount }: { spotId: string; upCoun
     }
   };
 
+  const total = up + down;
+  const upPercent = total > 0 ? Math.round((up / total) * 100) : 50;
+  const downPercent = total > 0 ? 100 - upPercent : 50;
+
   return (
-    <button
-      onClick={() => handleVote('up')}
-      className="flex flex-col items-center gap-1 px-3 py-2"
-      style={{
-        background: voted === 'up' ? '#14532d' : '#2a2d33',
-        borderRadius: '8px',
-        color: voted === 'up' ? '#4ade80' : '#aaaaaa',
-        border: 'none',
-        cursor: 'pointer',
-        minWidth: '56px',
-      }}
-      aria-label="분위기 좋아요"
-    >
-      <span className="text-lg">⬆</span>
-      <span className="text-xs">{up}</span>
-    </button>
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-medium" style={{ color: '#6b7280' }}>분위기 투표</span>
+        <span className="text-xs" style={{ color: '#9ca3af' }}>총 {total}표</span>
+      </div>
+      <div className="vote-bar">
+        <button
+          onClick={() => handleVote('up')}
+          className="vote-bar-up"
+          style={{
+            width: `${Math.max(upPercent, 15)}%`,
+            opacity: voted === 'down' ? 0.6 : 1,
+            cursor: 'pointer',
+            border: 'none',
+          }}
+        >
+          &#9650; {upPercent}% ({up})
+        </button>
+        <button
+          onClick={() => handleVote('down')}
+          className="vote-bar-down"
+          style={{
+            width: `${Math.max(downPercent, 15)}%`,
+            opacity: voted === 'up' ? 0.6 : 1,
+            cursor: 'pointer',
+            border: 'none',
+          }}
+        >
+          &#9660; {downPercent}% ({down})
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -159,7 +178,7 @@ function CommentSection({ spotId }: { spotId: string }) {
 
   return (
     <div className="px-4 py-4">
-      <p className="font-semibold text-sm mb-3" style={{ color: '#ffffff' }}>
+      <p className="font-semibold text-sm mb-3" style={{ color: '#111827' }}>
         댓글 {comments.length > 0 && `(${comments.length})`}
       </p>
 
@@ -170,7 +189,7 @@ function CommentSection({ spotId }: { spotId: string }) {
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             className="flex-1 px-3 py-2 text-sm"
-            style={{ background: '#2a2d33', color: '#ffffff', border: '1px solid #3a3d43', borderRadius: '6px' }}
+            style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
           />
           <input
             type="password"
@@ -178,7 +197,7 @@ function CommentSection({ spotId }: { spotId: string }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="flex-1 px-3 py-2 text-sm"
-            style={{ background: '#2a2d33', color: '#ffffff', border: '1px solid #3a3d43', borderRadius: '6px' }}
+            style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
           />
         </div>
         <textarea
@@ -187,7 +206,7 @@ function CommentSection({ spotId }: { spotId: string }) {
           onChange={(e) => setContent(e.target.value)}
           rows={3}
           className="w-full px-3 py-2 text-sm resize-none"
-          style={{ background: '#2a2d33', color: '#ffffff', border: '1px solid #3a3d43', borderRadius: '6px' }}
+          style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
         />
         {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
         <button
@@ -195,28 +214,28 @@ function CommentSection({ spotId }: { spotId: string }) {
           disabled={submitting || !nickname.trim() || !password.trim() || !content.trim()}
           className="self-end px-4 py-2 text-sm font-medium"
           style={{
-            background: '#F59E0B',
-            color: '#111111',
-            borderRadius: '6px',
-            opacity: submitting || !nickname.trim() || !password.trim() || !content.trim() ? 0.5 : 1,
+            background: '#3B82F6',
+            color: '#ffffff',
+            borderRadius: '8px',
+            opacity: submitting || !nickname.trim() || !password.trim() || !content.trim() ? 0.4 : 1,
           }}
         >
           {submitting ? '등록 중...' : '등록'}
         </button>
       </form>
 
-      <div className="divide-y" style={{ borderColor: '#2a2d33' }}>
+      <div className="divide-y" style={{ borderColor: '#f3f4f6' }}>
         {comments.map((c) => (
           <div key={c.id} className="py-3">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-medium" style={{ color: '#F59E0B' }}>
+              <span className="text-xs font-semibold" style={{ color: '#111827' }}>
                 {c.nickname}
               </span>
-              <span className="text-xs" style={{ color: '#555555' }}>
+              <span className="text-xs" style={{ color: '#d1d5db' }}>
                 {relativeTime(c.created_at)}
               </span>
             </div>
-            <p className="text-sm" style={{ color: '#cccccc', whiteSpace: 'pre-wrap' }}>
+            <p className="text-sm" style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>
               {c.content}
             </p>
           </div>
@@ -258,9 +277,9 @@ export default function SpotPage() {
     return (
       <div
         className="flex items-center justify-center"
-        style={{ height: '100dvh', background: '#16191E' }}
+        style={{ height: '100dvh', background: '#ffffff' }}
       >
-        <span className="text-sm" style={{ color: '#888888' }}>불러오는 중...</span>
+        <span className="text-sm" style={{ color: '#9ca3af' }}>불러오는 중...</span>
       </div>
     );
   }
@@ -269,7 +288,7 @@ export default function SpotPage() {
     return (
       <div
         className="flex flex-col items-center justify-center gap-3"
-        style={{ height: '100dvh', background: '#16191E' }}
+        style={{ height: '100dvh', background: '#ffffff' }}
       >
         <span className="text-sm" style={{ color: '#ef4444' }}>
           {error || '가게를 찾을 수 없습니다'}
@@ -277,7 +296,7 @@ export default function SpotPage() {
         <button
           onClick={() => window.history.back()}
           className="text-xs px-3 py-1.5"
-          style={{ background: '#2a2d33', color: '#ffffff', borderRadius: '6px' }}
+          style={{ background: '#f3f4f6', color: '#374151', borderRadius: '6px' }}
         >
           뒤로 가기
         </button>
@@ -299,14 +318,19 @@ export default function SpotPage() {
     : null;
 
   return (
-    <div style={{ background: '#16191E', minHeight: '100dvh', paddingBottom: '72px' }}>
+    <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
       {/* Header */}
       <header
         className="sticky top-0 z-20 flex items-center gap-3 px-4"
-        style={{ height: '52px', background: '#16191E', borderBottom: '1px solid #2a2d33' }}
+        style={{
+          height: '52px',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(8px)',
+          borderBottom: '1px solid #e5e7eb',
+        }}
       >
         <BackButton />
-        <span className="font-semibold text-sm truncate flex-1" style={{ color: '#ffffff' }}>
+        <span className="font-semibold text-sm truncate flex-1" style={{ color: '#111827' }}>
           {spot.name}
         </span>
       </header>
@@ -314,14 +338,13 @@ export default function SpotPage() {
       {/* Photo Strip */}
       {spot.image_urls && spot.image_urls.length > 0 ? (
         <div
-          className="flex gap-2 overflow-x-auto px-4 py-3"
-          style={{ scrollbarWidth: 'none' }}
+          className="flex gap-2 overflow-x-auto px-4 py-3 hide-scrollbar"
         >
           {spot.image_urls.map((url, idx) => (
             <div
               key={idx}
               className="relative flex-shrink-0"
-              style={{ width: '160px', height: '120px', borderRadius: '8px', overflow: 'hidden', background: '#2a2d33' }}
+              style={{ width: '160px', height: '120px', borderRadius: '10px', overflow: 'hidden', background: '#f3f4f6' }}
             >
               <Image
                 src={url}
@@ -336,94 +359,84 @@ export default function SpotPage() {
       ) : (
         <div
           className="mx-4 mt-3 flex items-center justify-center"
-          style={{ height: '120px', background: '#2a2d33', borderRadius: '8px', color: '#555555', fontSize: '12px' }}
+          style={{ height: '120px', background: '#f8f9fa', borderRadius: '12px', color: '#d1d5db', fontSize: '12px' }}
         >
           등록된 사진이 없습니다
         </div>
       )}
 
-      {/* Meta Info Grid */}
-      <div
-        className="mx-4 mt-3 grid grid-cols-2 gap-2"
-      >
-        <div
-          className="p-3"
-          style={{ background: '#2a2d33', borderRadius: '8px' }}
-        >
-          <p className="text-xs mb-1" style={{ color: '#888888' }}>영업시간</p>
-          <p className="text-xs font-medium" style={{ color: '#ffffff' }}>
+      {/* Meta Info */}
+      <div className="mx-4 mt-3 grid grid-cols-2 gap-2">
+        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
+          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>영업시간</p>
+          <p className="text-xs font-medium" style={{ color: '#111827' }}>
             {spot.business_hours || '정보 없음'}
           </p>
         </div>
-        <div
-          className="p-3"
-          style={{ background: '#2a2d33', borderRadius: '8px' }}
-        >
-          <p className="text-xs mb-1" style={{ color: '#888888' }}>최근 스토리</p>
-          <p className="text-xs font-medium" style={{ color: '#ffffff' }}>
+        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
+          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>최근 스토리</p>
+          <p className="text-xs font-medium" style={{ color: '#111827' }}>
             {spot.latest_story_at ? relativeTime(spot.latest_story_at) : '없음'}
           </p>
         </div>
-        <div
-          className="p-3"
-          style={{ background: '#2a2d33', borderRadius: '8px' }}
-        >
-          <p className="text-xs mb-1" style={{ color: '#888888' }}>지역</p>
-          <p className="text-xs font-medium" style={{ color: '#ffffff' }}>
+        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
+          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>지역</p>
+          <p className="text-xs font-medium" style={{ color: '#111827' }}>
             {getRegionLabel(spot.region)}
           </p>
         </div>
-        <div
-          className="p-3"
-          style={{ background: '#2a2d33', borderRadius: '8px' }}
-        >
-          <p className="text-xs mb-1" style={{ color: '#888888' }}>카테고리</p>
-          <p className="text-xs font-medium" style={{ color: '#ffffff' }}>
+        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
+          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>카테고리</p>
+          <p className="text-xs font-medium" style={{ color: '#111827' }}>
             {getCategoryLabel(spot.category)}
           </p>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-2 px-4 mt-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-        <LikeButton targetType="spot" targetId={spot.slug} initialCount={spot.like_count} />
+      {/* Vote Bar */}
+      <div className="px-4 mt-4">
         <MoodVoteButton spotId={spot.slug} upCount={spot.mood_up} downCount={spot.mood_down} />
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2 px-4 mt-4 overflow-x-auto hide-scrollbar">
+        <LikeButton targetType="spot" targetId={spot.slug} initialCount={spot.like_count} />
         <a
           href={naverMapUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex flex-col items-center gap-1 px-3 py-2"
-          style={{ background: '#2a2d33', borderRadius: '8px', color: '#4ade80', minWidth: '56px', textDecoration: 'none' }}
+          className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
+          style={{ background: '#f8f9fa', borderRadius: '10px', color: '#16a34a', border: '1.5px solid #e5e7eb', textDecoration: 'none' }}
         >
-          <span className="text-lg">🗺</span>
-          <span className="text-xs">지도</span>
+          <span>&#128506;</span>
+          <span>네이버 지도</span>
         </a>
         {instagramUrl && (
           <a
             href={instagramUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-col items-center gap-1 px-3 py-2"
-            style={{ background: '#2a2d33', borderRadius: '8px', color: '#e879f9', minWidth: '56px', textDecoration: 'none' }}
+            className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
+            style={{ background: '#f8f9fa', borderRadius: '10px', color: '#c026d3', border: '1.5px solid #e5e7eb', textDecoration: 'none' }}
           >
-            <span className="text-lg">📷</span>
-            <span className="text-xs">인스타</span>
+            <span>&#128247;</span>
+            <span>인스타</span>
           </a>
         )}
       </div>
 
       {/* Instagram Stories Section */}
       <div className="mt-6 px-4">
-        <p className="font-semibold text-sm mb-3" style={{ color: '#ffffff' }}>
+        <p className="font-semibold text-sm mb-3" style={{ color: '#111827' }}>
           인스타 스토리
         </p>
 
         {activeStories.length === 0 ? (
           <div
             className="flex flex-col items-center justify-center gap-3 py-8"
-            style={{ background: '#2a2d33', borderRadius: '12px' }}
+            style={{ background: '#f8f9fa', borderRadius: '12px' }}
           >
-            <p className="text-sm" style={{ color: '#888888' }}>
+            <p className="text-sm" style={{ color: '#9ca3af' }}>
               아직 스토리가 없습니다
             </p>
             {instagramUrl && (
@@ -431,8 +444,8 @@ export default function SpotPage() {
                 href={instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs px-3 py-1.5"
-                style={{ background: '#F59E0B', color: '#111111', borderRadius: '6px', textDecoration: 'none' }}
+                className="text-xs px-3 py-1.5 font-medium"
+                style={{ background: '#3B82F6', color: '#ffffff', borderRadius: '6px', textDecoration: 'none' }}
               >
                 인스타 바로가기
               </a>
@@ -440,7 +453,6 @@ export default function SpotPage() {
           </div>
         ) : (
           <div
-            className="flex gap-3 overflow-y-auto"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
@@ -453,9 +465,9 @@ export default function SpotPage() {
                 className="relative"
                 style={{
                   aspectRatio: '9/16',
-                  borderRadius: '10px',
+                  borderRadius: '12px',
                   overflow: 'hidden',
-                  background: '#2a2d33',
+                  background: '#f3f4f6',
                 }}
               >
                 {story.media_type === 'video' ? (
@@ -476,10 +488,10 @@ export default function SpotPage() {
                   />
                 )}
                 <div
-                  className="absolute bottom-0 left-0 right-0 px-2 py-1"
-                  style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.7))' }}
+                  className="absolute bottom-0 left-0 right-0 px-2 py-1.5"
+                  style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}
                 >
-                  <p className="text-xs" style={{ color: '#ffffff' }}>
+                  <p className="text-xs font-medium" style={{ color: '#ffffff' }}>
                     {relativeTime(story.posted_at)}
                   </p>
                 </div>
@@ -495,7 +507,7 @@ export default function SpotPage() {
       </div>
 
       {/* Comment Section */}
-      <div style={{ borderTop: '1px solid #2a2d33', marginTop: '16px' }}>
+      <div style={{ borderTop: '1px solid #f3f4f6', marginTop: '16px' }}>
         <CommentSection spotId={spot.id} />
       </div>
     </div>

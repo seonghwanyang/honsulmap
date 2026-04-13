@@ -2,41 +2,45 @@ import Link from 'next/link';
 
 export default function PrivacyPage() {
   return (
-    <div style={{ background: '#16191E', minHeight: '100dvh', paddingBottom: '72px' }}>
+    <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
       {/* Header */}
       <header
         className="sticky top-0 z-20 flex items-center gap-3 px-4"
         style={{
           height: '52px',
-          background: '#16191E',
-          borderBottom: '1px solid #2a2d33',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(8px)',
+          borderBottom: '1px solid #e5e7eb',
         }}
       >
         <Link
           href="/"
           className="flex items-center gap-1 text-sm"
-          style={{ color: '#aaaaaa' }}
+          style={{ color: '#6b7280' }}
         >
-          ← 뒤로
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          뒤로
         </Link>
-        <span className="font-semibold text-sm" style={{ color: '#ffffff' }}>
+        <span className="font-semibold text-sm" style={{ color: '#111827' }}>
           개인정보처리방침
         </span>
       </header>
 
-      <div className="px-4 pt-6 pb-10">
-        <h1 className="text-xl font-bold mb-1" style={{ color: '#ffffff' }}>
+      <div className="px-4 pt-6 pb-24">
+        <h1 className="text-xl font-bold mb-1" style={{ color: '#111827' }}>
           개인정보처리방침
         </h1>
-        <p className="text-xs mb-8" style={{ color: '#888888' }}>
+        <p className="text-xs mb-8" style={{ color: '#9ca3af' }}>
           최종 업데이트: 2026년 4월 13일
         </p>
 
         <Section title="1. 서비스 소개">
           <p>
-            <strong style={{ color: '#F59E0B' }}>제주혼술</strong>은 제주도 혼술바 및
+            <strong style={{ color: '#3B82F6' }}>혼술맵</strong>은 제주도 혼술바 및
             게스트하우스의 인스타그램 스토리를 모아보고, 실시간 현황을 공유하는
-            서비스입니다. 본 방침은 제주혼술(이하 "서비스")이 수집하는 개인정보와
+            서비스입니다. 본 방침은 혼술맵(이하 &quot;서비스&quot;)이 수집하는 개인정보와
             그 처리 방법을 안내합니다.
           </p>
         </Section>
@@ -50,7 +54,7 @@ export default function PrivacyPage() {
               ['브라우저 핑거프린트', '서비스 접속 시 자동 생성', '좋아요·분위기투표 중복 방지'],
             ]}
           />
-          <p className="mt-2 text-xs" style={{ color: '#888888' }}>
+          <p className="mt-2 text-xs" style={{ color: '#9ca3af' }}>
             비밀번호는 단방향 암호화(해시) 처리되어 저장되며, 원문은 보관되지 않습니다.
             브라우저 핑거프린트는 UUID 형태로 로컬스토리지에 저장되며 개인을 특정하는 데
             사용되지 않습니다.
@@ -74,7 +78,7 @@ export default function PrivacyPage() {
             ]}
             headers={['항목', '보유 기간']}
           />
-          <p className="mt-2 text-xs" style={{ color: '#888888' }}>
+          <p className="mt-2 text-xs" style={{ color: '#9ca3af' }}>
             서비스는 별도의 회원가입 절차가 없습니다. 게시글·댓글 삭제 시 관련 개인정보는
             즉시 파기됩니다.
           </p>
@@ -90,13 +94,13 @@ export default function PrivacyPage() {
         <Section title="6. 개인정보 처리 위탁">
           <p>
             서비스는 데이터베이스 운영을 위해{' '}
-            <strong style={{ color: '#ffffff' }}>Supabase Inc.</strong>에 개인정보 처리를
+            <strong style={{ color: '#111827' }}>Supabase Inc.</strong>에 개인정보 처리를
             위탁합니다. 위탁 내용: 데이터 저장 및 관리. Supabase의 개인정보 처리방침은{' '}
             <a
               href="https://supabase.com/privacy"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: '#F59E0B', textDecoration: 'underline' }}
+              style={{ color: '#3B82F6', textDecoration: 'underline' }}
             >
               https://supabase.com/privacy
             </a>
@@ -113,7 +117,7 @@ export default function PrivacyPage() {
               브라우저 핑거프린트 삭제: 브라우저 로컬스토리지에서{' '}
               <code
                 className="px-1 py-0.5 text-xs"
-                style={{ background: '#2a2d33', borderRadius: '3px', color: '#F59E0B' }}
+                style={{ background: '#f3f4f6', borderRadius: '3px', color: '#3B82F6' }}
               >
                 honsul_fp
               </code>{' '}
@@ -157,10 +161,10 @@ function Section({
 }) {
   return (
     <section className="mb-7">
-      <h2 className="font-bold text-base mb-2" style={{ color: '#ffffff' }}>
+      <h2 className="font-bold text-base mb-2" style={{ color: '#111827' }}>
         {title}
       </h2>
-      <div className="text-sm leading-relaxed" style={{ color: '#cccccc' }}>
+      <div className="text-sm leading-relaxed" style={{ color: '#374151' }}>
         {children}
       </div>
     </section>
@@ -177,17 +181,17 @@ function Table({
   return (
     <div
       className="overflow-x-auto"
-      style={{ borderRadius: '8px', border: '1px solid #2a2d33' }}
+      style={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
     >
       <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
         {headers && (
           <thead>
-            <tr style={{ background: '#2a2d33' }}>
+            <tr style={{ background: '#f8f9fa' }}>
               {headers.map((h, i) => (
                 <th
                   key={i}
                   className="px-3 py-2 text-left font-semibold"
-                  style={{ color: '#aaaaaa', borderBottom: '1px solid #3a3d43' }}
+                  style={{ color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}
                 >
                   {h}
                 </th>
@@ -197,12 +201,12 @@ function Table({
         )}
         {!headers && rows[0]?.length === 3 && (
           <thead>
-            <tr style={{ background: '#2a2d33' }}>
+            <tr style={{ background: '#f8f9fa' }}>
               {['항목', '수집 방법', '이용 목적'].map((h, i) => (
                 <th
                   key={i}
                   className="px-3 py-2 text-left font-semibold"
-                  style={{ color: '#aaaaaa', borderBottom: '1px solid #3a3d43' }}
+                  style={{ color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}
                 >
                   {h}
                 </th>
@@ -214,13 +218,13 @@ function Table({
           {rows.map((row, ri) => (
             <tr
               key={ri}
-              style={{ borderBottom: ri < rows.length - 1 ? '1px solid #2a2d33' : 'none' }}
+              style={{ borderBottom: ri < rows.length - 1 ? '1px solid #f3f4f6' : 'none' }}
             >
               {row.map((cell, ci) => (
                 <td
                   key={ci}
                   className="px-3 py-2"
-                  style={{ color: '#cccccc' }}
+                  style={{ color: '#374151' }}
                 >
                   {cell}
                 </td>

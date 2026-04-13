@@ -9,10 +9,13 @@ function BackButton() {
     <button
       onClick={() => window.history.back()}
       className="flex items-center gap-1 text-sm"
-      style={{ color: '#aaaaaa' }}
+      style={{ color: '#6b7280' }}
       aria-label="뒤로가기"
     >
-      ← 뒤로
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      뒤로
     </button>
   );
 }
@@ -40,7 +43,6 @@ export default function WritePage() {
 
   const needsSpot = SPOT_REQUIRED_CATEGORIES.includes(category);
 
-  // Fetch spots for dropdown
   const fetchSpots = useCallback(async () => {
     if (spots.length > 0) return;
     setSpotsLoading(true);
@@ -60,7 +62,6 @@ export default function WritePage() {
     if (needsSpot) fetchSpots();
   }, [needsSpot, fetchSpots]);
 
-  // Reset spot selection when category changes away from spot-required
   useEffect(() => {
     if (!needsSpot) setSpotId('');
   }, [needsSpot]);
@@ -105,26 +106,27 @@ export default function WritePage() {
   };
 
   return (
-    <div style={{ background: '#16191E', minHeight: '100dvh', paddingBottom: '72px' }}>
+    <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
       {/* Header */}
       <header
         className="sticky top-0 z-20 flex items-center gap-3 px-4"
         style={{
           height: '52px',
-          background: '#16191E',
-          borderBottom: '1px solid #2a2d33',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(8px)',
+          borderBottom: '1px solid #e5e7eb',
         }}
       >
         <BackButton />
-        <span className="font-semibold text-sm" style={{ color: '#ffffff' }}>
+        <span className="font-semibold text-sm" style={{ color: '#111827' }}>
           글쓰기
         </span>
       </header>
 
-      <form onSubmit={handleSubmit} className="px-4 pt-4 flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="px-4 pt-4 pb-24 flex flex-col gap-4">
         {/* Nickname & Password */}
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: '#aaaaaa' }}>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: '#6b7280' }}>
             닉네임 &amp; 비밀번호
           </label>
           <div className="flex gap-2">
@@ -135,9 +137,9 @@ export default function WritePage() {
               maxLength={20}
               className="flex-1 px-3 py-2.5 text-sm"
               style={{
-                background: '#2a2d33',
-                color: '#ffffff',
-                border: '1px solid #3a3d43',
+                background: '#f9fafb',
+                color: '#111827',
+                border: '1px solid #e5e7eb',
                 borderRadius: '8px',
               }}
             />
@@ -149,9 +151,9 @@ export default function WritePage() {
               maxLength={30}
               className="flex-1 px-3 py-2.5 text-sm"
               style={{
-                background: '#2a2d33',
-                color: '#ffffff',
-                border: '1px solid #3a3d43',
+                background: '#f9fafb',
+                color: '#111827',
+                border: '1px solid #e5e7eb',
                 borderRadius: '8px',
               }}
             />
@@ -160,7 +162,7 @@ export default function WritePage() {
 
         {/* Category */}
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: '#aaaaaa' }}>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: '#6b7280' }}>
             카테고리
           </label>
           <div className="flex gap-2 flex-wrap">
@@ -174,9 +176,9 @@ export default function WritePage() {
                   className="px-4 py-2 text-sm font-medium"
                   style={{
                     borderRadius: '999px',
-                    background: isSelected ? '#F59E0B' : '#2a2d33',
-                    color: isSelected ? '#111111' : '#aaaaaa',
-                    border: isSelected ? '2px solid #F59E0B' : '2px solid #3a3d43',
+                    background: isSelected ? '#3B82F6' : '#ffffff',
+                    color: isSelected ? '#ffffff' : '#6b7280',
+                    border: isSelected ? '1.5px solid #3B82F6' : '1.5px solid #e5e7eb',
                     cursor: 'pointer',
                   }}
                 >
@@ -187,10 +189,10 @@ export default function WritePage() {
           </div>
         </div>
 
-        {/* Spot selector (only for status/review) */}
+        {/* Spot selector */}
         {needsSpot && (
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: '#aaaaaa' }}>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: '#6b7280' }}>
               가게 선택 <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <select
@@ -199,19 +201,17 @@ export default function WritePage() {
               disabled={spotsLoading}
               className="w-full px-3 py-2.5 text-sm"
               style={{
-                background: '#2a2d33',
-                color: spotId ? '#ffffff' : '#888888',
-                border: '1px solid #3a3d43',
+                background: '#f9fafb',
+                color: spotId ? '#111827' : '#9ca3af',
+                border: '1px solid #e5e7eb',
                 borderRadius: '8px',
-                appearance: 'none',
-                WebkitAppearance: 'none',
               }}
             >
               <option value="">
                 {spotsLoading ? '불러오는 중...' : '가게를 선택하세요'}
               </option>
               {spots.map((s) => (
-                <option key={s.id} value={s.id} style={{ background: '#2a2d33', color: '#ffffff' }}>
+                <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
@@ -221,7 +221,7 @@ export default function WritePage() {
 
         {/* Title */}
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: '#aaaaaa' }}>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: '#6b7280' }}>
             제목
           </label>
           <input
@@ -231,9 +231,9 @@ export default function WritePage() {
             maxLength={100}
             className="w-full px-3 py-2.5 text-sm"
             style={{
-              background: '#2a2d33',
-              color: '#ffffff',
-              border: '1px solid #3a3d43',
+              background: '#f9fafb',
+              color: '#111827',
+              border: '1px solid #e5e7eb',
               borderRadius: '8px',
             }}
           />
@@ -241,7 +241,7 @@ export default function WritePage() {
 
         {/* Content */}
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: '#aaaaaa' }}>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: '#6b7280' }}>
             내용
           </label>
           <textarea
@@ -252,36 +252,15 @@ export default function WritePage() {
             maxLength={2000}
             className="w-full px-3 py-2.5 text-sm resize-none"
             style={{
-              background: '#2a2d33',
-              color: '#ffffff',
-              border: '1px solid #3a3d43',
+              background: '#f9fafb',
+              color: '#111827',
+              border: '1px solid #e5e7eb',
               borderRadius: '8px',
             }}
           />
-          <p className="text-right text-xs mt-1" style={{ color: '#555555' }}>
+          <p className="text-right text-xs mt-1" style={{ color: '#d1d5db' }}>
             {content.length} / 2000
           </p>
-        </div>
-
-        {/* Photo attachment placeholder */}
-        <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: '#aaaaaa' }}>
-            사진 첨부 (최대 5장, 준비 중)
-          </label>
-          <div
-            className="flex items-center justify-center"
-            style={{
-              height: '80px',
-              background: '#2a2d33',
-              border: '2px dashed #3a3d43',
-              borderRadius: '8px',
-              color: '#555555',
-              fontSize: '13px',
-              cursor: 'not-allowed',
-            }}
-          >
-            📷 사진 첨부 기능 준비 중
-          </div>
         </div>
 
         {/* Error */}
@@ -297,8 +276,8 @@ export default function WritePage() {
           disabled={!isValid || submitting}
           className="w-full py-3 text-base font-semibold"
           style={{
-            background: isValid && !submitting ? '#F59E0B' : '#3a3d43',
-            color: isValid && !submitting ? '#111111' : '#666666',
+            background: isValid && !submitting ? '#3B82F6' : '#e5e7eb',
+            color: isValid && !submitting ? '#ffffff' : '#9ca3af',
             borderRadius: '10px',
             border: 'none',
             cursor: isValid && !submitting ? 'pointer' : 'not-allowed',

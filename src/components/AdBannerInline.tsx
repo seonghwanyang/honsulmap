@@ -12,13 +12,13 @@ export default function AdBannerInline({ size = '320x50' }: AdBannerInlineProps)
         style={{
           width: '320px',
           height: `${height}px`,
-          background: '#2a2d33',
-          borderRadius: '4px',
-          border: '1px solid #3a3d43',
+          background: '#f8f9fa',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb',
         }}
       >
-        <span className="text-xs" style={{ color: '#888888' }}>
-          광고 영역
+        <span className="text-xs" style={{ color: '#d1d5db' }}>
+          AD
         </span>
       </div>
     </div>

@@ -40,7 +40,6 @@ function FeedPageInner() {
         if (!res.ok) throw new Error(`서버 오류: ${res.status}`);
         const data: SpotWithStories[] = await res.json();
 
-        // Sort: spots with recent stories first, then alphabetical
         const sorted = [...data].sort((a, b) => {
           const aHasStory = !!a.latest_story_at;
           const bHasStory = !!b.latest_story_at;
@@ -66,18 +65,17 @@ function FeedPageInner() {
     fetchSpots();
   }, [region]);
 
-  // Build items with ad slots inserted every 5 cards
   const renderItems = () => {
     const items: React.ReactNode[] = [];
     spots.forEach((spot, idx) => {
       items.push(
-        <div key={spot.id} className="mb-4">
+        <div key={spot.id} className="masonry-item">
           <FeedCard spot={spot} />
         </div>,
       );
-      if ((idx + 1) % 5 === 0 && idx < spots.length - 1) {
+      if ((idx + 1) % 6 === 0 && idx < spots.length - 1) {
         items.push(
-          <div key={`ad-${idx}`} className="col-span-2 flex justify-center my-2">
+          <div key={`ad-${idx}`} className="col-span-2 flex justify-center my-3">
             <AdBannerInline size="320x50" />
           </div>,
         );
@@ -87,30 +85,46 @@ function FeedPageInner() {
   };
 
   return (
-    <div style={{ background: '#16191E', minHeight: '100dvh', paddingBottom: '72px' }}>
+    <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
       {/* Header */}
       <header
         className="sticky top-0 z-20 flex items-center px-4"
-        style={{ height: '52px', background: '#16191E', borderBottom: '1px solid #2a2d33' }}
+        style={{
+          height: '56px',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid #f0f0f0',
+        }}
       >
-        <span className="font-bold text-lg" style={{ color: '#F59E0B' }}>
-          제주혼술
-        </span>
+        <div className="flex flex-col justify-center" style={{ gap: '1px' }}>
+          <span
+            className="font-bold leading-tight"
+            style={{ color: '#111827', fontSize: '17px', letterSpacing: '-0.3px' }}
+          >
+            피드
+          </span>
+          <span
+            className="leading-tight"
+            style={{ color: '#b0b8c1', fontSize: '11px', letterSpacing: '0.1px' }}
+          >
+            제주 혼술바 스토리
+          </span>
+        </div>
       </header>
 
       {/* Region Filter */}
       <div
         className="sticky z-10"
-        style={{ top: '52px', background: '#16191E', borderBottom: '1px solid #2a2d33' }}
+        style={{ top: '56px', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', borderBottom: '1px solid #f0f0f0' }}
       >
         <RegionFilter selected={region} onChange={handleRegionChange} />
       </div>
 
       {/* Content */}
-      <div className="px-3 pt-4">
+      <div className="px-4 pt-4">
         {loading && (
           <div className="flex items-center justify-center py-16">
-            <span className="text-sm" style={{ color: '#888888' }}>
+            <span className="text-sm" style={{ color: '#9ca3af' }}>
               불러오는 중...
             </span>
           </div>
@@ -124,7 +138,7 @@ function FeedPageInner() {
             <button
               onClick={() => router.refresh()}
               className="text-xs px-3 py-1.5"
-              style={{ background: '#2a2d33', color: '#ffffff', borderRadius: '6px' }}
+              style={{ background: '#f3f4f6', color: '#374151', borderRadius: '6px' }}
             >
               다시 시도
             </button>
@@ -133,20 +147,14 @@ function FeedPageInner() {
 
         {!loading && !error && spots.length === 0 && (
           <div className="flex items-center justify-center py-16">
-            <span className="text-sm" style={{ color: '#888888' }}>
+            <span className="text-sm" style={{ color: '#9ca3af' }}>
               등록된 가게가 없습니다
             </span>
           </div>
         )}
 
         {!loading && !error && spots.length > 0 && (
-          <div
-            className="masonry-grid"
-            style={{
-              columns: 2,
-              columnGap: '12px',
-            }}
-          >
+          <div className="masonry-grid">
             {renderItems()}
           </div>
         )}
@@ -161,9 +169,9 @@ export default function FeedPage() {
       fallback={
         <div
           className="w-full flex items-center justify-center"
-          style={{ height: '100dvh', background: '#16191E' }}
+          style={{ height: '100dvh', background: '#ffffff' }}
         >
-          <span className="text-sm" style={{ color: '#888888' }}>
+          <span className="text-sm" style={{ color: '#9ca3af' }}>
             로딩 중...
           </span>
         </div>

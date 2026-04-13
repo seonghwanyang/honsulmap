@@ -7,57 +7,53 @@ import AdBannerInline from '@/components/AdBannerInline';
 import { Post, POST_CATEGORIES, PostCategory } from '@/lib/types';
 import { relativeTime, getCategoryLabel } from '@/lib/utils';
 
-// Inline PostItem since component may not exist yet
+const categoryBadgeStyle: Record<string, { bg: string; text: string }> = {
+  status: { bg: '#dcfce7', text: '#15803d' },
+  review: { bg: '#dbeafe', text: '#1d4ed8' },
+  tip: { bg: '#fef3c7', text: '#92400e' },
+  free: { bg: '#f3f4f6', text: '#4b5563' },
+};
+
 function PostItem({ post }: { post: Post }) {
+  const style = categoryBadgeStyle[post.category] || categoryBadgeStyle.free;
+
   return (
     <Link href={`/post/${post.id}`} className="block">
       <div
-        className="px-4 py-3"
-        style={{ borderBottom: '1px solid #2a2d33' }}
+        className="px-4 py-3.5"
+        style={{ borderBottom: '1px solid #f3f4f6' }}
       >
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-1.5">
           <span
             className="text-xs px-2 py-0.5 font-medium"
             style={{
-              background:
-                post.category === 'status'
-                  ? '#14532d'
-                  : post.category === 'review'
-                  ? '#1e3a5f'
-                  : post.category === 'tip'
-                  ? '#3b2a00'
-                  : '#2a2d33',
-              color:
-                post.category === 'status'
-                  ? '#4ade80'
-                  : post.category === 'review'
-                  ? '#60a5fa'
-                  : post.category === 'tip'
-                  ? '#fbbf24'
-                  : '#aaaaaa',
+              background: style.bg,
+              color: style.text,
               borderRadius: '4px',
             }}
           >
             {getCategoryLabel(post.category)}
           </span>
           {post.spot && (
-            <span className="text-xs truncate" style={{ color: '#888888' }}>
+            <span className="text-xs truncate" style={{ color: '#9ca3af' }}>
               {post.spot.name}
             </span>
           )}
         </div>
-        <p className="font-medium text-sm leading-snug line-clamp-2" style={{ color: '#ffffff' }}>
+        <p className="font-medium text-sm leading-snug line-clamp-2" style={{ color: '#111827' }}>
           {post.title}
         </p>
         <div className="flex items-center gap-3 mt-2">
-          <span className="text-xs" style={{ color: '#888888' }}>
+          <span className="text-xs font-medium" style={{ color: '#6b7280' }}>
             {post.nickname}
           </span>
-          <span className="text-xs" style={{ color: '#555555' }}>
+          <span className="text-xs" style={{ color: '#d1d5db' }}>|</span>
+          <span className="text-xs" style={{ color: '#9ca3af' }}>
             {relativeTime(post.created_at)}
           </span>
-          <span className="text-xs ml-auto" style={{ color: '#888888' }}>
-            ♥ {post.like_count} · 💬 {post.comment_count}
+          <span className="text-xs ml-auto flex items-center gap-2" style={{ color: '#9ca3af' }}>
+            <span>&#9825; {post.like_count}</span>
+            <span>&#128172; {post.comment_count}</span>
           </span>
         </div>
       </div>
@@ -84,7 +80,6 @@ function CommunityPageInner() {
       const params = new URLSearchParams();
       if (cat !== 'all') params.set('category', cat);
       router.push(`/community?${params.toString()}`);
-      // Reset state on category change
       setPosts([]);
       setOffset(0);
       setHasMore(true);
@@ -119,21 +114,17 @@ function CommunityPageInner() {
     [category, hasMore, loading],
   );
 
-  // Reset and fetch when category changes
   useEffect(() => {
     setPosts([]);
     setOffset(0);
     setHasMore(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
 
-  // Initial fetch
   useEffect(() => {
     fetchPosts(0, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
 
-  // Infinite scroll
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
     observerRef.current = new IntersectionObserver(
@@ -150,7 +141,6 @@ function CommunityPageInner() {
     return () => observerRef.current?.disconnect();
   }, [fetchPosts, hasMore, loading, offset]);
 
-  // Build list with ad slots every 5 items
   const renderPosts = () => {
     const items: React.ReactNode[] = [];
     posts.forEach((post, idx) => {
@@ -167,25 +157,71 @@ function CommunityPageInner() {
   };
 
   return (
-    <div style={{ background: '#16191E', minHeight: '100dvh', paddingBottom: '72px' }}>
+    <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
       {/* Header */}
       <header
-        className="sticky top-0 z-20 flex items-center px-4"
-        style={{ height: '52px', background: '#16191E', borderBottom: '1px solid #2a2d33' }}
+        className="sticky top-0 z-20 flex items-center justify-between px-4"
+        style={{
+          height: '56px',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid #f0f0f0',
+        }}
       >
-        <span className="font-bold text-lg" style={{ color: '#ffffff' }}>
-          커뮤니티
-        </span>
+        <div className="flex flex-col justify-center" style={{ gap: '1px' }}>
+          <span
+            className="font-bold leading-tight"
+            style={{ color: '#111827', fontSize: '17px', letterSpacing: '-0.3px' }}
+          >
+            커뮤니티
+          </span>
+          <span
+            className="leading-tight"
+            style={{ color: '#b0b8c1', fontSize: '11px', letterSpacing: '0.1px' }}
+          >
+            자유롭게 이야기해요
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="w-9 h-9 flex items-center justify-center" style={{ color: '#9ca3af' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+          <Link
+            href="/write"
+            className="flex items-center gap-1.5"
+            style={{
+              padding: '6px 12px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: '#4b5563',
+              border: '1px solid #d1d5db',
+              borderRadius: '7px',
+              background: '#ffffff',
+              letterSpacing: '-0.1px',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            글쓰기
+          </Link>
+        </div>
       </header>
 
       {/* Category filter chips */}
       <div
-        className="sticky z-10 flex gap-2 overflow-x-auto px-3 py-2"
+        className="sticky z-10 flex overflow-x-auto hide-scrollbar"
         style={{
-          top: '52px',
-          background: '#16191E',
-          borderBottom: '1px solid #2a2d33',
-          scrollbarWidth: 'none',
+          top: '56px',
+          gap: '7px',
+          padding: '9px 16px 10px',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(8px)',
+          borderBottom: '1px solid #f0f0f0',
         }}
       >
         {POST_CATEGORIES.map((cat) => {
@@ -194,13 +230,18 @@ function CommunityPageInner() {
             <button
               key={cat.value}
               onClick={() => handleCategoryChange(cat.value as PostCategory | 'all')}
-              className="flex-shrink-0 px-3 py-1 text-sm font-medium transition-colors"
+              className="flex-shrink-0 transition-colors"
               style={{
+                padding: '5px 14px',
+                fontSize: '13px',
+                fontWeight: isSelected ? 600 : 400,
+                letterSpacing: '-0.1px',
                 borderRadius: '999px',
-                background: isSelected ? '#F59E0B' : '#2a2d33',
-                color: isSelected ? '#111111' : '#aaaaaa',
-                border: 'none',
+                background: isSelected ? '#111827' : '#ffffff',
+                color: isSelected ? '#ffffff' : '#6b7280',
+                border: isSelected ? '1px solid #111827' : '1px solid #e5e7eb',
                 cursor: 'pointer',
+                lineHeight: '1.4',
               }}
             >
               {cat.label}
@@ -209,55 +250,35 @@ function CommunityPageInner() {
         })}
       </div>
 
-      {/* Popular Carousel placeholder */}
+      {/* Contribution Ranking Card */}
       <div
-        className="px-4 py-3"
-        style={{ borderBottom: '1px solid #2a2d33' }}
+        className="mx-4 mt-3 p-3"
+        style={{
+          background: '#f8f9fa',
+          borderRadius: '12px',
+          border: '1px solid #e5e7eb',
+        }}
       >
-        <p className="text-xs font-semibold mb-2" style={{ color: '#888888' }}>
-          인기 게시글
+        <p className="text-xs font-semibold mb-2" style={{ color: '#6b7280' }}>
+          기여 랭킹 TOP 5 · 최근 30일
         </p>
         <div
           className="flex items-center justify-center"
           style={{
-            height: '64px',
-            background: '#2a2d33',
-            borderRadius: '8px',
-            color: '#555555',
+            height: '40px',
+            color: '#9ca3af',
             fontSize: '12px',
           }}
         >
-          인기 게시글 영역
-        </div>
-      </div>
-
-      {/* Contribution Ranking placeholder */}
-      <div
-        className="px-4 py-3"
-        style={{ borderBottom: '1px solid #2a2d33' }}
-      >
-        <p className="text-xs font-semibold mb-2" style={{ color: '#888888' }}>
-          이번 주 기여자
-        </p>
-        <div
-          className="flex items-center justify-center"
-          style={{
-            height: '48px',
-            background: '#2a2d33',
-            borderRadius: '8px',
-            color: '#555555',
-            fontSize: '12px',
-          }}
-        >
-          기여자 랭킹 영역
+          랭킹 데이터 준비 중
         </div>
       </div>
 
       {/* Post list */}
-      <div>
+      <div className="mt-2">
         {!loading && !error && posts.length === 0 && (
           <div className="flex items-center justify-center py-16">
-            <span className="text-sm" style={{ color: '#888888' }}>
+            <span className="text-sm" style={{ color: '#9ca3af' }}>
               게시글이 없습니다
             </span>
           </div>
@@ -271,7 +292,7 @@ function CommunityPageInner() {
             <button
               onClick={() => fetchPosts(0, true)}
               className="text-xs px-3 py-1.5"
-              style={{ background: '#2a2d33', color: '#ffffff', borderRadius: '6px' }}
+              style={{ background: '#f3f4f6', color: '#374151', borderRadius: '6px' }}
             >
               다시 시도
             </button>
@@ -280,12 +301,11 @@ function CommunityPageInner() {
 
         {renderPosts()}
 
-        {/* Infinite scroll sentinel */}
         <div ref={sentinelRef} style={{ height: '1px' }} />
 
         {loading && (
           <div className="flex items-center justify-center py-6">
-            <span className="text-sm" style={{ color: '#888888' }}>
+            <span className="text-sm" style={{ color: '#9ca3af' }}>
               불러오는 중...
             </span>
           </div>
@@ -293,28 +313,12 @@ function CommunityPageInner() {
 
         {!hasMore && posts.length > 0 && (
           <div className="flex items-center justify-center py-4">
-            <span className="text-xs" style={{ color: '#555555' }}>
+            <span className="text-xs" style={{ color: '#d1d5db' }}>
               모든 게시글을 불러왔습니다
             </span>
           </div>
         )}
       </div>
-
-      {/* FABWrite */}
-      <Link
-        href="/write"
-        className="fixed z-30 w-14 h-14 flex items-center justify-center text-2xl shadow-xl"
-        style={{
-          bottom: '72px',
-          right: '16px',
-          background: '#F59E0B',
-          borderRadius: '50%',
-          color: '#111111',
-        }}
-        aria-label="글쓰기"
-      >
-        ✏️
-      </Link>
     </div>
   );
 }
@@ -325,9 +329,9 @@ export default function CommunityPage() {
       fallback={
         <div
           className="w-full flex items-center justify-center"
-          style={{ height: '100dvh', background: '#16191E' }}
+          style={{ height: '100dvh', background: '#ffffff' }}
         >
-          <span className="text-sm" style={{ color: '#888888' }}>
+          <span className="text-sm" style={{ color: '#9ca3af' }}>
             로딩 중...
           </span>
         </div>
