@@ -6,6 +6,8 @@ GitHub Actions에서 30분마다 실행됨
 import os
 import sys
 import time
+import base64
+import tempfile
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -36,7 +38,7 @@ def init_supabase() -> Client:
 
 
 def init_instaloader() -> instaloader.Instaloader:
-    """instaloader 인스턴스 초기화 및 로그인"""
+    """instaloader 인스턴스 초기화 — 세션 파일 우선, 없으면 로그인"""
     L = instaloader.Instaloader(
         download_pictures=False,
         download_videos=False,
@@ -49,10 +51,25 @@ def init_instaloader() -> instaloader.Instaloader:
     )
 
     username = get_env("INSTAGRAM_USERNAME")
-    password = get_env("INSTAGRAM_PASSWORD")
 
+    # 1) 세션 파일(base64)이 있으면 우선 사용
+    session_b64 = os.environ.get("INSTAGRAM_SESSION")
+    if session_b64:
+        try:
+            session_data = base64.b64decode(session_b64)
+            session_file = os.path.join(tempfile.gettempdir(), f"session-{username}")
+            with open(session_file, "wb") as f:
+                f.write(session_data)
+            L.load_session_from_file(username, session_file)
+            logger.info(f"세션 파일로 인스타그램 로그인 성공: {username}")
+            return L
+        except Exception as e:
+            logger.warning(f"세션 파일 로드 실패, 비밀번호 로그인 시도: {e}")
+
+    # 2) 세션 없으면 비밀번호 로그인
+    password = os.environ.get("INSTAGRAM_PASSWORD", "")
     try:
-        logger.info(f"인스타그램 로그인 시도: {username}")
+        logger.info(f"인스타그램 비밀번호 로그인 시도: {username}")
         L.login(username, password)
         logger.info("인스타그램 로그인 성공")
     except instaloader.exceptions.BadCredentialsException:
