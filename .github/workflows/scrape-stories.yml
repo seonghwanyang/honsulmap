@@ -1,0 +1,44 @@
+name: Scrape Instagram Stories
+
+on:
+  schedule:
+    # 30분마다 실행 (GitHub Actions 무료 2000분/월 한도 내 운영)
+    # 30분 x 48회/일 x 30일 = 720분/월
+    - cron: '*/30 * * * *'
+  # 수동 실행 가능
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    name: Scrape Stories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run scraping script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
+          INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
+        run: python scripts/scrape_stories.py
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrape-logs-${{ github.run_id }}
+          retention-days: 3
