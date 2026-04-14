@@ -82,9 +82,10 @@ def get_spots(supabase: SupabaseClient) -> list[dict]:
 
 
 def select_batch(spots: list[dict]) -> list[dict]:
-    """가장 오래 전에 스크래핑된 가게 우선"""
+    """캐시된 user_id가 있는 가게만, 오래된 순"""
+    cached = [s for s in spots if s.get("instagram_user_id")]
     return sorted(
-        spots,
+        cached,
         key=lambda s: s.get("last_scraped_at") or "2000-01-01",
     )[:BATCH_SIZE]
 
