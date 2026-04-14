@@ -18,7 +18,21 @@ from instagrapi.exceptions import (
     ChallengeRequired,
     TwoFactorRequired,
 )
+import instagrapi.mixins.auth as _auth_mixin
 from supabase import create_client, Client as SupabaseClient
+
+# instagrapi login_by_sessionid 버그 패치 (pinned_channels_info KeyError)
+_original_login_by_sessionid = _auth_mixin.LoginMixin.login_by_sessionid
+
+def _patched_login_by_sessionid(self, sessionid, *args, **kwargs):
+    try:
+        return _original_login_by_sessionid(self, sessionid, *args, **kwargs)
+    except KeyError as e:
+        if "pinned_channels_info" in str(e):
+            return True
+        raise
+
+_auth_mixin.LoginMixin.login_by_sessionid = _patched_login_by_sessionid
 
 # 로깅 설정
 logging.basicConfig(
@@ -56,29 +70,28 @@ def init_instagram() -> Client:
             session_json = base64.b64decode(session_b64).decode("utf-8")
             session_data = json.loads(session_json)
             cl.set_settings(session_data)
-            cl.login(username, get_env("INSTAGRAM_PASSWORD"))
-            logger.info(f"세션 JSON으로 인스타그램 로그인 성공: {username}")
 
-            # 로그인 확인
-            try:
-                cl.get_timeline_feed()
-                logger.info("세션 유효성 확인 완료")
+            # 세션에 저장된 쿠키로 로그인 시도
+            cookies = session_data.get("cookies", {})
+            sessionid = cookies.get("sessionid", "")
+            if sessionid:
+                cl.login_by_sessionid(sessionid)
+                logger.info(f"sessionid로 인스타그램 로그인 성공: {username}")
                 return cl
-            except LoginRequired:
-                logger.warning("세션 만료됨, 재로그인 시도")
-                old_session = cl.get_settings()
-                cl.set_settings({})
-                cl.set_uuids(old_session["uuids"])
-                cl.login(username, get_env("INSTAGRAM_PASSWORD"))
-                logger.info("재로그인 성공")
-                return cl
+
+            # sessionid 없으면 비밀번호 로그인
+            cl.login(username, get_env("INSTAGRAM_PASSWORD"))
+            logger.info(f"세션 JSON + 비밀번호로 로그인 성공: {username}")
+            return cl
+        except LoginRequired:
+            logger.warning("세션 만료됨, 비밀번호 로그인 시도")
         except Exception as e:
             logger.warning(f"세션 JSON 로드 실패: {e}")
 
     # 2) 세션 없으면 새로 로그인
     password = get_env("INSTAGRAM_PASSWORD")
     try:
-        logger.info(f"인스타그램 로그인 시도: {username}")
+        logger.info(f"인스타그램 비밀번호 로그인 시도: {username}")
         cl.login(username, password)
         logger.info("인스타그램 로그인 성공")
     except TwoFactorRequired:
