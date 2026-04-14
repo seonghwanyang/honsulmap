@@ -64,14 +64,7 @@ def make_session() -> req.Session:
         "referer": "https://www.instagram.com/",
     })
 
-    # 세션 유효성 확인
-    r = s.get(
-        f"https://i.instagram.com/api/v1/users/web_profile_info/?username={os.environ.get('INSTAGRAM_USERNAME', 'instagram')}",
-    )
-    if r.status_code != 200:
-        raise Exception(f"세션 무효: {r.status_code} {r.text[:200]}")
-
-    logger.info("Instagram 세션 유효")
+    logger.info("Instagram 세션 설정 완료")
     return s
 
 
@@ -107,6 +100,9 @@ def get_user_id(session: req.Session, supabase: SupabaseClient, spot: dict) -> s
         r = session.get(
             f"https://i.instagram.com/api/v1/users/web_profile_info/?username={ig_id}",
         )
+        if r.status_code == 429:
+            logger.warning(f"  [{ig_id}] rate limit! 중단")
+            return "RATE_LIMITED"
         if r.status_code != 200:
             logger.warning(f"  [{ig_id}] profile 조회 실패: {r.status_code}")
             return None
@@ -227,6 +223,10 @@ def main():
         logger.info(f"[{i+1}/{len(batch)}] {spot.get('name', '?')} (@{ig_id})")
 
         user_id = get_user_id(session, supabase, spot)
+        if user_id == "RATE_LIMITED":
+            logger.warning(f"  [{ig_id}] rate limit → 스킵 (캐시된 가게는 계속 처리)")
+            total_errors += 1
+            continue
         if not user_id:
             total_errors += 1
             supabase.table("spots").update(
