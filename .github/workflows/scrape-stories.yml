@@ -33,8 +33,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
-          INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
-          INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
+          IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
+          IG_CSRF_TOKEN: ${{ secrets.IG_CSRF_TOKEN }}
+          IG_DS_USER_ID: ${{ secrets.IG_DS_USER_ID }}
+          IG_DID: ${{ secrets.IG_DID }}
+          IG_MID: ${{ secrets.IG_MID }}
         run: python scripts/scrape_stories.py
 
       - name: Upload logs on failure

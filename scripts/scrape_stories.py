@@ -1,29 +1,18 @@
 """
-인스타 스토리 스크래핑 스크립트 (instagrapi 기반)
-GitHub Actions에서 30분마다 실행됨
-
-전략: user_id를 DB에 캐시하고, 한 번에 10개씩만 라운드 로빈 처리
+인스타 스토리 스크래핑 (순수 requests 기반, 브라우저 쿠키 사용)
+GitHub Actions에서 30분마다 실행
 """
 
 import os
 import sys
-import json
 import time
-import base64
 import logging
 from datetime import datetime, timezone, timedelta
+from urllib.parse import unquote
 
-from instagrapi import Client
-from instagrapi.exceptions import (
-    LoginRequired,
-    ChallengeRequired,
-    TwoFactorRequired,
-    UserNotFound,
-)
-import instagrapi.mixins.auth as _auth_mixin
+import requests as req
 from supabase import create_client, Client as SupabaseClient
 
-# 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -31,28 +20,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# instagrapi pinned_channels_info 버그 패치
-_original_login_by_sessionid = _auth_mixin.LoginMixin.login_by_sessionid
+BATCH_SIZE = int(os.environ.get("SCRAPE_BATCH_SIZE", "15"))
+DELAY_BETWEEN = float(os.environ.get("SCRAPE_DELAY", "3"))
 
-def _patched_login_by_sessionid(self, sessionid, *args, **kwargs):
-    try:
-        return _original_login_by_sessionid(self, sessionid, *args, **kwargs)
-    except KeyError as e:
-        if "pinned_channels_info" in str(e):
-            return True
-        raise
-
-_auth_mixin.LoginMixin.login_by_sessionid = _patched_login_by_sessionid
-
-# 한 번에 처리할 가게 수 (rate limit 방지)
-BATCH_SIZE = int(os.environ.get("SCRAPE_BATCH_SIZE", "10"))
-DELAY_BETWEEN = float(os.environ.get("SCRAPE_DELAY", "8"))
+IG_APP_ID = "936619743392459"
 
 
 def get_env(key: str) -> str:
     val = os.environ.get(key)
     if not val:
-        raise EnvironmentError(f"환경변수 {key} 가 설정되지 않았습니다.")
+        raise EnvironmentError(f"환경변수 {key} 미설정")
     return val
 
 
@@ -60,49 +37,45 @@ def init_supabase() -> SupabaseClient:
     return create_client(get_env("SUPABASE_URL"), get_env("SUPABASE_KEY"))
 
 
-def init_instagram() -> Client:
-    """instagrapi 클라이언트 초기화 — 세션 우선"""
-    cl = Client()
-    cl.delay_range = [3, 6]
+def make_session() -> req.Session:
+    """브라우저 쿠키로 Instagram 세션 생성"""
+    s = req.Session()
 
-    username = get_env("INSTAGRAM_USERNAME")
-    session_b64 = os.environ.get("INSTAGRAM_SESSION")
+    sessionid = unquote(get_env("IG_SESSION_ID"))
+    csrftoken = get_env("IG_CSRF_TOKEN")
+    ds_user_id = get_env("IG_DS_USER_ID")
+    ig_did = os.environ.get("IG_DID", "")
+    mid = os.environ.get("IG_MID", "")
 
-    if session_b64:
-        try:
-            session_json = base64.b64decode(session_b64).decode("utf-8")
-            session_data = json.loads(session_json)
-            cl.set_settings(session_data)
+    s.cookies.update({
+        "sessionid": sessionid,
+        "csrftoken": csrftoken,
+        "ds_user_id": ds_user_id,
+        "ig_did": ig_did,
+        "mid": mid,
+    })
 
-            cookies = session_data.get("cookies", {})
-            sessionid = cookies.get("sessionid", "")
-            if sessionid:
-                cl.login_by_sessionid(sessionid)
-                logger.info(f"sessionid로 로그인 성공: {username}")
-                return cl
+    s.headers.update({
+        "x-ig-app-id": IG_APP_ID,
+        "x-asbd-id": "359341",
+        "x-csrftoken": csrftoken,
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+        "origin": "https://www.instagram.com",
+        "referer": "https://www.instagram.com/",
+    })
 
-            cl.login(username, get_env("INSTAGRAM_PASSWORD"))
-            logger.info(f"세션+비밀번호 로그인 성공: {username}")
-            return cl
-        except Exception as e:
-            logger.warning(f"세션 로드 실패: {e}")
+    # 세션 유효성 확인
+    r = s.get(
+        f"https://i.instagram.com/api/v1/users/web_profile_info/?username={os.environ.get('INSTAGRAM_USERNAME', 'instagram')}",
+    )
+    if r.status_code != 200:
+        raise Exception(f"세션 무효: {r.status_code} {r.text[:200]}")
 
-    password = get_env("INSTAGRAM_PASSWORD")
-    try:
-        cl.login(username, password)
-        logger.info("비밀번호 로그인 성공")
-    except (TwoFactorRequired, ChallengeRequired) as e:
-        logger.error(f"로그인 차단: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"로그인 오류: {e}")
-        raise
-
-    return cl
+    logger.info("Instagram 세션 유효")
+    return s
 
 
-def get_spots_with_instagram(supabase: SupabaseClient) -> list[dict]:
-    """instagram_id가 있는 가게 목록 조회 (instagram_user_id 포함)"""
+def get_spots(supabase: SupabaseClient) -> list[dict]:
     response = (
         supabase.table("spots")
         .select("id, name, instagram_id, instagram_user_id, last_scraped_at")
@@ -111,82 +84,99 @@ def get_spots_with_instagram(supabase: SupabaseClient) -> list[dict]:
         .execute()
     )
     spots = response.data or []
-    logger.info(f"instagram_id 있는 가게 수: {len(spots)}")
+    logger.info(f"가게 수: {len(spots)}")
     return spots
 
 
-def select_batch(spots: list[dict], batch_size: int) -> list[dict]:
-    """가장 오래전에 스크래핑된 가게 우선 선택 (라운드 로빈)"""
-    sorted_spots = sorted(
+def select_batch(spots: list[dict]) -> list[dict]:
+    """가장 오래 전에 스크래핑된 가게 우선"""
+    return sorted(
         spots,
         key=lambda s: s.get("last_scraped_at") or "2000-01-01",
-    )
-    return sorted_spots[:batch_size]
+    )[:BATCH_SIZE]
 
 
-def resolve_user_id(cl: Client, supabase: SupabaseClient, spot: dict) -> int | None:
-    """username → user_id 변환 (DB 캐시 사용)"""
-    # DB에 이미 있으면 바로 사용
-    cached_id = spot.get("instagram_user_id")
-    if cached_id:
-        return int(cached_id)
+def get_user_id(session: req.Session, supabase: SupabaseClient, spot: dict) -> str | None:
+    """username → user_id (DB 캐시)"""
+    cached = spot.get("instagram_user_id")
+    if cached:
+        return cached
 
-    # 없으면 API 조회 후 DB에 저장
-    instagram_id = spot["instagram_id"]
+    ig_id = spot["instagram_id"]
     try:
-        user_id = cl.user_id_from_username(instagram_id)
-        # DB에 캐시
+        r = session.get(
+            f"https://i.instagram.com/api/v1/users/web_profile_info/?username={ig_id}",
+        )
+        if r.status_code != 200:
+            logger.warning(f"  [{ig_id}] profile 조회 실패: {r.status_code}")
+            return None
+
+        user_id = r.json()["data"]["user"]["id"]
         supabase.table("spots").update(
             {"instagram_user_id": str(user_id)}
         ).eq("id", spot["id"]).execute()
-        logger.info(f"  [{instagram_id}] user_id 캐시: {user_id}")
-        return int(user_id)
-    except UserNotFound:
-        logger.warning(f"  [{instagram_id}] 프로필 없음")
-        return None
+        logger.info(f"  [{ig_id}] user_id 캐시: {user_id}")
+        return str(user_id)
     except Exception as e:
-        logger.warning(f"  [{instagram_id}] user_id 조회 실패: {e}")
+        logger.warning(f"  [{ig_id}] user_id 조회 실패: {e}")
         return None
 
 
-def fetch_stories(cl: Client, user_id: int, instagram_id: str) -> list[dict]:
-    """user_id로 스토리 직접 조회"""
-    stories_data = []
+def fetch_stories(session: req.Session, user_id: str, ig_id: str) -> list[dict]:
+    """user_id로 스토리 조회"""
+    stories = []
     try:
-        stories = cl.user_stories(user_id)
-        for item in stories:
-            now = datetime.now(timezone.utc)
-            posted_at = item.taken_at
-            if posted_at.tzinfo is None:
-                posted_at = posted_at.replace(tzinfo=timezone.utc)
-            expires_at = posted_at + timedelta(hours=24)
+        r = session.get(
+            f"https://i.instagram.com/api/v1/feed/reels_media/?reel_ids={user_id}",
+        )
+        if r.status_code != 200:
+            logger.warning(f"  [{ig_id}] stories 조회 실패: {r.status_code}")
+            return stories
+
+        data = r.json()
+        reels = data.get("reels", {})
+        items = reels.get(user_id, {}).get("items", [])
+
+        now = datetime.now(timezone.utc)
+
+        for item in items:
+            taken_at = datetime.fromtimestamp(item["taken_at"], tz=timezone.utc)
+            expires_at = taken_at + timedelta(hours=24)
 
             if now > expires_at:
                 continue
 
-            media_url = str(item.video_url or item.thumbnail_url)
+            if "video_versions" in item:
+                media_url = item["video_versions"][0]["url"]
+                media_type = "video"
+                thumbnail_url = item.get("image_versions2", {}).get("candidates", [{}])[0].get("url")
+            else:
+                candidates = item.get("image_versions2", {}).get("candidates", [])
+                media_url = candidates[0]["url"] if candidates else None
+                media_type = "image"
+                thumbnail_url = None
+
             if not media_url:
                 continue
 
-            stories_data.append({
-                "instagram_id": instagram_id,
+            stories.append({
+                "instagram_id": ig_id,
                 "media_url": media_url,
-                "media_type": "video" if item.video_url else "image",
-                "thumbnail_url": str(item.thumbnail_url) if item.thumbnail_url else None,
-                "posted_at": posted_at.isoformat(),
+                "media_type": media_type,
+                "thumbnail_url": thumbnail_url,
+                "posted_at": taken_at.isoformat(),
                 "expires_at": expires_at.isoformat(),
                 "scraped_at": now.isoformat(),
             })
-        logger.info(f"  [{instagram_id}] 스토리 {len(stories_data)}개")
+
+        logger.info(f"  [{ig_id}] 스토리 {len(stories)}개")
     except Exception as e:
-        logger.warning(f"  [{instagram_id}] 스토리 수집 실패: {type(e).__name__}: {e}")
-    return stories_data
+        logger.warning(f"  [{ig_id}] 실패: {e}")
+
+    return stories
 
 
 def upsert_stories(supabase: SupabaseClient, spot_id: str, stories: list[dict]) -> int:
-    """스토리를 Supabase에 upsert"""
-    if not stories:
-        return 0
     saved = 0
     for story in stories:
         try:
@@ -200,76 +190,64 @@ def upsert_stories(supabase: SupabaseClient, spot_id: str, stories: list[dict]) 
     return saved
 
 
-def delete_expired_stories(supabase: SupabaseClient) -> int:
+def delete_expired(supabase: SupabaseClient):
     try:
         now = datetime.now(timezone.utc).isoformat()
-        response = supabase.table("stories").delete().lt("expires_at", now).execute()
-        deleted = len(response.data) if response.data else 0
-        if deleted > 0:
+        r = supabase.table("stories").delete().lt("expires_at", now).execute()
+        deleted = len(r.data) if r.data else 0
+        if deleted:
             logger.info(f"만료 스토리 {deleted}개 삭제")
-        return deleted
     except Exception as e:
-        logger.error(f"만료 스토리 삭제 실패: {e}")
-        return 0
+        logger.error(f"만료 삭제 실패: {e}")
 
 
 def main():
     logger.info("=" * 50)
-    logger.info(f"인스타 스토리 스크래핑 (배치: {BATCH_SIZE}개, 딜레이: {DELAY_BETWEEN}초)")
-    logger.info(f"실행 시각: {datetime.now(timezone.utc).isoformat()}")
+    logger.info(f"인스타 스토리 스크래핑 (배치 {BATCH_SIZE}, 딜레이 {DELAY_BETWEEN}s)")
     logger.info("=" * 50)
 
     supabase = init_supabase()
-    cl = init_instagram()
+    session = make_session()
 
-    # 만료 스토리 정리
-    delete_expired_stories(supabase)
+    delete_expired(supabase)
 
-    # 가게 목록
-    all_spots = get_spots_with_instagram(supabase)
+    all_spots = get_spots(supabase)
     if not all_spots:
-        logger.info("인스타 계정 등록된 가게 없음. 종료.")
+        logger.info("가게 없음")
         return
 
-    # 라운드 로빈: 가장 오래된 것부터 BATCH_SIZE개만 처리
-    batch = select_batch(all_spots, BATCH_SIZE)
-    logger.info(f"이번 배치: {len(batch)}개 처리")
+    batch = select_batch(all_spots)
+    logger.info(f"이번 배치: {len(batch)}개")
 
     total_stories = 0
     total_errors = 0
 
     for i, spot in enumerate(batch):
-        spot_id = spot["id"]
-        instagram_id = spot["instagram_id"]
-        logger.info(f"[{i+1}/{len(batch)}] {spot.get('name', '?')} (@{instagram_id})")
+        ig_id = spot["instagram_id"]
+        logger.info(f"[{i+1}/{len(batch)}] {spot.get('name', '?')} (@{ig_id})")
 
-        # user_id 조회 (캐시 사용)
-        user_id = resolve_user_id(cl, supabase, spot)
+        user_id = get_user_id(session, supabase, spot)
         if not user_id:
             total_errors += 1
-            # last_scraped_at 업데이트 (다음 라운드에서 건너뛰기 방지)
             supabase.table("spots").update(
                 {"last_scraped_at": datetime.now(timezone.utc).isoformat()}
-            ).eq("id", spot_id).execute()
+            ).eq("id", spot["id"]).execute()
             continue
 
-        # 스토리 수집
-        stories = fetch_stories(cl, user_id, instagram_id)
+        stories = fetch_stories(session, user_id, ig_id)
         if stories:
-            saved = upsert_stories(supabase, spot_id, stories)
+            saved = upsert_stories(supabase, spot["id"], stories)
             total_stories += saved
 
-        # last_scraped_at 업데이트
         supabase.table("spots").update(
             {"last_scraped_at": datetime.now(timezone.utc).isoformat()}
-        ).eq("id", spot_id).execute()
+        ).eq("id", spot["id"]).execute()
 
-        # 다음 가게 전 대기 (마지막 제외)
         if i < len(batch) - 1:
             time.sleep(DELAY_BETWEEN)
 
     logger.info("=" * 50)
-    logger.info(f"완료: {len(batch)}개 처리, {total_stories}개 스토리 저장, {total_errors}개 에러")
+    logger.info(f"완료: {len(batch)}개 처리, {total_stories}개 저장, {total_errors}개 에러")
     logger.info("=" * 50)
 
 
