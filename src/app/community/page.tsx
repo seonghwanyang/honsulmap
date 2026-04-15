@@ -159,31 +159,17 @@ function CommunityPageInner() {
   return (
     <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
       {/* Header */}
-      <header
-        className="sticky top-0 z-20 flex items-center justify-between px-4"
-        style={{
-          height: '56px',
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid #f0f0f0',
-        }}
-      >
-        <div className="flex flex-col justify-center" style={{ gap: '1px' }}>
-          <span
-            className="font-bold leading-tight"
-            style={{ color: '#111827', fontSize: '17px', letterSpacing: '-0.3px' }}
-          >
+      <header className="sticky top-0 z-20 flex items-center justify-between px-4 h-14 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
+        <div className="flex flex-col justify-center gap-px">
+          <span className="font-bold leading-tight text-[17px] tracking-[-0.3px] text-[#111827]">
             커뮤니티
           </span>
-          <span
-            className="leading-tight"
-            style={{ color: '#b0b8c1', fontSize: '11px', letterSpacing: '0.1px' }}
-          >
+          <span className="leading-tight text-[11px] tracking-[0.1px] text-[#888888]">
             자유롭게 이야기해요
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button className="w-9 h-9 flex items-center justify-center" style={{ color: '#9ca3af' }}>
+          <button className="w-9 h-9 flex items-center justify-center text-gray-400">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -191,19 +177,9 @@ function CommunityPageInner() {
           </button>
           <Link
             href="/write"
-            className="flex items-center gap-1.5"
-            style={{
-              padding: '6px 12px',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: '#4b5563',
-              border: '1px solid #d1d5db',
-              borderRadius: '7px',
-              background: '#ffffff',
-              letterSpacing: '-0.1px',
-            }}
+            className="flex items-center gap-1.5 border border-gray-300 text-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white no-underline"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
@@ -213,36 +189,18 @@ function CommunityPageInner() {
       </header>
 
       {/* Category filter chips */}
-      <div
-        className="sticky z-10 flex overflow-x-auto hide-scrollbar"
-        style={{
-          top: '56px',
-          gap: '7px',
-          padding: '9px 16px 10px',
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(8px)',
-          borderBottom: '1px solid #f0f0f0',
-        }}
-      >
+      <div className="sticky top-14 z-10 flex overflow-x-auto hide-scrollbar gap-[7px] px-4 py-[9px] bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
         {POST_CATEGORIES.map((cat) => {
           const isSelected = category === cat.value;
           return (
             <button
               key={cat.value}
               onClick={() => handleCategoryChange(cat.value as PostCategory | 'all')}
-              className="flex-shrink-0 transition-colors"
-              style={{
-                padding: '5px 14px',
-                fontSize: '13px',
-                fontWeight: isSelected ? 600 : 400,
-                letterSpacing: '-0.1px',
-                borderRadius: '999px',
-                background: isSelected ? '#111827' : '#ffffff',
-                color: isSelected ? '#ffffff' : '#6b7280',
-                border: isSelected ? '1px solid #111827' : '1px solid #e5e7eb',
-                cursor: 'pointer',
-                lineHeight: '1.4',
-              }}
+              className={`flex-shrink-0 rounded-full py-[5px] px-[14px] text-[13px] leading-[1.4] tracking-[-0.1px] transition-colors cursor-pointer ${
+                isSelected
+                  ? 'bg-[#111827] text-white font-semibold border border-[#111827]'
+                  : 'bg-white text-gray-500 font-normal border border-gray-200'
+              }`}
             >
               {cat.label}
             </button>

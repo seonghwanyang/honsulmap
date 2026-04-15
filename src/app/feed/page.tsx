@@ -87,36 +87,19 @@ function FeedPageInner() {
   return (
     <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
       {/* Header */}
-      <header
-        className="sticky top-0 z-20 flex items-center px-4"
-        style={{
-          height: '56px',
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid #f0f0f0',
-        }}
-      >
-        <div className="flex flex-col justify-center" style={{ gap: '1px' }}>
-          <span
-            className="font-bold leading-tight"
-            style={{ color: '#111827', fontSize: '17px', letterSpacing: '-0.3px' }}
-          >
+      <header className="sticky top-0 z-20 flex items-center px-4 h-14 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
+        <div className="flex flex-col justify-center gap-px">
+          <span className="font-bold leading-tight text-[17px] tracking-[-0.3px] text-[#111827]">
             피드
           </span>
-          <span
-            className="leading-tight"
-            style={{ color: '#b0b8c1', fontSize: '11px', letterSpacing: '0.1px' }}
-          >
+          <span className="leading-tight text-[11px] tracking-[0.1px] text-[#888888]">
             제주 혼술바 스토리
           </span>
         </div>
       </header>
 
       {/* Region Filter */}
-      <div
-        className="sticky z-10"
-        style={{ top: '56px', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', borderBottom: '1px solid #f0f0f0' }}
-      >
+      <div className="sticky top-14 z-10 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
         <RegionFilter selected={region} onChange={handleRegionChange} />
       </div>
 
