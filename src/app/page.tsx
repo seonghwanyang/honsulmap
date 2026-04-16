@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Script from 'next/script';
 import RegionFilter from '@/components/RegionFilter';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
@@ -16,6 +17,8 @@ declare global {
         Point: new (x: number, y: number) => NaverPoint;
         Size: new (w: number, h: number) => NaverSize;
         Marker: new (opts: object) => NaverMarker;
+        jsContentLoaded?: boolean;
+        onJSContentLoaded?: (() => void) | null;
       };
     };
     __selectSpot?: (spotId: string) => void;
@@ -88,29 +91,28 @@ function MapPageInner() {
     fetchSpots();
   }, [region]);
 
-  // Load Naver Map script
-  useEffect(() => {
-    const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID;
-    if (!clientId) return;
-    if (document.getElementById('naver-map-script')) { setMapReady(true); return; }
-    const script = document.createElement('script');
-    script.id = 'naver-map-script';
-    script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`;
-    script.async = true;
-    script.onload = () => setMapReady(true);
-    document.head.appendChild(script);
-  }, []);
-
-  // Initialize map
-  useEffect(() => {
-    if (!mapReady || !mapRef.current || mapInstanceRef.current) return;
+  // Initialize map via onReady callback (called by Script component)
+  const initMap = useCallback(() => {
+    if (!mapRef.current || mapInstanceRef.current) return;
     if (!window.naver?.maps) return;
-    mapInstanceRef.current = new window.naver.maps.Map(mapRef.current, {
-      center: new window.naver.maps.LatLng(33.3617, 126.5292),
-      zoom: 10,
-      mapTypeId: 'normal',
-    });
-  }, [mapReady]);
+
+    const create = () => {
+      if (mapInstanceRef.current || !mapRef.current) return;
+      mapInstanceRef.current = new window.naver.maps.Map(mapRef.current, {
+        center: new window.naver.maps.LatLng(33.3617, 126.5292),
+        zoom: 10,
+      });
+      setMapReady(true);
+    };
+
+    if (window.naver.maps.jsContentLoaded) {
+      create();
+    } else {
+      window.naver.maps.onJSContentLoaded = create;
+      // 레이스 방지: 등록 직후 재확인
+      if (window.naver.maps.jsContentLoaded) create();
+    }
+  }, []);
 
   // Render pin markers
   useEffect(() => {
@@ -210,14 +212,24 @@ function MapPageInner() {
       </div>
 
 
-      {/* Map */}
-      <div ref={mapRef} id="map" className="absolute inset-0 z-[1]">
-        {!mapReady && (
-          <div className="w-full h-full flex items-center justify-center bg-gray-100">
-            <span className="text-sm text-gray-400">지도 로딩 중...</span>
-          </div>
-        )}
+      {/* Naver Maps Script */}
+      <Script
+        src={`https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`}
+        strategy="afterInteractive"
+        onReady={initMap}
+      />
+
+      {/* Map - wrapper keeps size when Naver SDK overrides position:relative on inner div */}
+      <div className="absolute inset-0 z-[1]">
+        <div ref={mapRef} id="map" className="w-full h-full" />
       </div>
+
+      {/* Loading overlay - separate from map div */}
+      {!mapReady && (
+        <div className="absolute inset-0 z-[2] flex items-center justify-center bg-gray-100">
+          <span className="text-sm text-gray-400">지도 로딩 중...</span>
+        </div>
+      )}
 
       {/* FAB buttons */}
       <div className="absolute z-30 flex flex-col gap-2" style={{ bottom: '100px', right: '16px' }}>

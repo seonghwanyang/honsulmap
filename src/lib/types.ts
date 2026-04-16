@@ -96,6 +96,10 @@ export interface ContributionRanking {
 
 // ===== API Request/Response Types =====
 
+export interface StoryWithSpot extends Story {
+  spot: Pick<Spot, 'name' | 'slug' | 'region' | 'category'>;
+}
+
 export interface SpotWithStories extends Spot {
   stories: Story[];
   latest_story_at: string | null;

@@ -1,20 +1,113 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import RegionFilter from '@/components/RegionFilter';
-import FeedCard from '@/components/FeedCard';
 import AdBannerInline from '@/components/AdBannerInline';
-import { SpotWithStories } from '@/lib/types';
+import { StoryWithSpot } from '@/lib/types';
+import { relativeTime, getRegionLabel } from '@/lib/utils';
+
+interface StoryGroup {
+  key: string;
+  stories: StoryWithSpot[];
+  representative: StoryWithSpot;
+}
+
+/** Group stories from same spot posted within 60s of each other */
+function groupStories(stories: StoryWithSpot[]): StoryGroup[] {
+  const groups: StoryGroup[] = [];
+  const used = new Set<string>();
+
+  for (const story of stories) {
+    if (used.has(story.id)) continue;
+
+    const batch = stories.filter((s) => {
+      if (used.has(s.id)) return false;
+      if (s.spot_id !== story.spot_id) return false;
+      const diff = Math.abs(
+        new Date(s.posted_at).getTime() - new Date(story.posted_at).getTime(),
+      );
+      return diff < 60_000; // within 60 seconds
+    });
+
+    batch.forEach((s) => used.add(s.id));
+
+    groups.push({
+      key: `${story.spot_id}-${story.posted_at}`,
+      stories: batch,
+      representative: batch[0],
+    });
+  }
+
+  return groups;
+}
+
+function StoryCard({ group }: { group: StoryGroup }) {
+  const story = group.representative;
+  const count = group.stories.length;
+  const isVideo = story.media_type === 'video';
+
+  return (
+    <Link href={`/spot/${story.spot.slug}`} className="block rounded-xl overflow-hidden bg-gray-100">
+      <div className="relative aspect-[4/5]">
+        {isVideo ? (
+          <video
+            src={story.media_url}
+            poster={story.thumbnail_url || undefined}
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img
+            src={story.thumbnail_url || story.media_url}
+            alt={story.spot.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        )}
+        {isVideo && (
+          <div className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-black/40">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+              <polygon points="5,3 19,12 5,21" />
+            </svg>
+          </div>
+        )}
+        {count > 1 && (
+          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/50 text-white text-xs font-semibold">
+            +{count}
+          </div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 p-2.5 bg-gradient-to-t from-black/60 to-transparent">
+          <p className="text-white text-sm font-semibold truncate leading-tight">
+            {story.spot.name}
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-white/70 text-xs">
+              {getRegionLabel(story.spot.region)}
+            </span>
+            <span className="text-white/40 text-xs">·</span>
+            <span className="text-white/70 text-xs">
+              {relativeTime(story.posted_at)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 function FeedPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const region = searchParams.get('region') || 'all';
 
-  const [spots, setSpots] = useState<SpotWithStories[]>([]);
+  const [stories, setStories] = useState<StoryWithSpot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const groups = useMemo(() => groupStories(stories), [stories]);
 
   const handleRegionChange = useCallback(
     (r: string) => {
@@ -30,31 +123,18 @@ function FeedPageInner() {
   );
 
   useEffect(() => {
-    const fetchSpots = async () => {
+    const fetchStories = async () => {
       setLoading(true);
       setError(null);
       try {
         const url =
-          region && region !== 'all' ? `/api/spots?region=${region}` : '/api/spots';
+          region && region !== 'all'
+            ? `/api/stories/latest?region=${region}`
+            : '/api/stories/latest';
         const res = await fetch(url);
         if (!res.ok) throw new Error(`서버 오류: ${res.status}`);
-        const data: SpotWithStories[] = await res.json();
-
-        const sorted = [...data].sort((a, b) => {
-          const aHasStory = !!a.latest_story_at;
-          const bHasStory = !!b.latest_story_at;
-          if (aHasStory && !bHasStory) return -1;
-          if (!aHasStory && bHasStory) return 1;
-          if (aHasStory && bHasStory) {
-            return (
-              new Date(b.latest_story_at!).getTime() -
-              new Date(a.latest_story_at!).getTime()
-            );
-          }
-          return a.name.localeCompare(b.name, 'ko');
-        });
-
-        setSpots(sorted);
+        const data: StoryWithSpot[] = await res.json();
+        setStories(data);
       } catch (err) {
         const msg = err instanceof Error ? err.message : '알 수 없는 오류';
         setError(msg);
@@ -62,18 +142,18 @@ function FeedPageInner() {
         setLoading(false);
       }
     };
-    fetchSpots();
+    fetchStories();
   }, [region]);
 
   const renderItems = () => {
     const items: React.ReactNode[] = [];
-    spots.forEach((spot, idx) => {
+    groups.forEach((group, idx) => {
       items.push(
-        <div key={spot.id} className="masonry-item">
-          <FeedCard spot={spot} />
+        <div key={group.key} className="masonry-item">
+          <StoryCard group={group} />
         </div>,
       );
-      if ((idx + 1) % 6 === 0 && idx < spots.length - 1) {
+      if ((idx + 1) % 6 === 0 && idx < groups.length - 1) {
         items.push(
           <div key={`ad-${idx}`} className="col-span-2 flex justify-center my-3">
             <AdBannerInline size="320x50" />
@@ -85,7 +165,7 @@ function FeedPageInner() {
   };
 
   return (
-    <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
+    <div className="bg-white min-h-dvh">
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center px-4 h-14 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
         <div className="flex flex-col justify-center gap-px">
@@ -107,39 +187,30 @@ function FeedPageInner() {
       <div className="px-4 pt-4">
         {loading && (
           <div className="flex items-center justify-center py-16">
-            <span className="text-sm" style={{ color: '#9ca3af' }}>
-              불러오는 중...
-            </span>
+            <span className="text-sm text-gray-400">불러오는 중...</span>
           </div>
         )}
 
         {error && !loading && (
           <div className="flex flex-col items-center justify-center py-16 gap-2">
-            <span className="text-sm" style={{ color: '#ef4444' }}>
-              {error}
-            </span>
+            <span className="text-sm text-red-500">{error}</span>
             <button
               onClick={() => router.refresh()}
-              className="text-xs px-3 py-1.5"
-              style={{ background: '#f3f4f6', color: '#374151', borderRadius: '6px' }}
+              className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md"
             >
               다시 시도
             </button>
           </div>
         )}
 
-        {!loading && !error && spots.length === 0 && (
+        {!loading && !error && groups.length === 0 && (
           <div className="flex items-center justify-center py-16">
-            <span className="text-sm" style={{ color: '#9ca3af' }}>
-              등록된 가게가 없습니다
-            </span>
+            <span className="text-sm text-gray-400">활성 스토리가 없습니다</span>
           </div>
         )}
 
-        {!loading && !error && spots.length > 0 && (
-          <div className="masonry-grid">
-            {renderItems()}
-          </div>
+        {!loading && !error && groups.length > 0 && (
+          <div className="masonry-grid">{renderItems()}</div>
         )}
       </div>
     </div>
@@ -150,13 +221,8 @@ export default function FeedPage() {
   return (
     <Suspense
       fallback={
-        <div
-          className="w-full flex items-center justify-center"
-          style={{ height: '100dvh', background: '#ffffff' }}
-        >
-          <span className="text-sm" style={{ color: '#9ca3af' }}>
-            로딩 중...
-          </span>
+        <div className="w-full flex items-center justify-center min-h-dvh bg-white">
+          <span className="text-sm text-gray-400">로딩 중...</span>
         </div>
       }
     >
