@@ -7,11 +7,15 @@ import os
 import sys
 import time
 import logging
+import argparse
 from datetime import datetime, timezone, timedelta
 from urllib.parse import unquote
 
+from dotenv import load_dotenv
 import requests as req
 from supabase import create_client, Client as SupabaseClient
+
+load_dotenv(".env.local")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,7 +38,9 @@ def get_env(key: str) -> str:
 
 
 def init_supabase() -> SupabaseClient:
-    return create_client(get_env("SUPABASE_URL"), get_env("SUPABASE_KEY"))
+    url = os.environ.get("SUPABASE_URL") or get_env("NEXT_PUBLIC_SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY") or get_env("SUPABASE_SERVICE_ROLE_KEY")
+    return create_client(url, key)
 
 
 def make_session() -> req.Session:
@@ -68,16 +74,18 @@ def make_session() -> req.Session:
     return s
 
 
-def get_spots(supabase: SupabaseClient) -> list[dict]:
-    response = (
+def get_spots(supabase: SupabaseClient, region: str | None = None) -> list[dict]:
+    q = (
         supabase.table("spots")
-        .select("id, name, instagram_id, instagram_user_id, last_scraped_at")
+        .select("id, name, region, instagram_id, instagram_user_id, last_scraped_at")
         .not_.is_("instagram_id", "null")
         .neq("instagram_id", "")
-        .execute()
     )
+    if region:
+        q = q.eq("region", region)
+    response = q.execute()
     spots = response.data or []
-    logger.info(f"가게 수: {len(spots)}")
+    logger.info(f"가게 수: {len(spots)}" + (f" (region={region})" if region else ""))
     return spots
 
 
@@ -157,6 +165,7 @@ def fetch_stories(session: req.Session, user_id: str, ig_id: str) -> list[dict]:
                 continue
 
             stories.append({
+                "instagram_media_id": str(item["pk"]),
                 "instagram_id": ig_id,
                 "media_url": media_url,
                 "media_type": media_type,
@@ -179,7 +188,7 @@ def upsert_stories(supabase: SupabaseClient, spot_id: str, stories: list[dict]) 
         try:
             supabase.table("stories").upsert(
                 {"spot_id": spot_id, **story},
-                on_conflict="media_url",
+                on_conflict="instagram_media_id",
             ).execute()
             saved += 1
         except Exception as e:
@@ -199,8 +208,15 @@ def delete_expired(supabase: SupabaseClient):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--region", help="Filter by region (jeju, aewol, seogwipo, east, west)")
+    parser.add_argument("--all", action="store_true", help="Process all spots (ignore BATCH_SIZE)")
+    args = parser.parse_args()
+
     logger.info("=" * 50)
     logger.info(f"인스타 스토리 스크래핑 (배치 {BATCH_SIZE}, 딜레이 {DELAY_BETWEEN}s)")
+    if args.region:
+        logger.info(f"지역 필터: {args.region}")
     logger.info("=" * 50)
 
     supabase = init_supabase()
@@ -208,12 +224,15 @@ def main():
 
     delete_expired(supabase)
 
-    all_spots = get_spots(supabase)
+    all_spots = get_spots(supabase, region=args.region)
     if not all_spots:
         logger.info("가게 없음")
         return
 
-    batch = select_batch(all_spots)
+    if args.all:
+        batch = [s for s in all_spots if s.get("instagram_user_id")]
+    else:
+        batch = select_batch(all_spots)
     logger.info(f"이번 배치: {len(batch)}개")
 
     total_stories = 0

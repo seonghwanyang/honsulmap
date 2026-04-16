@@ -17,22 +17,43 @@ declare global {
         Point: new (x: number, y: number) => NaverPoint;
         Size: new (w: number, h: number) => NaverSize;
         Marker: new (opts: object) => NaverMarker;
+        Event: {
+          addListener(target: unknown, event: string, handler: (...args: unknown[]) => void): unknown;
+          removeListener(listener: unknown): void;
+        };
         jsContentLoaded?: boolean;
         onJSContentLoaded?: (() => void) | null;
       };
     };
     __selectSpot?: (spotId: string) => void;
+    __zoomToCluster?: (lat: number, lng: number) => void;
   }
 }
 
 interface NaverMap {
   setCenter(latlng: NaverLatLng): void;
   panTo(latlng: NaverLatLng): void;
+  getZoom(): number;
+  setZoom(zoom: number, animate?: boolean): void;
+  morph(latlng: NaverLatLng, zoom: number, transitionOptions?: object): void;
 }
 interface NaverLatLng { lat(): number; lng(): number; }
 interface NaverPoint { x: number; y: number; }
 interface NaverSize { width: number; height: number; }
 interface NaverMarker { setMap(map: NaverMap | null): void; }
+
+const CLUSTER_ZOOM = 12;
+
+function clusterByGrid(spots: SpotWithStories[], zoom: number): SpotWithStories[][] {
+  const gridSize = 0.5 / Math.pow(2, Math.max(zoom - 7, 0));
+  const buckets = new Map<string, SpotWithStories[]>();
+  for (const spot of spots) {
+    const key = `${Math.floor(spot.lat / gridSize)}:${Math.floor(spot.lng / gridSize)}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key)!.push(spot);
+  }
+  return Array.from(buckets.values());
+}
 
 function MapPageInner() {
   const router = useRouter();
@@ -48,6 +69,7 @@ function MapPageInner() {
   const [selectedSpot, setSelectedSpot] = useState<SpotWithStories | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState(10);
 
   const spotsWithStories = spots.filter((s) => s.latest_story_at);
 
@@ -62,6 +84,27 @@ function MapPageInner() {
     };
     return () => { delete window.__selectSpot; };
   }, [spots]);
+
+  // Register cluster zoom handler
+  useEffect(() => {
+    window.__zoomToCluster = (lat: number, lng: number) => {
+      if (mapInstanceRef.current && window.naver?.maps) {
+        mapInstanceRef.current.morph(new window.naver.maps.LatLng(lat, lng), 13);
+      }
+    };
+    return () => { delete window.__zoomToCluster; };
+  }, []);
+
+  // Track zoom changes for clustering
+  useEffect(() => {
+    if (!mapInstanceRef.current || !window.naver?.maps) return;
+    const listener = window.naver.maps.Event.addListener(
+      mapInstanceRef.current, 'zoom_changed', (zoom: unknown) => {
+        setCurrentZoom(zoom as number);
+      }
+    );
+    return () => { window.naver.maps.Event.removeListener(listener); };
+  }, [mapReady]);
 
   const handleRegionChange = useCallback(
     (r: string) => {
@@ -114,14 +157,14 @@ function MapPageInner() {
     }
   }, []);
 
-  // Render pin markers
+  // Render markers (individual or clustered based on zoom)
   useEffect(() => {
     if (!mapInstanceRef.current || !window.naver?.maps) return;
 
     overlaysRef.current.forEach((o) => o.setMap(null));
     overlaysRef.current = [];
 
-    spots.forEach((spot) => {
+    const renderSpotMarker = (spot: SpotWithStories) => {
       const hasStory = !!spot.latest_story_at;
       const gradientBg = hasStory
         ? 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)'
@@ -140,7 +183,7 @@ function MapPageInner() {
         </div>
       `;
 
-      const marker = new window.naver.maps.Marker({
+      return new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(spot.lat, spot.lng),
         map: mapInstanceRef.current!,
         icon: {
@@ -149,9 +192,44 @@ function MapPageInner() {
           anchor: new window.naver.maps.Point(19, 47),
         },
       });
-      overlaysRef.current.push(marker);
-    });
-  }, [spots, mapReady]);
+    };
+
+    if (currentZoom >= CLUSTER_ZOOM) {
+      spots.forEach((spot) => {
+        overlaysRef.current.push(renderSpotMarker(spot));
+      });
+    } else {
+      const clusters = clusterByGrid(spots, currentZoom);
+      clusters.forEach((cluster) => {
+        if (cluster.length === 1) {
+          overlaysRef.current.push(renderSpotMarker(cluster[0]));
+        } else {
+          const avgLat = cluster.reduce((s, sp) => s + sp.lat, 0) / cluster.length;
+          const avgLng = cluster.reduce((s, sp) => s + sp.lng, 0) / cluster.length;
+          const hasStory = cluster.some((sp) => !!sp.latest_story_at);
+          const bg = hasStory ? '#dc2743' : '#6b7280';
+          const sz = Math.min(28 + cluster.length * 3, 52);
+
+          const content = `
+            <div onclick="window.__zoomToCluster && window.__zoomToCluster(${avgLat},${avgLng})"
+              style="cursor:pointer;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.25));">
+              <div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:3px solid #fff;
+                display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:${sz > 40 ? 16 : 14}px;">
+                ${cluster.length}
+              </div>
+            </div>
+          `;
+
+          const marker = new window.naver.maps.Marker({
+            position: new window.naver.maps.LatLng(avgLat, avgLng),
+            map: mapInstanceRef.current!,
+            icon: { content, size: new window.naver.maps.Size(sz, sz), anchor: new window.naver.maps.Point(sz / 2, sz / 2) },
+          });
+          overlaysRef.current.push(marker);
+        }
+      });
+    }
+  }, [spots, mapReady, currentZoom]);
 
   const handleGps = () => {
     if (!navigator.geolocation || !mapInstanceRef.current) return;

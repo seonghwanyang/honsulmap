@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import RegionFilter from '@/components/RegionFilter';
@@ -8,44 +8,7 @@ import AdBannerInline from '@/components/AdBannerInline';
 import { StoryWithSpot } from '@/lib/types';
 import { relativeTime, getRegionLabel } from '@/lib/utils';
 
-interface StoryGroup {
-  key: string;
-  stories: StoryWithSpot[];
-  representative: StoryWithSpot;
-}
-
-/** Group stories from same spot posted within 60s of each other */
-function groupStories(stories: StoryWithSpot[]): StoryGroup[] {
-  const groups: StoryGroup[] = [];
-  const used = new Set<string>();
-
-  for (const story of stories) {
-    if (used.has(story.id)) continue;
-
-    const batch = stories.filter((s) => {
-      if (used.has(s.id)) return false;
-      if (s.spot_id !== story.spot_id) return false;
-      const diff = Math.abs(
-        new Date(s.posted_at).getTime() - new Date(story.posted_at).getTime(),
-      );
-      return diff < 60_000; // within 60 seconds
-    });
-
-    batch.forEach((s) => used.add(s.id));
-
-    groups.push({
-      key: `${story.spot_id}-${story.posted_at}`,
-      stories: batch,
-      representative: batch[0],
-    });
-  }
-
-  return groups;
-}
-
-function StoryCard({ group }: { group: StoryGroup }) {
-  const story = group.representative;
-  const count = group.stories.length;
+function StoryCard({ story }: { story: StoryWithSpot }) {
   const isVideo = story.media_type === 'video';
 
   return (
@@ -72,11 +35,6 @@ function StoryCard({ group }: { group: StoryGroup }) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
               <polygon points="5,3 19,12 5,21" />
             </svg>
-          </div>
-        )}
-        {count > 1 && (
-          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/50 text-white text-xs font-semibold">
-            +{count}
           </div>
         )}
         <div className="absolute bottom-0 left-0 right-0 p-2.5 bg-gradient-to-t from-black/60 to-transparent">
@@ -106,8 +64,6 @@ function FeedPageInner() {
   const [stories, setStories] = useState<StoryWithSpot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const groups = useMemo(() => groupStories(stories), [stories]);
 
   const handleRegionChange = useCallback(
     (r: string) => {
@@ -147,13 +103,13 @@ function FeedPageInner() {
 
   const renderItems = () => {
     const items: React.ReactNode[] = [];
-    groups.forEach((group, idx) => {
+    stories.forEach((story, idx) => {
       items.push(
-        <div key={group.key} className="masonry-item">
-          <StoryCard group={group} />
+        <div key={story.id} className="masonry-item">
+          <StoryCard story={story} />
         </div>,
       );
-      if ((idx + 1) % 6 === 0 && idx < groups.length - 1) {
+      if ((idx + 1) % 6 === 0 && idx < stories.length - 1) {
         items.push(
           <div key={`ad-${idx}`} className="col-span-2 flex justify-center my-3">
             <AdBannerInline size="320x50" />
@@ -203,13 +159,13 @@ function FeedPageInner() {
           </div>
         )}
 
-        {!loading && !error && groups.length === 0 && (
+        {!loading && !error && stories.length === 0 && (
           <div className="flex items-center justify-center py-16">
             <span className="text-sm text-gray-400">활성 스토리가 없습니다</span>
           </div>
         )}
 
-        {!loading && !error && groups.length > 0 && (
+        {!loading && !error && stories.length > 0 && (
           <div className="masonry-grid">{renderItems()}</div>
         )}
       </div>

@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS stories (
   thumbnail_url TEXT,
   posted_at     TIMESTAMPTZ NOT NULL,
   expires_at    TIMESTAMPTZ NOT NULL,
-  scraped_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  scraped_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  instagram_media_id TEXT UNIQUE
 );
 
 -- posts (community board)
