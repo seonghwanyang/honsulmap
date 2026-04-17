@@ -45,7 +45,8 @@ interface NaverMarker { setMap(map: NaverMap | null): void; }
 const CLUSTER_ZOOM = 12;
 
 function clusterByGrid(spots: SpotWithStories[], zoom: number): SpotWithStories[][] {
-  const gridSize = 0.5 / Math.pow(2, Math.max(zoom - 7, 0));
+  // Larger grid at low zoom to prevent overlapping clusters
+  const gridSize = 1.2 / Math.pow(2, Math.max(zoom - 8, 0));
   const buckets = new Map<string, SpotWithStories[]>();
   for (const spot of spots) {
     const key = `${Math.floor(spot.lat / gridSize)}:${Math.floor(spot.lng / gridSize)}`;
@@ -70,6 +71,13 @@ function MapPageInner() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(10);
+  const [, setTick] = useState(0);
+
+  // Re-render every 30s to keep relative times accurate
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const spotsWithStories = spots.filter((s) => s.latest_story_at);
 
@@ -164,32 +172,56 @@ function MapPageInner() {
     overlaysRef.current.forEach((o) => o.setMap(null));
     overlaysRef.current = [];
 
+    const esc = (s: string) => s.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+
     const renderSpotMarker = (spot: SpotWithStories) => {
       const hasStory = !!spot.latest_story_at;
-      const gradientBg = hasStory
+      const sz = hasStory ? 34 : 26;
+      const iconSz = hasStory ? 16 : 12;
+      const tailW = hasStory ? 6 : 5;
+      const tailH = hasStory ? 8 : 6;
+      const glassIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSz}" height="${iconSz}" viewBox="0 0 24 24" fill="none" stroke="${hasStory ? '#fff' : '#9ca3af'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-2 10h-4L8 2z"/><path d="M12 12v6"/><path d="M9 18h6"/></svg>`;
+
+      const bg = hasStory
         ? 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)'
-        : '#d1d5db';
+        : '#fff';
+      const border = hasStory ? 'none' : '2px solid #d1d5db';
       const tailColor = hasStory ? '#dc2743' : '#d1d5db';
+      const shadow = hasStory
+        ? 'drop-shadow(0 2px 6px rgba(220,39,67,0.35))'
+        : 'drop-shadow(0 1px 3px rgba(0,0,0,0.12))';
+      const name = esc(spot.name);
+      const storyBadge = hasStory ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#dc2743;margin-left:4px;flex-shrink:0;"></span>` : '';
 
       const content = `
         <div onclick="window.__selectSpot && window.__selectSpot('${spot.id}')"
-          style="cursor:pointer;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">
-          <div style="width:38px;height:38px;border-radius:50%;background:${gradientBg};padding:${hasStory ? '3px' : '2px'};">
-            <div style="width:100%;height:100%;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;">
-              🍺
-            </div>
+          onmouseenter="this.style.transform='scale(1.18)';this.querySelector('.sp-tip').style.opacity='1';this.querySelector('.sp-tip').style.transform='translateX(-50%) translateY(0)'"
+          onmouseleave="this.style.transform='scale(1)';this.querySelector('.sp-tip').style.opacity='0';this.querySelector('.sp-tip').style.transform='translateX(-50%) translateY(4px)'"
+          onmousedown="this.style.transform='scale(0.92)'"
+          onmouseup="this.style.transform='scale(1.18)'"
+          style="cursor:pointer;display:flex;flex-direction:column;align-items:center;filter:${shadow};transition:transform 0.15s ease;transform-origin:center bottom;">
+          <div class="sp-tip" style="opacity:0;transform:translateY(4px);transition:all 0.15s ease;pointer-events:none;
+            position:absolute;bottom:${sz + tailH + 4}px;left:50%;transform:translateX(-50%) translateY(4px);white-space:nowrap;
+            background:#111827;color:#fff;font-size:11px;font-weight:500;padding:4px 8px;border-radius:6px;
+            display:flex;align-items:center;z-index:1;">
+            <span style="position:absolute;left:50%;bottom:-4px;margin-left:-4px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid #111827;"></span>
+            ${name}${storyBadge}
           </div>
-          <div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid ${tailColor};margin-top:-2px;"></div>
+          <div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};display:flex;align-items:center;justify-content:center;transition:box-shadow 0.15s ease;">
+            ${glassIcon}
+          </div>
+          <div style="width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${tailColor};margin-top:-1px;"></div>
         </div>
       `;
 
+      const totalH = sz + tailH - 1;
       return new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(spot.lat, spot.lng),
         map: mapInstanceRef.current!,
         icon: {
           content,
-          size: new window.naver.maps.Size(38, 47),
-          anchor: new window.naver.maps.Point(19, 47),
+          size: new window.naver.maps.Size(sz, totalH),
+          anchor: new window.naver.maps.Point(sz / 2, totalH),
         },
       });
     };
@@ -201,32 +233,64 @@ function MapPageInner() {
     } else {
       const clusters = clusterByGrid(spots, currentZoom);
       clusters.forEach((cluster) => {
-        if (cluster.length === 1) {
-          overlaysRef.current.push(renderSpotMarker(cluster[0]));
-        } else {
-          const avgLat = cluster.reduce((s, sp) => s + sp.lat, 0) / cluster.length;
-          const avgLng = cluster.reduce((s, sp) => s + sp.lng, 0) / cluster.length;
-          const hasStory = cluster.some((sp) => !!sp.latest_story_at);
-          const bg = hasStory ? '#dc2743' : '#6b7280';
-          const sz = Math.min(28 + cluster.length * 3, 52);
+        const avgLat = cluster.reduce((s, sp) => s + sp.lat, 0) / cluster.length;
+        const avgLng = cluster.reduce((s, sp) => s + sp.lng, 0) / cluster.length;
+        const hasStory = cluster.some((sp) => !!sp.latest_story_at);
+        const count = cluster.length;
+        const isSingle = count === 1;
 
-          const content = `
-            <div onclick="window.__zoomToCluster && window.__zoomToCluster(${avgLat},${avgLng})"
-              style="cursor:pointer;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.25));">
-              <div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:3px solid #fff;
-                display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:${sz > 40 ? 16 : 14}px;">
-                ${cluster.length}
-              </div>
+        const sz = isSingle ? 24 : Math.min(30 + count * 2, 48);
+        const tailH = isSingle ? 6 : 8;
+        const tailW = isSingle ? 5 : 6;
+        const totalH = sz + tailH - 1;
+
+        const bg = hasStory
+          ? 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)'
+          : (isSingle ? '#fff' : '#374151');
+        const border = !hasStory && isSingle ? '2px solid #d1d5db' : 'none';
+        const tailColor = hasStory ? '#dc2743' : (isSingle ? '#d1d5db' : '#374151');
+        const shadow = hasStory
+          ? 'drop-shadow(0 2px 6px rgba(220,39,67,0.3))'
+          : 'drop-shadow(0 1px 4px rgba(0,0,0,0.15))';
+
+        const inner = isSingle
+          ? `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${hasStory ? '#fff' : '#9ca3af'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-2 10h-4L8 2z"/><path d="M12 12v6"/><path d="M9 18h6"/></svg>`
+          : `<span style="color:#fff;font-weight:700;font-size:${sz > 38 ? 15 : 13}px;">${count}</span>`;
+
+        const clickFn = isSingle
+          ? `window.__selectSpot && window.__selectSpot('${cluster[0].id}')`
+          : `window.__zoomToCluster && window.__zoomToCluster(${avgLat},${avgLng})`;
+        const tipText = isSingle ? esc(cluster[0].name) : `${count}개 가게`;
+        const tipBadge = hasStory ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#dc2743;margin-left:4px;flex-shrink:0;"></span>` : '';
+
+        const content = `
+          <div onclick="${clickFn}"
+            onmouseenter="this.style.transform='scale(1.15)';this.querySelector('.cl-tip').style.opacity='1';this.querySelector('.cl-tip').style.transform='translateX(-50%) translateY(0)'"
+            onmouseleave="this.style.transform='scale(1)';this.querySelector('.cl-tip').style.opacity='0';this.querySelector('.cl-tip').style.transform='translateX(-50%) translateY(4px)'"
+            onmousedown="this.style.transform='scale(0.92)'"
+            onmouseup="this.style.transform='scale(1.15)'"
+            style="cursor:pointer;display:flex;flex-direction:column;align-items:center;filter:${shadow};transition:transform 0.15s ease;transform-origin:center bottom;">
+            <div class="cl-tip" style="opacity:0;transition:all 0.15s ease;pointer-events:none;
+              position:absolute;bottom:${totalH + 4}px;left:50%;transform:translateX(-50%) translateY(4px);white-space:nowrap;
+              background:#111827;color:#fff;font-size:11px;font-weight:500;padding:4px 8px;border-radius:6px;
+              display:flex;align-items:center;z-index:1;">
+              <span style="position:absolute;left:50%;bottom:-4px;margin-left:-4px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid #111827;"></span>
+              ${tipText}${tipBadge}
             </div>
-          `;
+            <div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};
+              display:flex;align-items:center;justify-content:center;">
+              ${inner}
+            </div>
+            <div style="width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${tailColor};margin-top:-1px;"></div>
+          </div>
+        `;
 
-          const marker = new window.naver.maps.Marker({
-            position: new window.naver.maps.LatLng(avgLat, avgLng),
-            map: mapInstanceRef.current!,
-            icon: { content, size: new window.naver.maps.Size(sz, sz), anchor: new window.naver.maps.Point(sz / 2, sz / 2) },
-          });
-          overlaysRef.current.push(marker);
-        }
+        const marker = new window.naver.maps.Marker({
+          position: new window.naver.maps.LatLng(avgLat, avgLng),
+          map: mapInstanceRef.current!,
+          icon: { content, size: new window.naver.maps.Size(sz, totalH), anchor: new window.naver.maps.Point(sz / 2, totalH) },
+        });
+        overlaysRef.current.push(marker);
       });
     }
   }, [spots, mapReady, currentZoom]);
