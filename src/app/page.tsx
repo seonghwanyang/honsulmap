@@ -176,39 +176,39 @@ function MapPageInner() {
 
     const renderSpotMarker = (spot: SpotWithStories) => {
       const hasStory = !!spot.latest_story_at;
-      const sz = hasStory ? 34 : 26;
-      const iconSz = hasStory ? 16 : 12;
-      const tailW = hasStory ? 6 : 5;
-      const tailH = hasStory ? 8 : 6;
+      const sz = hasStory ? 32 : 24;
+      const iconSz = hasStory ? 14 : 11;
+      const tailW = hasStory ? 6 : 4;
+      const tailH = hasStory ? 7 : 5;
       const glassIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSz}" height="${iconSz}" viewBox="0 0 24 24" fill="none" stroke="${hasStory ? '#fff' : '#9ca3af'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-2 10h-4L8 2z"/><path d="M12 12v6"/><path d="M9 18h6"/></svg>`;
 
-      const bg = hasStory
-        ? 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)'
-        : '#fff';
-      const border = hasStory ? 'none' : '2px solid #d1d5db';
-      const tailColor = hasStory ? '#dc2743' : '#d1d5db';
+      const bg = hasStory ? '#111827' : '#fff';
+      const border = hasStory ? 'none' : '1.5px solid #d1d5db';
+      const tailColor = hasStory ? '#111827' : '#d1d5db';
       const shadow = hasStory
-        ? 'drop-shadow(0 2px 6px rgba(220,39,67,0.35))'
-        : 'drop-shadow(0 1px 3px rgba(0,0,0,0.12))';
+        ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+        : 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))';
       const name = esc(spot.name);
-      const storyBadge = hasStory ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#dc2743;margin-left:4px;flex-shrink:0;"></span>` : '';
+      // Purple story dot matching design system
+      const storyDot = hasStory ? `<span style="position:absolute;top:-1px;right:-1px;width:8px;height:8px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>` : '';
+      const tipBadge = hasStory ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#7C3AED;margin-left:4px;flex-shrink:0;"></span>` : '';
 
       const content = `
         <div onclick="window.__selectSpot && window.__selectSpot('${spot.id}')"
-          onmouseenter="this.style.transform='scale(1.18)';this.querySelector('.sp-tip').style.opacity='1';this.querySelector('.sp-tip').style.transform='translateX(-50%) translateY(0)'"
+          onmouseenter="this.style.transform='scale(1.15)';this.querySelector('.sp-tip').style.opacity='1';this.querySelector('.sp-tip').style.transform='translateX(-50%) translateY(0)'"
           onmouseleave="this.style.transform='scale(1)';this.querySelector('.sp-tip').style.opacity='0';this.querySelector('.sp-tip').style.transform='translateX(-50%) translateY(4px)'"
-          onmousedown="this.style.transform='scale(0.92)'"
-          onmouseup="this.style.transform='scale(1.18)'"
+          onmousedown="this.style.transform='scale(0.93)'"
+          onmouseup="this.style.transform='scale(1.15)'"
           style="cursor:pointer;display:flex;flex-direction:column;align-items:center;filter:${shadow};transition:transform 0.15s ease;transform-origin:center bottom;">
-          <div class="sp-tip" style="opacity:0;transform:translateY(4px);transition:all 0.15s ease;pointer-events:none;
+          <div class="sp-tip" style="opacity:0;transition:all 0.15s ease;pointer-events:none;
             position:absolute;bottom:${sz + tailH + 4}px;left:50%;transform:translateX(-50%) translateY(4px);white-space:nowrap;
             background:#111827;color:#fff;font-size:11px;font-weight:500;padding:4px 8px;border-radius:6px;
             display:flex;align-items:center;z-index:1;">
             <span style="position:absolute;left:50%;bottom:-4px;margin-left:-4px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid #111827;"></span>
-            ${name}${storyBadge}
+            ${name}${tipBadge}
           </div>
-          <div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};display:flex;align-items:center;justify-content:center;transition:box-shadow 0.15s ease;">
-            ${glassIcon}
+          <div style="position:relative;width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};display:flex;align-items:center;justify-content:center;">
+            ${glassIcon}${storyDot}
           </div>
           <div style="width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${tailColor};margin-top:-1px;"></div>
         </div>
@@ -239,36 +239,43 @@ function MapPageInner() {
         const count = cluster.length;
         const isSingle = count === 1;
 
-        const sz = isSingle ? 24 : Math.min(30 + count * 2, 48);
-        const tailH = isSingle ? 6 : 8;
-        const tailW = isSingle ? 5 : 6;
+        const sz = isSingle ? 22 : Math.min(28 + count * 2, 44);
+        const tailH = isSingle ? 5 : 7;
+        const tailW = isSingle ? 4 : 5;
         const totalH = sz + tailH - 1;
 
-        const bg = hasStory
-          ? 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)'
-          : (isSingle ? '#fff' : '#374151');
-        const border = !hasStory && isSingle ? '2px solid #d1d5db' : 'none';
-        const tailColor = hasStory ? '#dc2743' : (isSingle ? '#d1d5db' : '#374151');
-        const shadow = hasStory
-          ? 'drop-shadow(0 2px 6px rgba(220,39,67,0.3))'
-          : 'drop-shadow(0 1px 4px rgba(0,0,0,0.15))';
+        const bg = isSingle
+          ? (hasStory ? '#111827' : '#fff')
+          : '#111827';
+        const border = !hasStory && isSingle ? '1.5px solid #d1d5db' : 'none';
+        const tailColor = isSingle
+          ? (hasStory ? '#111827' : '#d1d5db')
+          : '#111827';
+        const shadow = 'drop-shadow(0 1px 3px rgba(0,0,0,0.15))';
+
+        const storyDot = hasStory && isSingle
+          ? `<span style="position:absolute;top:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>`
+          : '';
+        const clusterStoryDot = hasStory && !isSingle
+          ? `<span style="position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#7C3AED;border:2px solid #fff;"></span>`
+          : '';
 
         const inner = isSingle
-          ? `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${hasStory ? '#fff' : '#9ca3af'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-2 10h-4L8 2z"/><path d="M12 12v6"/><path d="M9 18h6"/></svg>`
-          : `<span style="color:#fff;font-weight:700;font-size:${sz > 38 ? 15 : 13}px;">${count}</span>`;
+          ? `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${hasStory ? '#fff' : '#9ca3af'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-2 10h-4L8 2z"/><path d="M12 12v6"/><path d="M9 18h6"/></svg>`
+          : `<span style="color:#fff;font-weight:600;font-size:${sz > 36 ? 14 : 12}px;">${count}</span>`;
 
         const clickFn = isSingle
           ? `window.__selectSpot && window.__selectSpot('${cluster[0].id}')`
           : `window.__zoomToCluster && window.__zoomToCluster(${avgLat},${avgLng})`;
         const tipText = isSingle ? esc(cluster[0].name) : `${count}개 가게`;
-        const tipBadge = hasStory ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#dc2743;margin-left:4px;flex-shrink:0;"></span>` : '';
+        const tipBadge = hasStory ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#7C3AED;margin-left:4px;flex-shrink:0;"></span>` : '';
 
         const content = `
           <div onclick="${clickFn}"
-            onmouseenter="this.style.transform='scale(1.15)';this.querySelector('.cl-tip').style.opacity='1';this.querySelector('.cl-tip').style.transform='translateX(-50%) translateY(0)'"
+            onmouseenter="this.style.transform='scale(1.12)';this.querySelector('.cl-tip').style.opacity='1';this.querySelector('.cl-tip').style.transform='translateX(-50%) translateY(0)'"
             onmouseleave="this.style.transform='scale(1)';this.querySelector('.cl-tip').style.opacity='0';this.querySelector('.cl-tip').style.transform='translateX(-50%) translateY(4px)'"
-            onmousedown="this.style.transform='scale(0.92)'"
-            onmouseup="this.style.transform='scale(1.15)'"
+            onmousedown="this.style.transform='scale(0.93)'"
+            onmouseup="this.style.transform='scale(1.12)'"
             style="cursor:pointer;display:flex;flex-direction:column;align-items:center;filter:${shadow};transition:transform 0.15s ease;transform-origin:center bottom;">
             <div class="cl-tip" style="opacity:0;transition:all 0.15s ease;pointer-events:none;
               position:absolute;bottom:${totalH + 4}px;left:50%;transform:translateX(-50%) translateY(4px);white-space:nowrap;
@@ -277,9 +284,9 @@ function MapPageInner() {
               <span style="position:absolute;left:50%;bottom:-4px;margin-left:-4px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid #111827;"></span>
               ${tipText}${tipBadge}
             </div>
-            <div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};
+            <div style="position:relative;width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};
               display:flex;align-items:center;justify-content:center;">
-              ${inner}
+              ${inner}${storyDot}${clusterStoryDot}
             </div>
             <div style="width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${tailColor};margin-top:-1px;"></div>
           </div>
@@ -447,7 +454,7 @@ function MapPageInner() {
                     {spot.latest_story_at && (
                       <span
                         className="text-xs font-medium px-2 py-0.5 ml-2 flex-shrink-0"
-                        style={{ background: '#fef2f2', color: '#dc2743', borderRadius: '999px' }}
+                        style={{ background: '#EDE9FE', color: '#7C3AED', borderRadius: '999px' }}
                       >
                         스토리
                       </span>
@@ -518,7 +525,7 @@ function MapPageInner() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
-                    style={{ background: '#f3f4f6', color: '#dc2743', borderRadius: '8px', textDecoration: 'none' }}
+                    style={{ background: '#f3f4f6', color: '#374151', borderRadius: '8px', textDecoration: 'none' }}
                   >
                     인스타
                   </a>
@@ -588,28 +595,19 @@ function MapPageInner() {
                       >
                         <div
                           style={{
-                            width: 28,
-                            height: 28,
+                            width: 26,
+                            height: 26,
                             borderRadius: '50%',
-                            background: 'linear-gradient(135deg,#f09433,#dc2743,#bc1888)',
-                            padding: '1.5px',
+                            background: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             flexShrink: 0,
                           }}
                         >
-                          <div
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              borderRadius: '50%',
-                              background: '#fff',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '11px',
-                            }}
-                          >
-                            🍺
-                          </div>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M8 2h8l-2 10h-4L8 2z" /><path d="M12 12v6" /><path d="M9 18h6" />
+                          </svg>
                         </div>
                         <span className="text-xs font-semibold" style={{ color: '#fff' }}>
                           {selectedSpot.name}
