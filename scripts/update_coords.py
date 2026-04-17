@@ -43,14 +43,24 @@ def parse_coords(mapx: str, mapy: str) -> tuple[float, float]:
     return lat, lng
 
 
-def search_local(name: str) -> dict | None:
+REGION_MAP = {
+    "jeju": "제주시",
+    "aewol": "애월",
+    "seogwipo": "서귀포",
+    "east": "제주",
+    "west": "제주",
+}
+
+
+def search_local(name: str, region: str = "") -> dict | None:
     """Naver Local Search API로 가게 검색"""
+    area = REGION_MAP.get(region, "제주")
     url = "https://openapi.naver.com/v1/search/local.json"
     headers = {
         "X-Naver-Client-Id": SEARCH_CLIENT_ID,
         "X-Naver-Client-Secret": SEARCH_CLIENT_SECRET,
     }
-    params = {"query": f"{name} 제주", "display": 5}
+    params = {"query": f"{name} {area}", "display": 5}
 
     r = requests.get(url, headers=headers, params=params, timeout=10)
     if r.status_code != 200:
@@ -82,7 +92,7 @@ def extract_place_id(link: str) -> str | None:
 def main():
     supabase = init_supabase()
 
-    result = supabase.table("spots").select("id, name, region, address, lat, lng, naver_place_id").execute()
+    result = supabase.table("spots").select("id, name, region, address, lat, lng, naver_place_id").order("region, name").execute()
     spots = result.data or []
     log.info(f"총 {len(spots)}개 가게 처리 시작")
 
@@ -93,7 +103,8 @@ def main():
         name = spot["name"]
         log.info(f"[{i+1}/{len(spots)}] {name}")
 
-        item = search_local(name)
+        region = spot.get("region", "")
+        item = search_local(name, region)
         time.sleep(DELAY)
 
         if not item:
@@ -129,7 +140,10 @@ def main():
             continue
 
         place_id = extract_place_id(link)
-        log.info(f"  좌표: {lat:.6f}, {lng:.6f} (place_id: {place_id})")
+        old_lat, old_lng = spot.get("lat", 0), spot.get("lng", 0)
+        dist = ((lat - old_lat)**2 + (lng - old_lng)**2) ** 0.5
+        changed = "MOVED" if dist > 0.001 else "same"
+        log.info(f"  좌표: {lat:.6f}, {lng:.6f} (place_id: {place_id}) [{changed} from {old_lat:.4f},{old_lng:.4f}]")
 
         update_data = {
             "lat": round(lat, 6),
