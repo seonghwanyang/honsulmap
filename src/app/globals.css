@@ -42,15 +42,11 @@ main {
   padding-bottom: 80px;
 }
 
-/* Masonry grid */
+/* Feed grid - row-first order */
 .masonry-grid {
-  columns: 2;
-  column-gap: 12px;
-}
-
-.masonry-item {
-  break-inside: avoid;
-  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 /* Hide scrollbar for carousels */

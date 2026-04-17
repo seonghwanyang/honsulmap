@@ -64,6 +64,13 @@ function FeedPageInner() {
   const [stories, setStories] = useState<StoryWithSpot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+
+  // Re-render every 30s to keep relative times accurate
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleRegionChange = useCallback(
     (r: string) => {
@@ -105,7 +112,7 @@ function FeedPageInner() {
     const items: React.ReactNode[] = [];
     stories.forEach((story, idx) => {
       items.push(
-        <div key={story.id} className="masonry-item">
+        <div key={story.id} className="feed-item">
           <StoryCard story={story} />
         </div>,
       );
