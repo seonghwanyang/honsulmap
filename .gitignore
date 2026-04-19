@@ -38,3 +38,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env
+
+# sensitive
+session_b64.txt
+
+# reference images / debug artifacts
+ref/
+scripts/*.json
+scripts/*_log.txt
+scripts/debug_*.py
+scripts/test_*.py
+scripts/naver_tls_probe.py
+scripts/naver_playwright_probe.py

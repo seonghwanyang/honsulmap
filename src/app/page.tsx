@@ -183,7 +183,7 @@ function MapPageInner() {
       const glassIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSz}" height="${iconSz}" viewBox="0 0 24 24" fill="none" stroke="${hasStory ? '#fff' : '#9ca3af'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-2 10h-4L8 2z"/><path d="M12 12v6"/><path d="M9 18h6"/></svg>`;
 
       const bg = hasStory ? '#111827' : '#fff';
-      const border = hasStory ? 'none' : '1.5px solid #d1d5db';
+      const border = hasStory ? '2px solid #fff' : '1.5px solid #d1d5db';
       const tailColor = hasStory ? '#111827' : '#d1d5db';
       const shadow = hasStory
         ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
