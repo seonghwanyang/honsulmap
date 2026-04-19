@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import AdBannerInline from '@/components/AdBannerInline';
+import NativeHorizontal from '@/components/ads/NativeHorizontal';
 import { Post } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getFingerprint } from '@/lib/utils';
 
@@ -469,9 +469,9 @@ export default function PostPage() {
         </button>
       </div>
 
-      {/* Ad Banner */}
-      <div className="flex justify-center py-3">
-        <AdBannerInline size="320x100" />
+      {/* Ad Banner — horizontal native between body and comments */}
+      <div className="px-4">
+        <NativeHorizontal />
       </div>
 
       {/* Comment Section */}

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import RegionFilter from '@/components/RegionFilter';
-import AdBannerInline from '@/components/AdBannerInline';
+import NativeCard from '@/components/ads/NativeCard';
 import { StoryWithSpot } from '@/lib/types';
 import { relativeTime, getRegionLabel } from '@/lib/utils';
 
@@ -122,8 +122,8 @@ function FeedPageInner() {
       );
       if ((idx + 1) % 6 === 0 && idx < stories.length - 1) {
         items.push(
-          <div key={`ad-${idx}`} className="col-span-2 flex justify-center my-3">
-            <AdBannerInline size="320x50" />
+          <div key={`ad-${idx}`} className="feed-item">
+            <NativeCard />
           </div>,
         );
       }

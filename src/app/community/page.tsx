@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import AdBannerInline from '@/components/AdBannerInline';
+import NativeListItem from '@/components/ads/NativeListItem';
+import NativeHorizontal from '@/components/ads/NativeHorizontal';
 import { Post, POST_CATEGORIES, PostCategory } from '@/lib/types';
 import { relativeTime, getCategoryLabel } from '@/lib/utils';
 
@@ -146,9 +147,12 @@ function CommunityPageInner() {
     posts.forEach((post, idx) => {
       items.push(<PostItem key={post.id} post={post} />);
       if ((idx + 1) % 5 === 0 && idx < posts.length - 1) {
+        items.push(<NativeListItem key={`ad-${idx}`} />);
+      }
+      if ((idx + 1) === 12 && idx < posts.length - 1) {
         items.push(
-          <div key={`ad-${idx}`} className="flex justify-center py-2">
-            <AdBannerInline size="320x50" />
+          <div key={`adh-${idx}`} className="px-4">
+            <NativeHorizontal />
           </div>,
         );
       }

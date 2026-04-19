@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import BottomNav from '@/components/BottomNav';
+import SideBanner from '@/components/ads/SideBanner';
+import BottomStickyBar from '@/components/ads/BottomStickyBar';
 
 export const metadata: Metadata = {
   title: '혼술맵 - 제주도 혼술바 실시간 현황',
@@ -22,7 +24,10 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="max-w-screen-md mx-auto bg-white">
+        <SideBanner position="left" />
+        <SideBanner position="right" />
         <main>{children}</main>
+        <BottomStickyBar />
         <BottomNav />
       </body>
     </html>

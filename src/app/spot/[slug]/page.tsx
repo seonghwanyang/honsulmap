@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import AdBannerInline from '@/components/AdBannerInline';
+import NativeHorizontal from '@/components/ads/NativeHorizontal';
+import NativeCard from '@/components/ads/NativeCard';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
 
@@ -425,6 +426,11 @@ export default function SpotPage() {
         )}
       </div>
 
+      {/* Native ad — right below the map/Instagram action buttons (ref copy4) */}
+      <div className="px-4 mt-4">
+        <NativeCard />
+      </div>
+
       {/* Instagram Stories Section */}
       <div className="mt-6 px-4">
         <p className="font-semibold text-sm mb-3" style={{ color: '#111827' }}>
@@ -501,9 +507,9 @@ export default function SpotPage() {
         )}
       </div>
 
-      {/* Ad Banner */}
-      <div className="flex justify-center mt-6">
-        <AdBannerInline size="320x100" />
+      {/* Ad Banner — horizontal native between body and comments */}
+      <div className="px-4 mt-4">
+        <NativeHorizontal />
       </div>
 
       {/* Comment Section */}
