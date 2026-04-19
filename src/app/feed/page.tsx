@@ -94,12 +94,16 @@ function FeedPageInner() {
           region && region !== 'all'
             ? `/api/stories/latest?region=${region}`
             : '/api/stories/latest';
+        console.log('[FEED] fetching', url);
         const res = await fetch(url);
+        console.log('[FEED] response', { status: res.status, ok: res.ok });
         if (!res.ok) throw new Error(`서버 오류: ${res.status}`);
         const data: StoryWithSpot[] = await res.json();
+        console.log('[FEED] stories count:', data.length, data.slice(0, 2));
         setStories(data);
       } catch (err) {
         const msg = err instanceof Error ? err.message : '알 수 없는 오류';
+        console.error('[FEED] fetch failed:', msg);
         setError(msg);
       } finally {
         setLoading(false);

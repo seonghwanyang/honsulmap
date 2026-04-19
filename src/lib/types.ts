@@ -1,6 +1,6 @@
 // ===== Database Types =====
 
-export type SpotCategory = 'bar' | 'guesthouse' | 'pub' | 'wine_bar' | 'karaoke_bar';
+export type SpotCategory = 'bar' | 'guesthouse';
 export type Region = 'jeju' | 'aewol' | 'seogwipo' | 'east' | 'west';
 export type PostCategory = 'status' | 'review' | 'tip' | 'free';
 export type MediaType = 'image' | 'video';

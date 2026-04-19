@@ -144,16 +144,30 @@ function MapPageInner() {
 
   // Initialize map via onReady callback (called by Script component)
   const initMap = useCallback(() => {
+    console.log('[MAP] initMap called', {
+      clientId: process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID,
+      hasNaver: !!window.naver,
+      hasMaps: !!window.naver?.maps,
+      jsContentLoaded: window.naver?.maps?.jsContentLoaded,
+    });
     if (!mapRef.current || mapInstanceRef.current) return;
-    if (!window.naver?.maps) return;
+    if (!window.naver?.maps) {
+      console.warn('[MAP] window.naver.maps not ready, script may have failed');
+      return;
+    }
 
     const create = () => {
       if (mapInstanceRef.current || !mapRef.current) return;
-      mapInstanceRef.current = new window.naver.maps.Map(mapRef.current, {
-        center: new window.naver.maps.LatLng(33.3617, 126.5292),
-        zoom: 10,
-      });
-      setMapReady(true);
+      try {
+        mapInstanceRef.current = new window.naver.maps.Map(mapRef.current, {
+          center: new window.naver.maps.LatLng(33.3617, 126.5292),
+          zoom: 10,
+        });
+        console.log('[MAP] Map instance created');
+        setMapReady(true);
+      } catch (e) {
+        console.error('[MAP] Failed to create Map instance:', e);
+      }
     };
 
     if (window.naver.maps.jsContentLoaded) {
@@ -366,6 +380,8 @@ function MapPageInner() {
         src={`https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`}
         strategy="afterInteractive"
         onReady={initMap}
+        onLoad={() => console.log('[MAP] Script loaded')}
+        onError={(e) => console.error('[MAP] Script load error:', e)}
       />
 
       {/* Map - wrapper keeps size when Naver SDK overrides position:relative on inner div */}

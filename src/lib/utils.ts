@@ -58,9 +58,6 @@ export function getCategoryLabel(category: string): string {
     free: '자유',
     bar: '바',
     guesthouse: '게스트하우스',
-    pub: '펍',
-    wine_bar: '와인바',
-    karaoke_bar: '노래바',
   };
   return labels[category] || category;
 }

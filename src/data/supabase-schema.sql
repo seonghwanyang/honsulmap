@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS spots (
   slug            TEXT NOT NULL UNIQUE,
   instagram_id    TEXT,
   category        TEXT NOT NULL DEFAULT 'bar'
-                    CHECK (category IN ('bar', 'guesthouse', 'pub', 'wine_bar', 'karaoke_bar')),
+                    CHECK (category IN ('bar', 'guesthouse')),
   region          TEXT NOT NULL
                     CHECK (region IN ('jeju', 'aewol', 'seogwipo', 'east', 'west')),
   address         TEXT NOT NULL,
