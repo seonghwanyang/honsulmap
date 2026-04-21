@@ -97,16 +97,27 @@ async function fetchStories(userId: string, igId: string, headers: Record<string
 
 async function checkIgSession(headers: Record<string, string>) {
   // IG returns HTTP 200 with `{reels:{}}` for every reel query when the
-  // session is invalid, so silent failure is the default. Probe a known
-  // endpoint that actually requires auth to surface the real error.
+  // session is invalid, so silent failure is the default. Probe against
+  // @instagram (pk 25025320) which posts frequently enough that an alive
+  // session should always see a populated reels object.
+  const PROBE_USER_ID = '25025320';
   try {
-    const res = await fetch('https://i.instagram.com/api/v1/accounts/current_user/', { headers });
-    if (res.ok) {
-      const data = await res.json().catch(() => null);
-      return { alive: true, userId: data?.user?.pk ?? null, status: res.status };
+    const res = await fetch(
+      `https://i.instagram.com/api/v1/feed/reels_media/?reel_ids=${PROBE_USER_ID}`,
+      { headers },
+    );
+    if (!res.ok) {
+      const snippet = (await res.text().catch(() => '')).slice(0, 200);
+      return { alive: false, status: res.status, snippet };
     }
-    const snippet = (await res.text().catch(() => '')).slice(0, 200);
-    return { alive: false, status: res.status, snippet };
+    const data = await res.json().catch(() => null);
+    const reels = data?.reels || {};
+    const hasReel = Object.keys(reels).length > 0;
+    if (!hasReel) {
+      // Unauth sessions get {reels:{},status:"ok"} — treat as dead.
+      return { alive: false, status: res.status, snippet: 'empty reels (session likely expired)' };
+    }
+    return { alive: true, status: res.status };
   } catch (e) {
     return { alive: false, status: 0, error: (e as Error).message };
   }
@@ -144,6 +155,8 @@ export async function GET(request: NextRequest) {
       { status: 502 },
     );
   }
+
+  const sessionUserId: string | null = null;
 
   // Delete expired stories
   const now = new Date().toISOString();
@@ -205,6 +218,6 @@ export async function GET(request: NextRequest) {
     stories: totalStories,
     errors,
     elapsedMs,
-    sessionUserId: session.userId,
+    sessionUserId,
   });
 }
