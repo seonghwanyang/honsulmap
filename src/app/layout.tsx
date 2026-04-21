@@ -70,9 +70,10 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
   },
-  other: {
-    'naver-site-verification': process.env.NEXT_PUBLIC_NAVER_SITE_VERIFICATION ?? '',
-    'google-site-verification': process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ?? '',
+  verification: {
+    other: {
+      'naver-site-verification': 'fba5778d00734f53c694a6ecbee6631974fe7ee1',
+    },
   },
 };
 
