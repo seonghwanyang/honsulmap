@@ -68,14 +68,19 @@ export default function WritePage() {
 
   const isValid =
     nickname.trim() &&
-    password.trim() &&
+    password.length >= 4 &&
     title.trim() &&
     content.trim() &&
     (!needsSpot || spotId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid || submitting) return;
+    if (submitting) return;
+    if (password.length < 4) {
+      setError('비밀번호는 4자 이상이어야 합니다.');
+      return;
+    }
+    if (!isValid) return;
     setSubmitting(true);
     setError('');
     try {
@@ -95,7 +100,7 @@ export default function WritePage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || `등록 실패 (${res.status})`);
+        throw new Error(data.error || data.message || `등록 실패 (${res.status})`);
       }
       router.push('/community');
     } catch (err) {
@@ -145,7 +150,7 @@ export default function WritePage() {
             />
             <input
               type="password"
-              placeholder="비밀번호 (삭제용)"
+              placeholder="비밀번호 (4자 이상)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               maxLength={30}
@@ -176,9 +181,9 @@ export default function WritePage() {
                   className="px-4 py-2 text-sm font-medium"
                   style={{
                     borderRadius: '999px',
-                    background: isSelected ? '#3B82F6' : '#ffffff',
+                    background: isSelected ? '#111827' : '#ffffff',
                     color: isSelected ? '#ffffff' : '#6b7280',
-                    border: isSelected ? '1.5px solid #3B82F6' : '1.5px solid #e5e7eb',
+                    border: isSelected ? '1.5px solid #111827' : '1.5px solid #e5e7eb',
                     cursor: 'pointer',
                   }}
                 >
@@ -276,7 +281,7 @@ export default function WritePage() {
           disabled={!isValid || submitting}
           className="w-full py-3 text-base font-semibold"
           style={{
-            background: isValid && !submitting ? '#3B82F6' : '#e5e7eb',
+            background: isValid && !submitting ? '#111827' : '#e5e7eb',
             color: isValid && !submitting ? '#ffffff' : '#9ca3af',
             borderRadius: '10px',
             border: 'none',

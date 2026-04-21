@@ -60,10 +60,10 @@ function LikeButton({
       onClick={handleLike}
       className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium"
       style={{
-        background: liked ? '#EFF6FF' : '#f8f9fa',
-        color: liked ? '#3B82F6' : '#6b7280',
+        background: liked ? '#111827' : '#f8f9fa',
+        color: liked ? '#ffffff' : '#6b7280',
         borderRadius: '8px',
-        border: liked ? '1.5px solid #3B82F6' : '1.5px solid #e5e7eb',
+        border: liked ? '1.5px solid #111827' : '1.5px solid #e5e7eb',
         cursor: 'pointer',
       }}
     >
@@ -107,8 +107,12 @@ function CommentSection({ postId }: { postId: string }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nickname.trim() || !password.trim() || !content.trim()) return;
-    setSubmitting(true);
     setError('');
+    if (password.length < 4) {
+      setError('비밀번호는 4자 이상이어야 합니다.');
+      return;
+    }
+    setSubmitting(true);
     try {
       const body: Record<string, string> = { post_id: postId, nickname, password, content };
       if (replyTo) body.parent_id = replyTo;
@@ -117,7 +121,10 @@ function CommentSection({ postId }: { postId: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error('댓글 등록 실패');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `댓글 등록 실패 (${res.status})`);
+      }
       const newComment = await res.json();
       if (replyTo) {
         setComments((prev) =>
@@ -149,7 +156,7 @@ function CommentSection({ postId }: { postId: string }) {
         {replyTo && (
           <div
             className="flex items-center justify-between px-3 py-1.5 text-xs"
-            style={{ background: '#EFF6FF', borderRadius: '6px', color: '#3B82F6' }}
+            style={{ background: '#f3f4f6', borderRadius: '6px', color: '#374151' }}
           >
             <span>답글 작성 중</span>
             <button
@@ -171,7 +178,7 @@ function CommentSection({ postId }: { postId: string }) {
           />
           <input
             type="password"
-            placeholder="비밀번호"
+            placeholder="비밀번호 (4자 이상)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="flex-1 px-3 py-2 text-sm"
@@ -192,7 +199,7 @@ function CommentSection({ postId }: { postId: string }) {
           disabled={submitting || !nickname.trim() || !password.trim() || !content.trim()}
           className="self-end px-4 py-2 text-sm font-medium"
           style={{
-            background: '#3B82F6',
+            background: '#111827',
             color: '#ffffff',
             borderRadius: '8px',
             opacity: submitting || !nickname.trim() || !password.trim() || !content.trim() ? 0.4 : 1,
@@ -215,7 +222,7 @@ function CommentSection({ postId }: { postId: string }) {
               <button
                 onClick={() => setReplyTo(c.id)}
                 className="ml-auto text-xs"
-                style={{ color: '#3B82F6' }}
+                style={{ color: '#6b7280' }}
               >
                 답글
               </button>
