@@ -36,6 +36,11 @@ interface NaverMap {
   getZoom(): number;
   setZoom(zoom: number, animate?: boolean): void;
   morph(latlng: NaverLatLng, zoom: number, transitionOptions?: object): void;
+  getBounds(): NaverBounds;
+}
+interface NaverBounds {
+  getMin(): NaverLatLng;
+  getMax(): NaverLatLng;
 }
 interface NaverLatLng { lat(): number; lng(): number; }
 interface NaverPoint { x: number; y: number; }
@@ -71,6 +76,7 @@ function MapPageInner() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(10);
+  const [viewBounds, setViewBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
   const [, setTick] = useState(0);
 
   // Re-render every 30s to keep relative times accurate
@@ -103,15 +109,32 @@ function MapPageInner() {
     return () => { delete window.__zoomToCluster; };
   }, []);
 
-  // Track zoom changes for clustering
+  // Track zoom changes for clustering + bounds changes for viewport culling
   useEffect(() => {
     if (!mapInstanceRef.current || !window.naver?.maps) return;
-    const listener = window.naver.maps.Event.addListener(
-      mapInstanceRef.current, 'zoom_changed', (zoom: unknown) => {
-        setCurrentZoom(zoom as number);
-      }
+    const map = mapInstanceRef.current;
+
+    const updateBounds = () => {
+      const b = map.getBounds();
+      const min = b.getMin();
+      const max = b.getMax();
+      setViewBounds({
+        minLat: min.lat(),
+        maxLat: max.lat(),
+        minLng: min.lng(),
+        maxLng: max.lng(),
+      });
+    };
+    updateBounds();
+
+    const zoomListener = window.naver.maps.Event.addListener(
+      map, 'zoom_changed', (zoom: unknown) => setCurrentZoom(zoom as number),
     );
-    return () => { window.naver.maps.Event.removeListener(listener); };
+    const idleListener = window.naver.maps.Event.addListener(map, 'idle', updateBounds);
+    return () => {
+      window.naver.maps.Event.removeListener(zoomListener);
+      window.naver.maps.Event.removeListener(idleListener);
+    };
   }, [mapReady]);
 
   const handleRegionChange = useCallback(
@@ -240,12 +263,29 @@ function MapPageInner() {
       });
     };
 
+    // Viewport culling: only render markers within the visible map bounds
+    // (with a small padding so markers near the edge stay visible during pan).
+    // Falls back to all spots before the first bounds measurement.
+    const visibleSpots = viewBounds
+      ? (() => {
+          const padLat = (viewBounds.maxLat - viewBounds.minLat) * 0.1;
+          const padLng = (viewBounds.maxLng - viewBounds.minLng) * 0.1;
+          return spots.filter(
+            (s) =>
+              s.lat >= viewBounds.minLat - padLat &&
+              s.lat <= viewBounds.maxLat + padLat &&
+              s.lng >= viewBounds.minLng - padLng &&
+              s.lng <= viewBounds.maxLng + padLng,
+          );
+        })()
+      : spots;
+
     if (currentZoom >= CLUSTER_ZOOM) {
-      spots.forEach((spot) => {
+      visibleSpots.forEach((spot) => {
         overlaysRef.current.push(renderSpotMarker(spot));
       });
     } else {
-      const clusters = clusterByGrid(spots, currentZoom);
+      const clusters = clusterByGrid(visibleSpots, currentZoom);
       clusters.forEach((cluster) => {
         const avgLat = cluster.reduce((s, sp) => s + sp.lat, 0) / cluster.length;
         const avgLng = cluster.reduce((s, sp) => s + sp.lng, 0) / cluster.length;
@@ -314,7 +354,7 @@ function MapPageInner() {
         overlaysRef.current.push(marker);
       });
     }
-  }, [spots, mapReady, currentZoom]);
+  }, [spots, mapReady, currentZoom, viewBounds]);
 
   const handleGps = () => {
     if (!navigator.geolocation || !mapInstanceRef.current) return;
