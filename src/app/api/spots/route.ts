@@ -7,58 +7,46 @@ export async function GET(request: NextRequest) {
   const region = searchParams.get('region') as Region | null;
   const category = searchParams.get('category') as SpotCategory | null;
 
-  let query = supabase
+  const now = new Date().toISOString();
+
+  // Fetch spots and active (non-expired) stories in parallel.
+  // Pushing the expires_at filter into the DB query avoids pulling the
+  // entire stories history and filtering client-side.
+  let spotsQuery = supabase
     .from('spots')
-    .select(`
-      *,
-      stories (
-        id,
-        spot_id,
-        instagram_id,
-        media_url,
-        media_type,
-        thumbnail_url,
-        posted_at,
-        expires_at,
-        scraped_at
-      )
-    `)
+    .select('*')
     .order('created_at', { ascending: false });
+  if (region) spotsQuery = spotsQuery.eq('region', region);
+  if (category) spotsQuery = spotsQuery.eq('category', category);
 
-  if (region) {
-    query = query.eq('region', region);
+  const storiesQuery = supabase
+    .from('stories')
+    .select('id, spot_id, instagram_id, media_url, media_type, thumbnail_url, posted_at, expires_at, scraped_at')
+    .gt('expires_at', now)
+    .order('posted_at', { ascending: false });
+
+  const [spotsRes, storiesRes] = await Promise.all([spotsQuery, storiesQuery]);
+
+  if (spotsRes.error) {
+    return NextResponse.json({ error: spotsRes.error.message }, { status: 500 });
   }
-  if (category) {
-    query = query.eq('category', category);
+  if (storiesRes.error) {
+    return NextResponse.json({ error: storiesRes.error.message }, { status: 500 });
   }
 
-  const { data, error } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  const storiesBySpot = new Map<string, typeof storiesRes.data>();
+  for (const s of storiesRes.data || []) {
+    const arr = storiesBySpot.get(s.spot_id) ?? [];
+    arr.push(s);
+    storiesBySpot.set(s.spot_id, arr);
   }
 
-  // Add latest_story_at for each spot
-  const spotsWithLatestStory = (data || []).map((spot) => {
-    const stories = spot.stories || [];
-    const now = new Date().toISOString();
-    const activeStories = stories.filter(
-      (s: { expires_at: string }) => s.expires_at > now
-    );
-    const latestStoryAt =
-      activeStories.length > 0
-        ? activeStories.reduce(
-            (
-              latest: string,
-              s: { posted_at: string }
-            ) => (s.posted_at > latest ? s.posted_at : latest),
-            activeStories[0].posted_at
-          )
-        : null;
-
+  const spotsWithLatestStory = (spotsRes.data || []).map((spot) => {
+    const stories = storiesBySpot.get(spot.id) || [];
     return {
       ...spot,
-      latest_story_at: latestStoryAt,
+      stories,
+      latest_story_at: stories[0]?.posted_at ?? null,
     };
   });
 
