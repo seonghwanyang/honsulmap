@@ -1,8 +1,21 @@
+import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { StoryWithSpot } from '@/lib/types';
 import FeedClient from './FeedClient';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: '제주 혼술바 실시간 피드',
+  description:
+    '제주도 애월·서귀포·구좌 혼술바의 인스타 스토리를 실시간으로. 지금 이 시간 어떤 제주 술집이 핫한지 피드로 확인하고 위치까지 바로 안내받으세요.',
+  alternates: { canonical: '/feed' },
+  openGraph: {
+    title: '제주 혼술바 실시간 피드 | 혼술맵',
+    description: '제주도 혼술바·게스트하우스의 인스타 스토리 실시간 피드. 오늘 가장 핫한 제주 술집.',
+    url: '/feed',
+  },
+};
 
 async function getStories(region: string): Promise<StoryWithSpot[]> {
   const now = new Date().toISOString();

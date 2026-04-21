@@ -1,8 +1,21 @@
+import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { Post, PostCategory } from '@/lib/types';
 import CommunityClient from './CommunityClient';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: '제주 혼술 커뮤니티',
+  description:
+    '제주도 혼술바·게스트하우스 실시간 현황과 후기, 꿀팁을 나누는 커뮤니티. 제주 여행 혼술·게하 파티 정보 공유.',
+  alternates: { canonical: '/community' },
+  openGraph: {
+    title: '제주 혼술 커뮤니티 | 혼술맵',
+    description: '제주 혼술바 실시간 현황, 후기, 여행 꿀팁을 나누는 자유 커뮤니티.',
+    url: '/community',
+  },
+};
 
 const LIMIT = 20;
 
