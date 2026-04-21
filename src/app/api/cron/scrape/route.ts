@@ -95,15 +95,55 @@ async function fetchStories(userId: string, igId: string, headers: Record<string
   return stories;
 }
 
+async function checkIgSession(headers: Record<string, string>) {
+  // IG returns HTTP 200 with `{reels:{}}` for every reel query when the
+  // session is invalid, so silent failure is the default. Probe a known
+  // endpoint that actually requires auth to surface the real error.
+  try {
+    const res = await fetch('https://i.instagram.com/api/v1/accounts/current_user/', { headers });
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      return { alive: true, userId: data?.user?.pk ?? null, status: res.status };
+    }
+    const snippet = (await res.text().catch(() => '')).slice(0, 200);
+    return { alive: false, status: res.status, snippet };
+  } catch (e) {
+    return { alive: false, status: 0, error: (e as Error).message };
+  }
+}
+
 export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
+
   // Verify Vercel cron secret
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    console.warn('[cron/scrape] Unauthorized call', { hasHeader: !!authHeader });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Surface missing IG env early so a redeploy isn't needed to diagnose
+  const missingEnv = ['IG_SESSION_ID', 'IG_CSRF_TOKEN', 'IG_DS_USER_ID', 'SUPABASE_SERVICE_ROLE_KEY']
+    .filter((k) => !process.env[k]);
+  if (missingEnv.length) {
+    console.error('[cron/scrape] Missing env', { missing: missingEnv });
+    return NextResponse.json({ error: 'Missing env', missing: missingEnv }, { status: 500 });
   }
 
   const supabase = getSupabaseAdmin();
   const headers = igHeaders();
+
+  const session = await checkIgSession(headers);
+  console.log('[cron/scrape] session', session);
+  if (!session.alive) {
+    return NextResponse.json(
+      {
+        error: 'IG session dead — refresh IG_SESSION_ID / IG_CSRF_TOKEN / IG_DS_USER_ID cookies',
+        session,
+      },
+      { status: 502 },
+    );
+  }
 
   // Delete expired stories
   const now = new Date().toISOString();
@@ -152,9 +192,19 @@ export async function GET(request: NextRequest) {
     await new Promise((r) => setTimeout(r, 1000));
   }
 
+  const elapsedMs = Date.now() - startedAt;
+  console.log('[cron/scrape] done', {
+    processed: spots.length,
+    stories: totalStories,
+    errors,
+    elapsedMs,
+  });
+
   return NextResponse.json({
     processed: spots.length,
     stories: totalStories,
     errors,
+    elapsedMs,
+    sessionUserId: session.userId,
   });
 }
