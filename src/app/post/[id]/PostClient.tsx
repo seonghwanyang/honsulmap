@@ -178,7 +178,7 @@ function CommentSection({ postId }: { postId: string }) {
           />
           <input
             type="password"
-            placeholder="비밀번호 (4자 이상)"
+            placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="flex-1 px-3 py-2 text-sm"
@@ -193,6 +193,9 @@ function CommentSection({ postId }: { postId: string }) {
           className="w-full px-3 py-2 text-sm resize-none"
           style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
         />
+        <p className="text-xs" style={{ color: '#9ca3af' }}>
+          비밀번호는 4자 이상 · 댓글 수정·삭제할 때 쓰여요
+        </p>
         {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
         <button
           type="submit"

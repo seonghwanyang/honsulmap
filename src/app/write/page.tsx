@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { POST_CATEGORIES, PostCategory, Spot } from '@/lib/types';
 
@@ -27,11 +27,15 @@ const WRITE_CATEGORIES = POST_CATEGORIES.filter((c) => c.value !== 'all') as {
 
 const SPOT_REQUIRED_CATEGORIES: PostCategory[] = ['status', 'review'];
 
+const HELP_TEXT = '#9ca3af';
+
 export default function WritePage() {
   const router = useRouter();
 
   const [category, setCategory] = useState<PostCategory>('free');
   const [spotId, setSpotId] = useState('');
+  const [spotQuery, setSpotQuery] = useState('');
+  const [spotOpen, setSpotOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [nickname, setNickname] = useState('');
@@ -41,6 +45,7 @@ export default function WritePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const spotRef = useRef<HTMLDivElement>(null);
   const needsSpot = SPOT_REQUIRED_CATEGORIES.includes(category);
 
   const fetchSpots = useCallback(async () => {
@@ -63,26 +68,71 @@ export default function WritePage() {
   }, [needsSpot, fetchSpots]);
 
   useEffect(() => {
-    if (!needsSpot) setSpotId('');
+    if (!needsSpot) {
+      setSpotId('');
+      setSpotQuery('');
+    }
   }, [needsSpot]);
 
-  const isValid =
-    nickname.trim() &&
-    password.length >= 4 &&
-    title.trim() &&
-    content.trim() &&
-    (!needsSpot || spotId);
+  // Close combobox when clicking outside
+  useEffect(() => {
+    if (!spotOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (spotRef.current && !spotRef.current.contains(e.target as Node)) {
+        setSpotOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [spotOpen]);
+
+  const filteredSpots = useMemo(() => {
+    const q = spotQuery.trim().toLowerCase();
+    if (!q) return spots.slice(0, 15);
+    return spots.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 15);
+  }, [spots, spotQuery]);
+
+  const selectSpot = (spot: Spot) => {
+    setSpotId(spot.id);
+    setSpotQuery(spot.name);
+    setSpotOpen(false);
+  };
+
+  const onSpotInput = (v: string) => {
+    setSpotQuery(v);
+    setSpotId(''); // typing invalidates the previous selection
+    setSpotOpen(true);
+  };
+
+  const nicknameOk = nickname.trim().length >= 2 && nickname.trim().length <= 20;
+  const passwordOk = password.length >= 4;
+  const titleOk = title.trim().length >= 1 && title.trim().length <= 100;
+  const contentOk = content.trim().length >= 1 && content.trim().length <= 2000;
+  const spotOk = !needsSpot || spotId !== '' || spotQuery.trim().length >= 2;
+
+  const isValid = nicknameOk && passwordOk && titleOk && contentOk && spotOk;
+
+  const firstIssue = (): string | null => {
+    if (!nicknameOk) return '닉네임은 2~20자로 입력해주세요.';
+    if (!passwordOk) return '비밀번호는 4자 이상이어야 해요.';
+    if (needsSpot && !spotId && spotQuery.trim().length < 2) {
+      return '가게를 선택하거나 이름을 2자 이상 입력해주세요.';
+    }
+    if (!titleOk) return '제목을 1~100자로 입력해주세요.';
+    if (!contentOk) return '내용을 1~2000자로 입력해주세요.';
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
-    if (password.length < 4) {
-      setError('비밀번호는 4자 이상이어야 합니다.');
+    const issue = firstIssue();
+    if (issue) {
+      setError(issue);
       return;
     }
-    if (!isValid) return;
-    setSubmitting(true);
     setError('');
+    setSubmitting(true);
     try {
       const body: Record<string, unknown> = {
         category,
@@ -91,7 +141,11 @@ export default function WritePage() {
         nickname: nickname.trim(),
         password,
       };
-      if (spotId) body.spot_id = spotId;
+      if (spotId) {
+        body.spot_id = spotId;
+      } else if (needsSpot && spotQuery.trim()) {
+        body.spot_name = spotQuery.trim();
+      }
 
       const res = await fetch('/api/posts', {
         method: 'POST',
@@ -109,6 +163,8 @@ export default function WritePage() {
       setSubmitting(false);
     }
   };
+
+  const showFreeTextHint = needsSpot && !spotId && spotQuery.trim().length >= 2;
 
   return (
     <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
@@ -129,40 +185,41 @@ export default function WritePage() {
       </header>
 
       <form onSubmit={handleSubmit} className="px-4 pt-4 pb-24 flex flex-col gap-4">
-        {/* Nickname & Password */}
+        {/* Nickname */}
         <div>
           <label className="block text-xs font-medium mb-1.5" style={{ color: '#6b7280' }}>
-            닉네임 &amp; 비밀번호
+            닉네임
           </label>
-          <div className="flex gap-2">
-            <input
-              placeholder="닉네임"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              maxLength={20}
-              className="flex-1 px-3 py-2.5 text-sm"
-              style={{
-                background: '#f9fafb',
-                color: '#111827',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-              }}
-            />
-            <input
-              type="password"
-              placeholder="비밀번호 (4자 이상)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              maxLength={30}
-              className="flex-1 px-3 py-2.5 text-sm"
-              style={{
-                background: '#f9fafb',
-                color: '#111827',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-              }}
-            />
-          </div>
+          <input
+            placeholder="닉네임"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            maxLength={20}
+            className="w-full px-3 py-2.5 text-sm"
+            style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+          />
+          <p className="text-xs mt-1" style={{ color: HELP_TEXT }}>
+            2~20자 · 게시글 작성 시 표시됩니다
+          </p>
+        </div>
+
+        {/* Password */}
+        <div>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: '#6b7280' }}>
+            비밀번호
+          </label>
+          <input
+            type="password"
+            placeholder="비밀번호"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            maxLength={30}
+            className="w-full px-3 py-2.5 text-sm"
+            style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+          />
+          <p className="text-xs mt-1" style={{ color: HELP_TEXT }}>
+            4자 이상 · 게시글 수정·삭제할 때 사용해요
+          </p>
         </div>
 
         {/* Category */}
@@ -192,35 +249,55 @@ export default function WritePage() {
               );
             })}
           </div>
+          <p className="text-xs mt-1.5" style={{ color: HELP_TEXT }}>
+            현황·후기는 가게 정보가 필요해요. 자유·꿀팁은 없어도 됩니다.
+          </p>
         </div>
 
-        {/* Spot selector */}
+        {/* Spot combobox */}
         {needsSpot && (
-          <div>
+          <div ref={spotRef} className="relative">
             <label className="block text-xs font-medium mb-1.5" style={{ color: '#6b7280' }}>
-              가게 선택 <span style={{ color: '#ef4444' }}>*</span>
+              가게 <span style={{ color: '#ef4444' }}>*</span>
             </label>
-            <select
-              value={spotId}
-              onChange={(e) => setSpotId(e.target.value)}
+            <input
+              placeholder={spotsLoading ? '불러오는 중...' : '가게 이름으로 검색 (없으면 직접 입력)'}
+              value={spotQuery}
+              onChange={(e) => onSpotInput(e.target.value)}
+              onFocus={() => setSpotOpen(true)}
               disabled={spotsLoading}
               className="w-full px-3 py-2.5 text-sm"
-              style={{
-                background: '#f9fafb',
-                color: spotId ? '#111827' : '#9ca3af',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-              }}
-            >
-              <option value="">
-                {spotsLoading ? '불러오는 중...' : '가게를 선택하세요'}
-              </option>
-              {spots.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+            />
+            {spotOpen && filteredSpots.length > 0 && (
+              <ul
+                className="absolute z-10 left-0 right-0 mt-1 max-h-60 overflow-y-auto py-1"
+                style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
+              >
+                {filteredSpots.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => selectSpot(s)}
+                      className="w-full text-left px-3 py-2 text-sm"
+                      style={{ color: '#111827' }}
+                    >
+                      {s.name}
+                      {s.address && (
+                        <span className="block text-xs" style={{ color: '#9ca3af' }}>
+                          {s.address}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="text-xs mt-1" style={{ color: HELP_TEXT }}>
+              {showFreeTextHint
+                ? `"${spotQuery.trim()}" 이름 그대로 등록돼요 (목록에 없는 가게)`
+                : '검색해서 선택하거나, 목록에 없는 가게면 이름을 그대로 입력하세요'}
+            </p>
           </div>
         )}
 
@@ -235,13 +312,11 @@ export default function WritePage() {
             onChange={(e) => setTitle(e.target.value)}
             maxLength={100}
             className="w-full px-3 py-2.5 text-sm"
-            style={{
-              background: '#f9fafb',
-              color: '#111827',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-            }}
+            style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
           />
+          <p className="text-xs mt-1" style={{ color: HELP_TEXT }}>
+            1~100자
+          </p>
         </div>
 
         {/* Content */}
@@ -256,16 +331,16 @@ export default function WritePage() {
             rows={8}
             maxLength={2000}
             className="w-full px-3 py-2.5 text-sm resize-none"
-            style={{
-              background: '#f9fafb',
-              color: '#111827',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-            }}
+            style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
           />
-          <p className="text-right text-xs mt-1" style={{ color: '#d1d5db' }}>
-            {content.length} / 2000
-          </p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs" style={{ color: HELP_TEXT }}>
+              1~2000자
+            </p>
+            <p className="text-xs" style={{ color: '#d1d5db' }}>
+              {content.length} / 2000
+            </p>
+          </div>
         </div>
 
         {/* Error */}
@@ -278,14 +353,14 @@ export default function WritePage() {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={!isValid || submitting}
+          disabled={submitting}
           className="w-full py-3 text-base font-semibold"
           style={{
             background: isValid && !submitting ? '#111827' : '#e5e7eb',
             color: isValid && !submitting ? '#ffffff' : '#9ca3af',
             borderRadius: '10px',
             border: 'none',
-            cursor: isValid && !submitting ? 'pointer' : 'not-allowed',
+            cursor: submitting ? 'not-allowed' : 'pointer',
             transition: 'background 0.2s',
           }}
         >
