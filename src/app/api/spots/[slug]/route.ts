@@ -6,7 +6,6 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const now = new Date().toISOString();
 
   const { data: spot, error } = await supabase
     .from('spots')
@@ -18,12 +17,11 @@ export async function GET(
     return NextResponse.json({ error: '가게를 찾을 수 없습니다.' }, { status: 404 });
   }
 
-  // Fetch active stories
+  // All collected stories (not filtered by expires_at — we keep history)
   const { data: stories } = await supabase
     .from('stories')
     .select('*')
     .eq('spot_id', spot.id)
-    .gt('expires_at', now)
     .order('posted_at', { ascending: false });
 
   // Fetch comments for this spot

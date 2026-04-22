@@ -315,10 +315,9 @@ export default function SpotPage() {
     );
   }
 
-  const now = Date.now();
-  const activeStories = spot.stories
-    .filter((s: Story) => new Date(s.expires_at).getTime() > now)
-    .sort((a: Story, b: Story) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
+  const activeStories = [...spot.stories].sort(
+    (a: Story, b: Story) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime(),
+  );
 
   const naverMapUrl = spot.naver_place_id
     ? `https://map.naver.com/v5/entry/place/${spot.naver_place_id}`

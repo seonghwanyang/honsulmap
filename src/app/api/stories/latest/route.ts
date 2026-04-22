@@ -4,12 +4,10 @@ import { supabase } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const region = searchParams.get('region');
-  const now = new Date().toISOString();
 
   let query = supabase
     .from('stories')
     .select('*, spot:spots!inner(name, slug, region, category)')
-    .gt('expires_at', now)
     .order('posted_at', { ascending: false });
 
   if (region && region !== 'all') {

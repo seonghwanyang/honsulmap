@@ -158,9 +158,8 @@ export async function GET(request: NextRequest) {
 
   const sessionUserId: string | null = null;
 
-  // Delete expired stories
-  const now = new Date().toISOString();
-  await supabase.from('stories').delete().lt('expires_at', now);
+  // Stories are kept past their 24h expiry on purpose so the feed can
+  // show the full history a spot has ever posted. No cleanup here.
 
   // Get spots with cached user_id, oldest-scraped first
   const { data: spots } = await supabase

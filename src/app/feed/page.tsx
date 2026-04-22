@@ -18,11 +18,9 @@ export const metadata: Metadata = {
 };
 
 async function getStories(region: string): Promise<StoryWithSpot[]> {
-  const now = new Date().toISOString();
   let query = supabase
     .from('stories')
     .select('*, spot:spots!inner(name, slug, region, category)')
-    .gt('expires_at', now)
     .order('posted_at', { ascending: false });
   if (region && region !== 'all') {
     query = query.eq('spot.region', region);

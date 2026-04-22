@@ -7,11 +7,9 @@ export async function GET(request: NextRequest) {
   const region = searchParams.get('region') as Region | null;
   const category = searchParams.get('category') as SpotCategory | null;
 
-  const now = new Date().toISOString();
-
-  // Fetch spots and active (non-expired) stories in parallel.
-  // Pushing the expires_at filter into the DB query avoids pulling the
-  // entire stories history and filtering client-side.
+  // Fetch spots and all collected stories in parallel. Stories are kept
+  // past their 24h IG expiry on purpose so the feed can show the full
+  // history a spot has ever posted.
   let spotsQuery = supabase
     .from('spots')
     .select('*')
@@ -22,7 +20,6 @@ export async function GET(request: NextRequest) {
   const storiesQuery = supabase
     .from('stories')
     .select('id, spot_id, instagram_id, media_url, media_type, thumbnail_url, posted_at, expires_at, scraped_at')
-    .gt('expires_at', now)
     .order('posted_at', { ascending: false });
 
   const [spotsRes, storiesRes] = await Promise.all([spotsQuery, storiesQuery]);

@@ -6,7 +6,6 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const now = new Date().toISOString();
 
   // Look up spot by slug
   const { data: spot } = await supabase
@@ -23,7 +22,6 @@ export async function GET(
     .from('stories')
     .select('*')
     .eq('spot_id', spot.id)
-    .gt('expires_at', now)
     .order('posted_at', { ascending: false });
 
   if (error) {
