@@ -3,7 +3,10 @@ import { supabase } from '@/lib/supabase';
 import { StoryWithSpot } from '@/lib/types';
 import FeedClient from './FeedClient';
 
-export const dynamic = 'force-dynamic';
+// Cache the rendered page (with its DB query) for 60s. Matches the cron
+// cadence — users never see data older than 1 minute and the DB is hit
+// at most once per minute per region filter.
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: '제주 혼술바 실시간 피드',
@@ -21,7 +24,8 @@ async function getStories(region: string): Promise<StoryWithSpot[]> {
   let query = supabase
     .from('stories')
     .select('*, spot:spots!inner(name, slug, region, category)')
-    .order('posted_at', { ascending: false });
+    .order('posted_at', { ascending: false })
+    .limit(50);
   if (region && region !== 'all') {
     query = query.eq('spot.region', region);
   }

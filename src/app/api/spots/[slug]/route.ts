@@ -31,9 +31,8 @@ export async function GET(
     .eq('spot_id', spot.id)
     .order('created_at', { ascending: false });
 
-  return NextResponse.json({
-    ...spot,
-    stories: stories || [],
-    comments: comments || [],
-  });
+  return NextResponse.json(
+    { ...spot, stories: stories || [], comments: comments || [] },
+    { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } },
+  );
 }

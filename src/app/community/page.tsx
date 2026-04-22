@@ -3,7 +3,10 @@ import { supabase } from '@/lib/supabase';
 import { Post, PostCategory } from '@/lib/types';
 import CommunityClient from './CommunityClient';
 
-export const dynamic = 'force-dynamic';
+// Cache the first page of posts for 30s so the landing query doesn't
+// re-run for every visitor. Subsequent infinite-scroll loads hit
+// /api/posts directly which is also cached below.
+export const revalidate = 30;
 
 export const metadata: Metadata = {
   title: '제주 혼술 커뮤니티',
