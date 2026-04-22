@@ -53,10 +53,10 @@ function LikeButton({ targetType, targetId, initialCount }: { targetType: string
       onClick={handleLike}
       className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
       style={{
-        background: liked ? '#EFF6FF' : '#f8f9fa',
+        background: liked ? '#111827' : '#f8f9fa',
         borderRadius: '10px',
-        color: liked ? '#3B82F6' : '#6b7280',
-        border: liked ? '1.5px solid #3B82F6' : '1.5px solid #e5e7eb',
+        color: liked ? '#ffffff' : '#6b7280',
+        border: liked ? '1.5px solid #111827' : '1.5px solid #e5e7eb',
         cursor: 'pointer',
       }}
     >
@@ -158,15 +158,22 @@ function CommentSection({ spotId }: { spotId: string }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nickname.trim() || !password.trim() || !content.trim()) return;
-    setSubmitting(true);
     setError('');
+    if (password.length < 4) {
+      setError('비밀번호는 4자 이상이어야 합니다.');
+      return;
+    }
+    setSubmitting(true);
     try {
       const res = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ spot_id: spotId, nickname, password, content }),
       });
-      if (!res.ok) throw new Error('댓글 등록 실패');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `댓글 등록 실패 (${res.status})`);
+      }
       const newComment = await res.json();
       setComments((prev) => [newComment, ...prev]);
       setContent('');
@@ -209,13 +216,16 @@ function CommentSection({ spotId }: { spotId: string }) {
           className="w-full px-3 py-2 text-sm resize-none"
           style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
         />
+        <p className="text-xs" style={{ color: '#9ca3af' }}>
+          비밀번호는 4자 이상 · 댓글 수정·삭제할 때 쓰여요
+        </p>
         {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
         <button
           type="submit"
           disabled={submitting || !nickname.trim() || !password.trim() || !content.trim()}
           className="self-end px-4 py-2 text-sm font-medium"
           style={{
-            background: '#3B82F6',
+            background: '#111827',
             color: '#ffffff',
             borderRadius: '8px',
             opacity: submitting || !nickname.trim() || !password.trim() || !content.trim() ? 0.4 : 1,
@@ -305,10 +315,9 @@ export default function SpotPage() {
     );
   }
 
-  const now = Date.now();
-  const activeStories = spot.stories
-    .filter((s: Story) => new Date(s.expires_at).getTime() > now)
-    .sort((a: Story, b: Story) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
+  const activeStories = [...spot.stories].sort(
+    (a: Story, b: Story) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime(),
+  );
 
   const naverMapUrl = spot.naver_place_id
     ? `https://map.naver.com/v5/entry/place/${spot.naver_place_id}`
@@ -451,7 +460,7 @@ export default function SpotPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs px-3 py-1.5 font-medium"
-                style={{ background: '#3B82F6', color: '#ffffff', borderRadius: '6px', textDecoration: 'none' }}
+                style={{ background: '#111827', color: '#ffffff', borderRadius: '6px', textDecoration: 'none' }}
               >
                 인스타 바로가기
               </a>

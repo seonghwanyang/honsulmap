@@ -376,9 +376,9 @@ function MapPageInner() {
   };
 
   const activeStories = selectedSpot
-    ? selectedSpot.stories
-        .filter((s: Story) => new Date(s.expires_at).getTime() > Date.now())
-        .sort((a: Story, b: Story) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime())
+    ? [...selectedSpot.stories].sort(
+        (a: Story, b: Story) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime(),
+      )
     : [];
 
   const instagramUrl = selectedSpot?.instagram_id

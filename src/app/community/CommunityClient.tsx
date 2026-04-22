@@ -185,21 +185,6 @@ export default function CommunityClient({ initialPosts, category }: CommunityCli
         })}
       </div>
 
-      <div
-        className="mx-4 mt-3 p-3"
-        style={{ background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e5e7eb' }}
-      >
-        <p className="text-xs font-semibold mb-2" style={{ color: '#6b7280' }}>
-          기여 랭킹 TOP 5 · 최근 30일
-        </p>
-        <div
-          className="flex items-center justify-center"
-          style={{ height: '40px', color: '#9ca3af', fontSize: '12px' }}
-        >
-          랭킹 데이터 준비 중
-        </div>
-      </div>
-
       <div className="mt-2">
         {posts.length === 0 && !loading && !error && (
           <div className="flex items-center justify-center py-16">

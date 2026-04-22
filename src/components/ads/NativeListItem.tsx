@@ -22,7 +22,8 @@ export default function NativeListItem() {
       </div>
       <AdSlot
         unit="native"
-        style={{ border: 'none', background: 'transparent', minHeight: 60 }}
+        nativeHeight={120}
+        style={{ border: 'none', background: 'transparent' }}
       />
     </div>
   );

@@ -4,23 +4,23 @@ import { supabase } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const region = searchParams.get('region');
-  const now = new Date().toISOString();
 
   let query = supabase
     .from('stories')
     .select('*, spot:spots!inner(name, slug, region, category)')
-    .gt('expires_at', now)
     .order('posted_at', { ascending: false });
 
   if (region && region !== 'all') {
     query = query.eq('spot.region', region);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await query.limit(50);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data || []);
+  return NextResponse.json(data || [], {
+    headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' },
+  });
 }

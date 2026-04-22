@@ -38,7 +38,7 @@ export default function PrivacyPage() {
 
         <Section title="1. 서비스 소개">
           <p>
-            <strong style={{ color: '#3B82F6' }}>혼술맵</strong>은 제주도 혼술바 및
+            <strong style={{ color: '#111827' }}>혼술맵</strong>은 제주도 혼술바 및
             게스트하우스의 인스타그램 스토리를 모아보고, 실시간 현황을 공유하는
             서비스입니다. 본 방침은 혼술맵(이하 &quot;서비스&quot;)이 수집하는 개인정보와
             그 처리 방법을 안내합니다.
@@ -100,7 +100,7 @@ export default function PrivacyPage() {
               href="https://supabase.com/privacy"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: '#3B82F6', textDecoration: 'underline' }}
+              style={{ color: '#111827', textDecoration: 'underline' }}
             >
               https://supabase.com/privacy
             </a>
@@ -117,7 +117,7 @@ export default function PrivacyPage() {
               브라우저 핑거프린트 삭제: 브라우저 로컬스토리지에서{' '}
               <code
                 className="px-1 py-0.5 text-xs"
-                style={{ background: '#f3f4f6', borderRadius: '3px', color: '#3B82F6' }}
+                style={{ background: '#f3f4f6', borderRadius: '3px', color: '#111827' }}
               >
                 honsul_fp
               </code>{' '}
