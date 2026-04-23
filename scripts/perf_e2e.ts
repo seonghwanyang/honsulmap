@@ -10,6 +10,8 @@
  *   npx tsx scripts/perf_e2e.ts
  */
 
+export {};
+
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 
 interface Scenario {
