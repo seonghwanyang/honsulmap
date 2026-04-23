@@ -7,6 +7,8 @@
  *   BASE_URL=https://your-domain npx tsx scripts/perf_check.ts
  */
 
+export {};
+
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 const RUNS = Number(process.env.RUNS || 3);
 
