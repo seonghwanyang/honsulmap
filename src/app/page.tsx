@@ -429,13 +429,17 @@ function MapPageInner() {
       <SpotSearchBox
         spots={spots}
         onPick={(spot) => {
+          // Pan/zoom only. Opening the detail sheet here used to bury the
+          // pin under the Instagram story panel — the user couldn't see
+          // where on the map the place actually was. Let them hover/tap
+          // the pin themselves if they want details.
           if (mapInstanceRef.current && window.naver?.maps) {
             mapInstanceRef.current.morph(
               new window.naver.maps.LatLng(spot.lat, spot.lng),
               16,
             );
           }
-          setSelectedSpot(spot);
+          setSelectedSpot(null);
           setSheetOpen(false);
         }}
       />
