@@ -35,9 +35,9 @@ export async function POST(request: NextRequest) {
   const memo = typeof body.memo === 'string' ? body.memo.trim() || null : null;
 
   if (!name) return NextResponse.json({ error: '가게명이 필요합니다.' }, { status: 400 });
-  if (!slug || !/^[a-z0-9-]+$/.test(slug))
+  if (!slug || !/^[a-z0-9가-힣-]+$/.test(slug))
     return NextResponse.json(
-      { error: 'slug는 영문 소문자·숫자·하이픈만 가능합니다.' },
+      { error: 'slug는 영문 소문자·숫자·한글·하이픈만 가능합니다.' },
       { status: 400 },
     );
   if (!VALID_REGIONS.includes(region as (typeof VALID_REGIONS)[number]))

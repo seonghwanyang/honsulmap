@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { createSlug } from '@/lib/utils';
 
 interface SpotRequest {
   id: string;
@@ -32,6 +33,7 @@ function NewSpotInner() {
     business_hours: '',
     memo: '',
   });
+  const [slugDirty, setSlugDirty] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -47,6 +49,7 @@ function NewSpotInner() {
       setForm((prev) => ({
         ...prev,
         name: match.name,
+        slug: prev.slug || createSlug(match.name),
         region: match.region,
         category: match.category,
         address: match.address || '',
@@ -127,12 +130,27 @@ function NewSpotInner() {
         style={{ border: '1px solid #e5e7eb', borderRadius: 10 }}
       >
         <Row label="가게명 *">
-          <Input value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+          <Input
+            value={form.name}
+            onChange={(v) =>
+              setForm((prev) => ({
+                ...prev,
+                name: v,
+                slug: slugDirty ? prev.slug : createSlug(v),
+              }))
+            }
+          />
         </Row>
-        <Row label="slug *" hint="URL에 쓰이는 영문 소문자·숫자·하이픈. 예: bar-on-jeju">
+        <Row
+          label="slug *"
+          hint="URL에 쓰이는 영문·숫자·한글·하이픈. 가게명에서 자동 생성되며 직접 수정도 가능합니다."
+        >
           <Input
             value={form.slug}
-            onChange={(v) => setForm({ ...form, slug: v })}
+            onChange={(v) => {
+              setSlugDirty(true);
+              setForm({ ...form, slug: v });
+            }}
             mono
           />
         </Row>
