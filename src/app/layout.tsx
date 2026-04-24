@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import BottomNav from '@/components/BottomNav';
+import Footer from '@/components/Footer';
 import SideBanner from '@/components/ads/SideBanner';
 import BottomStickyBar from '@/components/ads/BottomStickyBar';
 
@@ -120,6 +121,7 @@ export default function RootLayout({
         <SideBanner position="left" />
         <SideBanner position="right" />
         <main>{children}</main>
+        <Footer />
         <BottomStickyBar />
         <BottomNav />
       </body>
