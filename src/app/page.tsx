@@ -403,16 +403,21 @@ function MapPageInner() {
             제주 혼술바 실시간
           </span>
         </div>
-        <Link
-          href="/write"
-          className="flex items-center gap-1.5 border border-gray-300 text-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white no-underline"
+        <button
+          onClick={() => setRequestOpen(true)}
+          className="flex items-center gap-1.5"
+          style={{
+            background: '#f8f9fa',
+            border: '1px solid #e5e7eb',
+            borderRadius: 10,
+            padding: '7px 12px',
+            fontSize: 12,
+            color: '#374151',
+          }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-          제보하기
-        </Link>
+          <span>가게 제안</span>
+          <span style={{ color: '#111827', fontWeight: 600 }}>→</span>
+        </button>
       </header>
 
       {/* Region Filter */}
