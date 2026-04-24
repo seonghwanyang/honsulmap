@@ -6,6 +6,7 @@ import { relativeTime } from '@/lib/utils';
 import { generateNickname } from '@/lib/nickname';
 import NicknameInput from './NicknameInput';
 import LikeButton from './LikeButton';
+import ReportModal from './ReportModal';
 
 interface CommentSectionProps {
   postId?: string;
@@ -29,6 +30,7 @@ function CommentItem({ comment, allowReplies, onReplySubmit, onDelete, depth = 0
   const [submitting, setSubmitting] = useState(false);
   const [showDeleteInput, setShowDeleteInput] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
+  const [reportOpen, setReportOpen] = useState(false);
 
   async function handleReply() {
     if (!replyContent.trim() || replyPassword.length < 4 || submitting) return;
@@ -79,6 +81,13 @@ function CommentItem({ comment, allowReplies, onReplySubmit, onDelete, depth = 0
                 </button>
               )}
               <button
+                onClick={() => setReportOpen(true)}
+                className="text-xs"
+                style={{ color: '#888888', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                신고
+              </button>
+              <button
                 onClick={() => setShowDeleteInput((v) => !v)}
                 className="text-xs"
                 style={{ color: '#888888', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -88,6 +97,12 @@ function CommentItem({ comment, allowReplies, onReplySubmit, onDelete, depth = 0
             </div>
           </div>
         </div>
+        <ReportModal
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          targetType="comment"
+          targetId={comment.id}
+        />
 
         {showDeleteInput && (
           <div className="flex gap-2 mt-2">

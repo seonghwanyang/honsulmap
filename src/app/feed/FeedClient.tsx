@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import RegionFilter from '@/components/RegionFilter';
 import NativeCard from '@/components/ads/NativeCard';
+import SpotRequestButton from '@/components/SpotRequestButton';
 import { StoryWithSpot } from '@/lib/types';
 import { relativeTime, getRegionLabel } from '@/lib/utils';
 
@@ -112,6 +113,9 @@ export default function FeedClient({ initialStories, region }: FeedClientProps) 
       </div>
 
       <div className="px-4 pt-4">
+        <div className="mb-4">
+          <SpotRequestButton variant="banner" />
+        </div>
         {initialStories.length === 0 ? (
           <div className="flex items-center justify-center py-16">
             <span className="text-sm text-gray-400">활성 스토리가 없습니다</span>
