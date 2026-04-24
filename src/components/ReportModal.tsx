@@ -119,29 +119,30 @@ export default function ReportModal({ open, onClose, targetType, targetId }: Pro
               <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6, fontWeight: 500 }}>
                 사유
               </div>
-              <div className="space-y-1.5">
-                {REASONS.map((r) => (
-                  <label
-                    key={r.value}
-                    className="flex items-center gap-2 cursor-pointer"
-                    style={{
-                      padding: '8px 10px',
-                      border: '1px solid',
-                      borderColor: reason === r.value ? '#111827' : '#e5e7eb',
-                      borderRadius: 8,
-                      background: reason === r.value ? '#f8f9fa' : '#fff',
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="report-reason"
-                      value={r.value}
-                      checked={reason === r.value}
-                      onChange={() => setReason(r.value)}
-                    />
-                    <span style={{ fontSize: 13, color: '#374151' }}>{r.label}</span>
-                  </label>
-                ))}
+              <div className="grid grid-cols-2 gap-1.5">
+                {REASONS.map((r) => {
+                  const active = reason === r.value;
+                  return (
+                    <button
+                      key={r.value}
+                      type="button"
+                      onClick={() => setReason(r.value)}
+                      style={{
+                        padding: '10px 12px',
+                        border: '1px solid',
+                        borderColor: active ? '#111827' : '#e5e7eb',
+                        borderRadius: 8,
+                        background: active ? '#111827' : '#ffffff',
+                        color: active ? '#ffffff' : '#374151',
+                        fontSize: 13,
+                        fontWeight: active ? 600 : 400,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {r.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div>
