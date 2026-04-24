@@ -20,6 +20,7 @@ interface ReportRow {
         nickname: string;
         post_id?: string | null;
         spot_id?: string | null;
+        spot?: { slug: string; name: string } | null;
       }
     | null;
 }
@@ -198,6 +199,19 @@ export default function AdminReportsPage() {
                               style={{ color: '#6b7280', textDecoration: 'underline' }}
                             >
                               게시글 열기
+                            </a>
+                          </>
+                        )}
+                        {r.target_type === 'comment' && r.target.spot && (
+                          <>
+                            {' · '}
+                            <a
+                              href={`/spot/${r.target.spot.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: '#6b7280', textDecoration: 'underline' }}
+                            >
+                              {r.target.spot.name} 열기
                             </a>
                           </>
                         )}

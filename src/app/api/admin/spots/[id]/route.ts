@@ -15,9 +15,9 @@ export async function PATCH(
   if (typeof body.name === 'string') patch.name = body.name.trim();
   if (typeof body.slug === 'string') {
     const slug = body.slug.trim().toLowerCase();
-    if (!/^[a-z0-9-]+$/.test(slug))
+    if (!/^[a-z0-9가-힣-]+$/.test(slug))
       return NextResponse.json(
-        { error: 'slug는 영문 소문자·숫자·하이픈만 가능합니다.' },
+        { error: 'slug는 영문 소문자·숫자·한글·하이픈만 가능합니다.' },
         { status: 400 },
       );
     patch.slug = slug;

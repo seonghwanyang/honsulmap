@@ -257,6 +257,9 @@ function MapPageInner() {
       return new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(spot.lat, spot.lng),
         map: mapInstanceRef.current!,
+        // Active-story pins sit above inactive ones so they aren't hidden
+        // behind cold pins when spots cluster tight on shore.
+        zIndex: hasStory ? 200 : 100,
         icon: {
           content,
           size: new window.naver.maps.Size(sz, totalH),
