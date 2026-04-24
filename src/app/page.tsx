@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Script from 'next/script';
 import RegionFilter from '@/components/RegionFilter';
+import SpotRequestModal from '@/components/SpotRequestModal';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
 
@@ -75,6 +76,7 @@ function MapPageInner() {
   const [selectedSpot, setSelectedSpot] = useState<SpotWithStories | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(10);
   const [viewBounds, setViewBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
   const [, setTick] = useState(0);
@@ -439,6 +441,17 @@ function MapPageInner() {
       {/* FAB buttons */}
       <div className="absolute z-30 flex flex-col gap-2" style={{ bottom: '100px', right: '16px' }}>
         <button
+          onClick={() => setRequestOpen(true)}
+          className="w-11 h-11 flex items-center justify-center shadow-lg"
+          style={{ background: '#ffffff', borderRadius: '50%', border: '1px solid #e5e7eb' }}
+          aria-label="가게 제안하기"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+        <button
           onClick={handleGps}
           className="w-11 h-11 flex items-center justify-center shadow-lg"
           style={{ background: '#ffffff', borderRadius: '50%', border: '1px solid #e5e7eb' }}
@@ -462,6 +475,8 @@ function MapPageInner() {
           </svg>
         </button>
       </div>
+
+      <SpotRequestModal open={requestOpen} onClose={() => setRequestOpen(false)} />
 
       {/* Bottom Sheet: Spot List */}
       <div

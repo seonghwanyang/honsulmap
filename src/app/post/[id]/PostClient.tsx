@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import NativeHorizontal from '@/components/ads/NativeHorizontal';
+import ReportModal from '@/components/ReportModal';
 import { Post } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getFingerprint } from '@/lib/utils';
 
@@ -91,6 +92,7 @@ function CommentSection({ postId }: { postId: string }) {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [reportId, setReportId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchComments = async () => {
@@ -229,6 +231,13 @@ function CommentSection({ postId }: { postId: string }) {
               >
                 답글
               </button>
+              <button
+                onClick={() => setReportId(c.id)}
+                className="text-xs"
+                style={{ color: '#9ca3af' }}
+              >
+                신고
+              </button>
             </div>
             <p className="text-sm" style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>
               {c.content}
@@ -248,6 +257,13 @@ function CommentSection({ postId }: { postId: string }) {
                       <span className="text-xs" style={{ color: '#d1d5db' }}>
                         {relativeTime(r.created_at)}
                       </span>
+                      <button
+                        onClick={() => setReportId(r.id)}
+                        className="ml-auto text-xs"
+                        style={{ color: '#9ca3af' }}
+                      >
+                        신고
+                      </button>
                     </div>
                     <p className="text-sm" style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>
                       {r.content}
@@ -259,6 +275,13 @@ function CommentSection({ postId }: { postId: string }) {
           </div>
         ))}
       </div>
+
+      <ReportModal
+        open={!!reportId}
+        onClose={() => setReportId(null)}
+        targetType="comment"
+        targetId={reportId || ''}
+      />
     </div>
   );
 }
@@ -272,7 +295,7 @@ export default function PostPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [reportSent, setReportSent] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -300,11 +323,6 @@ export default function PostPage() {
     }
   };
 
-  const handleReport = () => {
-    if (reportSent) return;
-    setReportSent(true);
-    alert('신고가 접수되었습니다');
-  };
 
   if (loading) {
     return (
@@ -464,18 +482,17 @@ export default function PostPage() {
           <span>공유</span>
         </button>
         <button
-          onClick={handleReport}
+          onClick={() => setReportOpen(true)}
           className="flex items-center gap-1 px-3 py-2 text-xs font-medium ml-auto"
           style={{
             background: 'transparent',
-            color: reportSent ? '#d1d5db' : '#ef4444',
+            color: '#ef4444',
             borderRadius: '8px',
             border: 'none',
-            cursor: reportSent ? 'default' : 'pointer',
+            cursor: 'pointer',
           }}
-          disabled={reportSent}
         >
-          {reportSent ? '신고됨' : '신고'}
+          신고
         </button>
       </div>
 
@@ -488,6 +505,13 @@ export default function PostPage() {
       <div style={{ borderTop: '1px solid #f3f4f6' }}>
         <CommentSection postId={post.id} />
       </div>
+
+      <ReportModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="post"
+        targetId={post.id}
+      />
     </div>
   );
 }

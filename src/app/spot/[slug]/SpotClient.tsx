@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import NativeHorizontal from '@/components/ads/NativeHorizontal';
 import NativeCard from '@/components/ads/NativeCard';
+import ReportModal from '@/components/ReportModal';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
 
@@ -142,6 +143,7 @@ function CommentSection({ spotId }: { spotId: string }) {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [reportId, setReportId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetch_ = async () => {
@@ -245,6 +247,13 @@ function CommentSection({ spotId }: { spotId: string }) {
               <span className="text-xs" style={{ color: '#d1d5db' }}>
                 {relativeTime(c.created_at)}
               </span>
+              <button
+                onClick={() => setReportId(c.id)}
+                className="ml-auto text-xs"
+                style={{ color: '#9ca3af' }}
+              >
+                신고
+              </button>
             </div>
             <p className="text-sm" style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>
               {c.content}
@@ -252,6 +261,13 @@ function CommentSection({ spotId }: { spotId: string }) {
           </div>
         ))}
       </div>
+
+      <ReportModal
+        open={!!reportId}
+        onClose={() => setReportId(null)}
+        targetType="comment"
+        targetId={reportId || ''}
+      />
     </div>
   );
 }
