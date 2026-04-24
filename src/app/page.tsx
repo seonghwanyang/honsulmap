@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Script from 'next/script';
 import RegionFilter from '@/components/RegionFilter';
 import SpotRequestModal from '@/components/SpotRequestModal';
+import SpotSearchBox from '@/components/SpotSearchBox';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
 
@@ -418,6 +419,21 @@ function MapPageInner() {
       <div className="absolute z-20 left-0 right-0 top-14 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
         <RegionFilter selected={region} onChange={handleRegionChange} />
       </div>
+
+      {/* Spot Search */}
+      <SpotSearchBox
+        spots={spots}
+        onPick={(spot) => {
+          if (mapInstanceRef.current && window.naver?.maps) {
+            mapInstanceRef.current.morph(
+              new window.naver.maps.LatLng(spot.lat, spot.lng),
+              16,
+            );
+          }
+          setSelectedSpot(spot);
+          setSheetOpen(false);
+        }}
+      />
 
 
       {/* Naver Maps Script */}

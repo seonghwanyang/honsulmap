@@ -330,25 +330,29 @@ function Select({
   options: [string, string][];
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full"
-      style={{
-        border: '1px solid #e5e7eb',
-        borderRadius: 8,
-        padding: '8px 10px',
-        fontSize: 13,
-        outline: 'none',
-        background: '#fff',
-        marginTop: 3,
-      }}
-    >
-      {options.map(([v, l]) => (
-        <option key={v} value={v}>
-          {l}
-        </option>
-      ))}
-    </select>
+    <div className="flex flex-wrap gap-1.5" style={{ marginTop: 3 }}>
+      {options.map(([v, l]) => {
+        const active = value === v;
+        return (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(v)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: active ? 600 : 400,
+              background: active ? '#111827' : '#ffffff',
+              color: active ? '#ffffff' : '#6b7280',
+              border: '1px solid',
+              borderColor: active ? '#111827' : '#e5e7eb',
+            }}
+          >
+            {l}
+          </button>
+        );
+      })}
+    </div>
   );
 }

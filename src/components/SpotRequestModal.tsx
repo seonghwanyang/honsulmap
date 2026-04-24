@@ -150,37 +150,59 @@ export default function SpotRequestModal({ open, onClose }: Props) {
                 style={inputStyle}
               />
             </Field>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="지역 *">
-                <select
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  className="w-full"
-                  style={inputStyle}
-                >
-                  <option value="">선택</option>
-                  {REGIONS.map((r) => (
-                    <option key={r.value} value={r.value}>
+            <Field label="지역 *">
+              <div className="flex flex-wrap gap-1.5">
+                {REGIONS.map((r) => {
+                  const active = region === r.value;
+                  return (
+                    <button
+                      key={r.value}
+                      type="button"
+                      onClick={() => setRegion(r.value)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: active ? 600 : 400,
+                        background: active ? '#111827' : '#ffffff',
+                        color: active ? '#ffffff' : '#6b7280',
+                        border: '1px solid',
+                        borderColor: active ? '#111827' : '#e5e7eb',
+                      }}
+                    >
                       {r.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="종류">
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full"
-                  style={inputStyle}
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+            <Field label="종류">
+              <div className="flex gap-1.5">
+                {CATEGORIES.map((c) => {
+                  const active = category === c.value;
+                  return (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setCategory(c.value)}
+                      className="flex-1"
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: active ? 600 : 400,
+                        background: active ? '#111827' : '#ffffff',
+                        color: active ? '#ffffff' : '#6b7280',
+                        border: '1px solid',
+                        borderColor: active ? '#111827' : '#e5e7eb',
+                      }}
+                    >
                       {c.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
             <Field label="주소">
               <input
                 value={address}

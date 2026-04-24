@@ -391,6 +391,16 @@ function In({
   );
 }
 
+const VALUE_LABELS: Record<string, string> = {
+  jeju: '제주시',
+  aewol: '애월',
+  seogwipo: '서귀포',
+  east: '동부',
+  west: '서부',
+  bar: '혼술바',
+  guesthouse: '게스트하우스',
+};
+
 function Sel({
   value,
   onChange,
@@ -401,24 +411,29 @@ function Sel({
   options: string[];
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full"
-      style={{
-        border: '1px solid #e5e7eb',
-        borderRadius: 8,
-        padding: '8px 10px',
-        fontSize: 13,
-        outline: 'none',
-        background: '#fff',
-      }}
-    >
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {o}
-        </option>
-      ))}
-    </select>
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => {
+        const active = value === o;
+        return (
+          <button
+            key={o}
+            type="button"
+            onClick={() => onChange(o)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: active ? 600 : 400,
+              background: active ? '#111827' : '#ffffff',
+              color: active ? '#ffffff' : '#6b7280',
+              border: '1px solid',
+              borderColor: active ? '#111827' : '#e5e7eb',
+            }}
+          >
+            {VALUE_LABELS[o] || o}
+          </button>
+        );
+      })}
+    </div>
   );
 }
