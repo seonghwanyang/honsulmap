@@ -66,7 +66,10 @@ export default function SpotSearchBox({ spots, onPick }: Props) {
       ref={wrapRef}
       className="absolute z-30 left-1/2"
       style={{
-        top: 104, // 14 (header) + region filter ~40 + small gap
+        // header (56) + region filter (~40) + spot-request banner (~52)
+        // + breathing gap (~12) ⇒ sits slightly off the top overlay's
+        // bottom boundary so it doesn't feel glued to the line.
+        top: 160,
         transform: 'translateX(-50%)',
         width: 'min(92vw, 440px)',
       }}

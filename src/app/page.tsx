@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Script from 'next/script';
 import RegionFilter from '@/components/RegionFilter';
 import SpotRequestModal from '@/components/SpotRequestModal';
+import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
@@ -394,7 +395,7 @@ function MapPageInner() {
   return (
     <div className="relative w-full" style={{ height: '100dvh', background: '#f8f9fa' }}>
       {/* Header */}
-      <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 h-14 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
+      <header className="absolute top-0 left-0 right-0 z-20 flex items-center px-4 h-14 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
         <div className="flex flex-col justify-center gap-px">
           <span className="font-bold leading-tight text-[17px] tracking-[-0.3px] text-[#111827]">
             혼술맵
@@ -403,29 +404,18 @@ function MapPageInner() {
             제주 혼술바 실시간
           </span>
         </div>
-        <button
-          onClick={() => setRequestOpen(true)}
-          className="flex items-center gap-1.5"
-          style={{
-            background: '#f8f9fa',
-            border: '1px solid #e5e7eb',
-            borderRadius: 10,
-            padding: '7px 12px',
-            fontSize: 12,
-            color: '#374151',
-          }}
-        >
-          <span>가게 제안</span>
-          <span style={{ color: '#111827', fontWeight: 600 }}>→</span>
-        </button>
       </header>
 
-      {/* Region Filter */}
+      {/* Region Filter + Spot Request Banner (same bg so they feel unified) */}
       <div className="absolute z-20 left-0 right-0 top-14 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
         <RegionFilter selected={region} onChange={handleRegionChange} />
+        <div className="px-4 pb-3">
+          <SpotRequestButton variant="banner" />
+        </div>
       </div>
 
-      {/* Spot Search */}
+      {/* Spot Search (floats below the banner block with a gap so it
+          doesn't hug the boundary line). */}
       <SpotSearchBox
         spots={spots}
         onPick={(spot) => {
