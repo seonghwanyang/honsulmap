@@ -96,14 +96,15 @@ async function fetchStories(userId: string, igId: string, headers: Record<string
 }
 
 async function checkIgSession(headers: Record<string, string>) {
-  // IG returns HTTP 200 with `{reels:{}}` for every reel query when the
-  // session is invalid, so silent failure is the default. Probe against
-  // @instagram (pk 25025320) which posts frequently enough that an alive
-  // session should always see a populated reels object.
-  const PROBE_USER_ID = '25025320';
+  // Probe against an auth-required profile endpoint. Earlier we hit
+  // the reels feed for @instagram, but if @instagram simply hasn't
+  // posted a story today the response is `{reels:{},status:"ok"}` —
+  // identical to what an unauthenticated session sees, so we kept
+  // false-flagging live sessions as dead. web_profile_info returns
+  // a populated `data.user` only when cookies are valid.
   try {
     const res = await fetch(
-      `https://i.instagram.com/api/v1/feed/reels_media/?reel_ids=${PROBE_USER_ID}`,
+      'https://i.instagram.com/api/v1/users/web_profile_info/?username=instagram',
       { headers },
     );
     if (!res.ok) {
@@ -111,11 +112,13 @@ async function checkIgSession(headers: Record<string, string>) {
       return { alive: false, status: res.status, snippet };
     }
     const data = await res.json().catch(() => null);
-    const reels = data?.reels || {};
-    const hasReel = Object.keys(reels).length > 0;
-    if (!hasReel) {
-      // Unauth sessions get {reels:{},status:"ok"} — treat as dead.
-      return { alive: false, status: res.status, snippet: 'empty reels (session likely expired)' };
+    const userId = data?.data?.user?.id;
+    if (!userId) {
+      return {
+        alive: false,
+        status: res.status,
+        snippet: 'profile_info returned no user (session likely expired)',
+      };
     }
     return { alive: true, status: res.status };
   } catch (e) {
