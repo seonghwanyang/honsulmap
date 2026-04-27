@@ -415,24 +415,28 @@ function MapPageInner() {
       </div>
 
       {/* Spot Search (floats below the banner block with a gap so it
-          doesn't hug the boundary line). */}
-      <SpotSearchBox
-        spots={spots}
-        onPick={(spot) => {
-          // Pan/zoom only. Opening the detail sheet here used to bury the
-          // pin under the Instagram story panel — the user couldn't see
-          // where on the map the place actually was. Let them hover/tap
-          // the pin themselves if they want details.
-          if (mapInstanceRef.current && window.naver?.maps) {
-            mapInstanceRef.current.morph(
-              new window.naver.maps.LatLng(spot.lat, spot.lng),
-              16,
-            );
-          }
-          setSelectedSpot(null);
-          setSheetOpen(false);
-        }}
-      />
+          doesn't hug the boundary line). Hidden once a spot's detail
+          sheet is on screen so the search bar doesn't sit on top of the
+          spot name and quick-action chips. */}
+      {!selectedSpot && (
+        <SpotSearchBox
+          spots={spots}
+          onPick={(spot) => {
+            // Pan/zoom only. Opening the detail sheet here used to bury
+            // the pin under the Instagram story panel — the user couldn't
+            // see where on the map the place actually was. Let them
+            // hover/tap the pin themselves if they want details.
+            if (mapInstanceRef.current && window.naver?.maps) {
+              mapInstanceRef.current.morph(
+                new window.naver.maps.LatLng(spot.lat, spot.lng),
+                16,
+              );
+            }
+            setSelectedSpot(null);
+            setSheetOpen(false);
+          }}
+        />
+      )}
 
 
       {/* Naver Maps Script */}
