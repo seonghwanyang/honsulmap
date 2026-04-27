@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from 'next';
+import { GoogleAnalytics } from '@next/third-parties/google';
 import './globals.css';
 import BottomNav from '@/components/BottomNav';
 import Footer from '@/components/Footer';
 import SideBanner from '@/components/ads/SideBanner';
 import BottomStickyBar from '@/components/ads/BottomStickyBar';
+
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
 const SITE_NAME = '혼술맵';
@@ -125,6 +128,7 @@ export default function RootLayout({
         <BottomStickyBar />
         <BottomNav />
       </body>
+      {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
     </html>
   );
 }

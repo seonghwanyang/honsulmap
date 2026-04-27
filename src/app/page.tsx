@@ -409,7 +409,7 @@ function MapPageInner() {
       {/* Region Filter + Spot Request Banner (same bg so they feel unified) */}
       <div className="absolute z-20 left-0 right-0 top-14 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
         <RegionFilter selected={region} onChange={handleRegionChange} />
-        <div className="px-4 pb-3">
+        <div className="hidden sm:block px-4 pb-3">
           <SpotRequestButton variant="banner" />
         </div>
       </div>
