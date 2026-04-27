@@ -29,6 +29,14 @@
   --color-down-bg: #fee2e2;
 }
 
+html,
+body {
+  /* Block the browser pull-to-refresh that fires when a user drags the
+     spot detail sheet down toward the top of the viewport. The page
+     reload was discarding the open spot. */
+  overscroll-behavior-y: none;
+}
+
 body {
   font-family: -apple-system, 'Apple SD Gothic Neo', 'Pretendard', sans-serif;
   background-color: #ffffff;
