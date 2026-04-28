@@ -1,0 +1,21 @@
+services:
+  - type: cron
+    name: honsulmap-scraper
+    runtime: python
+    plan: starter
+    schedule: '*/5 * * * *'
+    buildCommand: |
+      pip install -r worker/requirements.txt
+      python -m playwright install chromium
+    startCommand: python -m worker.scrape
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: BATCH_SIZE
+        value: '15'
+      - key: WORKERS
+        value: '8'
+      - key: PYTHONUNBUFFERED
+        value: '1'
