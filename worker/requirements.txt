@@ -1,0 +1,6 @@
+scrapling[fetchers]>=0.4.7
+supabase>=2.29.0
+beautifulsoup4>=4.14.0
+lxml>=6.1.0
+python-dotenv>=1.0.0
+dateparser>=1.2.0

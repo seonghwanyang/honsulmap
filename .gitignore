@@ -50,3 +50,12 @@ scripts/debug_*.py
 scripts/test_*.py
 scripts/naver_tls_probe.py
 scripts/naver_playwright_probe.py
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+worker_venv/
+.venv/
+.omc/
+.claude/scheduled_tasks.lock
