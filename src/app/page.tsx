@@ -83,6 +83,46 @@ function MapPageInner() {
   const [viewBounds, setViewBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
   const [, setTick] = useState(0);
 
+  // Swipe-down-to-dismiss state for the spot detail panel
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartYRef = useRef<number>(0);
+  const dragStartTimeRef = useRef<number>(0);
+
+  const handleDragStart = (e: React.TouchEvent) => {
+    dragStartYRef.current = e.touches[0].clientY;
+    dragStartTimeRef.current = Date.now();
+    setIsDragging(true);
+    setDragY(0);
+  };
+
+  const handleDragMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const delta = e.touches[0].clientY - dragStartYRef.current;
+    // Only allow downward drag
+    setDragY(Math.max(0, delta));
+  };
+
+  const handleDragEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    const elapsed = Date.now() - dragStartTimeRef.current;
+    const velocity = elapsed > 0 ? dragY / elapsed : 0; // px/ms
+    const DISMISS_THRESHOLD = 80;   // px
+    const VELOCITY_THRESHOLD = 0.5; // px/ms
+    if (dragY >= DISMISS_THRESHOLD || velocity >= VELOCITY_THRESHOLD) {
+      // Animate off-screen then dismiss
+      setDragY(window.innerHeight);
+      setTimeout(() => {
+        setSelectedSpot(null);
+        setDragY(0);
+      }, 220);
+    } else {
+      // Spring back
+      setDragY(0);
+    }
+  };
+
   // Re-render every 30s to keep relative times accurate
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30_000);
@@ -568,20 +608,34 @@ function MapPageInner() {
           height: '85dvh',
           background: '#ffffff',
           borderRadius: '16px 16px 0 0',
-          transform: selectedSpot ? 'translateY(0)' : 'translateY(100%)',
-          transition: 'transform 0.3s ease',
+          transform: selectedSpot
+            ? `translateY(${dragY}px)`
+            : 'translateY(100%)',
+          transition: isDragging ? 'none' : 'transform 0.25s ease-out',
           boxShadow: selectedSpot ? '0 -4px 24px rgba(0,0,0,0.12)' : 'none',
         }}
       >
         {selectedSpot && (
           <>
-            {/* Handle + Close */}
-            <div className="flex justify-center pt-2 pb-1">
+            {/* Drag handle — touch target for swipe-down-to-dismiss */}
+            <div
+              className="flex justify-center pt-2 pb-1"
+              style={{ cursor: 'grab', touchAction: 'none' }}
+              onTouchStart={handleDragStart}
+              onTouchMove={handleDragMove}
+              onTouchEnd={handleDragEnd}
+            >
               <div style={{ width: '36px', height: '4px', background: '#d1d5db', borderRadius: '2px' }} />
             </div>
 
-            {/* Spot Info */}
-            <div className="px-4 pt-1 pb-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
+            {/* Spot Info — also acts as extended drag target */}
+            <div
+              className="px-4 pt-1 pb-3"
+              style={{ borderBottom: '1px solid #f3f4f6', touchAction: 'none' }}
+              onTouchStart={handleDragStart}
+              onTouchMove={handleDragMove}
+              onTouchEnd={handleDragEnd}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <h2 className="font-bold text-base truncate" style={{ color: '#111827' }}>
