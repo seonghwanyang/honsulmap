@@ -141,7 +141,11 @@ def fetch_stories(handle: str) -> list[dict[str, str | None]]:
         page_action=_build_page_action(handle),
         google_search=True,
         block_ads=True,
-        disable_resources=False,
+        # Block images/fonts/media. We only need the HTML DOM to extract
+        # cdninstagram URLs as text — the page's preview thumbnails would
+        # otherwise pull a few hundred MB of media into Chromium and trip
+        # Render Starter's 512Mi cap.
+        disable_resources=True,
     )
     # Scrapling's Response.body is a bytes payload (the post-action HTML
     # when content-type is HTML). Decode robustly.
