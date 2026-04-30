@@ -141,11 +141,12 @@ def fetch_stories(handle: str) -> list[dict[str, str | None]]:
         page_action=_build_page_action(handle),
         google_search=True,
         block_ads=True,
-        # Block images/fonts/media. We only need the HTML DOM to extract
-        # cdninstagram URLs as text — the page's preview thumbnails would
-        # otherwise pull a few hundred MB of media into Chromium and trip
-        # Render Starter's 512Mi cap.
-        disable_resources=True,
+        # disable_resources kept off — when we tried True on the 2 GB
+        # Standard plan every spot returned 0 stories: Scrapling was
+        # also blocking CSS/JS that storysaver and the Turnstile widget
+        # need to render the form and reach the result page. Memory
+        # pressure is fine on Standard so we don't need the trade-off.
+        disable_resources=False,
     )
     # Scrapling's Response.body is a bytes payload (the post-action HTML
     # when content-type is HTML). Decode robustly.
