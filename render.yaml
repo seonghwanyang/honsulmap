@@ -20,3 +20,9 @@ services:
         value: '2'
       - key: PYTHONUNBUFFERED
         value: '1'
+      # Render Cron Jobs spin up a fresh container per run, and ~/.cache
+      # (the default Playwright/patchright browser cache) is wiped between
+      # build and runtime. Redirect the cache into the project tree so the
+      # Chromium downloaded during build is still here when scrape.py runs.
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: /opt/render/project/src/.playwright-browsers
