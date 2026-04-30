@@ -13,7 +13,9 @@ from supabase import Client, create_client
 
 
 def get_client() -> Client:
-    url = os.environ["SUPABASE_URL"]
+    # Local Next.js .env.local uses the NEXT_PUBLIC_ prefix; Render and
+    # other server-only setups drop it. Accept either.
+    url = os.environ.get("SUPABASE_URL") or os.environ["NEXT_PUBLIC_SUPABASE_URL"]
     key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
     return create_client(url, key)
 
