@@ -8,6 +8,7 @@ import RegionFilter from '@/components/RegionFilter';
 import SpotRequestModal from '@/components/SpotRequestModal';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
+import NativeCard from '@/components/ads/NativeCard';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
 
@@ -711,60 +712,71 @@ function MapPageInner() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-3 px-4 py-3">
-                  {activeStories.map((story: Story) => (
-                    <div
-                      key={story.id}
-                      className="relative w-full"
-                      style={{ aspectRatio: '9/16', borderRadius: '14px', overflow: 'hidden', background: '#000' }}
-                    >
-                      {story.media_type === 'video' ? (
-                        <video
-                          src={story.media_url}
-                          poster={story.thumbnail_url || undefined}
-                          className="w-full h-full object-cover"
-                          controls
-                          playsInline
-                          muted
-                        />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={story.thumbnail_url || story.media_url}
-                          alt={`스토리 ${relativeTime(story.posted_at)}`}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      )}
-                      {/* Time overlay */}
-                      <div
-                        className="absolute top-0 left-0 right-0 px-3 py-2 flex items-center gap-2"
-                        style={{ background: 'linear-gradient(rgba(0,0,0,0.5), transparent)' }}
-                      >
+                  {(() => {
+                    const items: React.ReactNode[] = [];
+                    activeStories.forEach((story: Story, idx: number) => {
+                      items.push(
                         <div
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: '50%',
-                            background: '#fff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                          }}
+                          key={story.id}
+                          className="relative w-full"
+                          style={{ aspectRatio: '9/16', borderRadius: '14px', overflow: 'hidden', background: '#000' }}
                         >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M8 2h8l-2 10h-4L8 2z" /><path d="M12 12v6" /><path d="M9 18h6" />
-                          </svg>
-                        </div>
-                        <span className="text-xs font-semibold" style={{ color: '#fff' }}>
-                          {selectedSpot.name}
-                        </span>
-                        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                          {relativeTime(story.posted_at)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                          {story.media_type === 'video' ? (
+                            <video
+                              src={story.media_url}
+                              poster={story.thumbnail_url || undefined}
+                              className="w-full h-full object-cover"
+                              controls
+                              playsInline
+                              muted
+                            />
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={story.thumbnail_url || story.media_url}
+                              alt={`스토리 ${relativeTime(story.posted_at)}`}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          )}
+                          {/* Time overlay */}
+                          <div
+                            className="absolute top-0 left-0 right-0 px-3 py-2 flex items-center gap-2"
+                            style={{ background: 'linear-gradient(rgba(0,0,0,0.5), transparent)' }}
+                          >
+                            <div
+                              style={{
+                                width: 26,
+                                height: 26,
+                                borderRadius: '50%',
+                                background: '#fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M8 2h8l-2 10h-4L8 2z" /><path d="M12 12v6" /><path d="M9 18h6" />
+                              </svg>
+                            </div>
+                            <span className="text-xs font-semibold" style={{ color: '#fff' }}>
+                              {selectedSpot.name}
+                            </span>
+                            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                              {relativeTime(story.posted_at)}
+                            </span>
+                          </div>
+                        </div>,
+                      );
+                      // Insert a native ad after every 5th story, but never
+                      // trail the very last story so the panel ends on content.
+                      if ((idx + 1) % 5 === 0 && idx < activeStories.length - 1) {
+                        items.push(<NativeCard key={`ad-${idx}`} />);
+                      }
+                    });
+                    return items;
+                  })()}
                 </div>
               )}
             </div>
