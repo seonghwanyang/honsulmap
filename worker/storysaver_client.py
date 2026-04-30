@@ -102,17 +102,53 @@ def _build_page_action(handle: str):
         # for both transient failures *and* genuine no-result cases. Caller
         # will see an empty parse and treat that as "no stories".
         deadline = time.time() + RESULT_POLL_DEADLINE_SEC
+        last_content = ""
+        found = False
         while time.time() < deadline:
             try:
-                content = page.content()
+                last_content = page.content()
             except Exception:
                 break
-            if "cdninstagram.com" in content:
+            if "cdninstagram.com" in last_content:
+                found = True
                 break
             try:
                 page.wait_for_timeout(RESULT_POLL_INTERVAL_MS)
             except Exception:
                 break
+
+        # Diagnostic line — print why we exited the poll loop so the
+        # parent log shows whether the failure was a Turnstile timeout,
+        # a genuine "no stories" case, or storysaver's transient error.
+        if not found:
+            html_lower = last_content.lower()
+            tags: list[str] = []
+            if "turnstile" in html_lower or "challenges.cloudflare.com" in html_lower:
+                tags.append("turnstile-still-present")
+            if "private" in html_lower:
+                tags.append("private")
+            if "no story" in html_lower or "no-story" in html_lower:
+                tags.append("no-story")
+            if "connection error" in html_lower:
+                tags.append("connection-error")
+            if "user not found" in html_lower or "not found" in html_lower:
+                tags.append("not-found")
+            if "captcha" in html_lower:
+                tags.append("captcha")
+            if not tags:
+                tags.append("unknown")
+            # Trim a snippet of #sonucc (the result container) so we can
+            # see what storysaver actually rendered there.
+            sonucc_idx = last_content.find('id="sonucc"')
+            if sonucc_idx >= 0:
+                snippet = last_content[sonucc_idx : sonucc_idx + 600].replace("\n", " ")
+            else:
+                snippet = last_content[:300].replace("\n", " ")
+            print(
+                f"[storysaver] handle={handle} no-cdn-after-poll tags={','.join(tags)} "
+                f"len={len(last_content)} snippet={snippet!r}",
+                flush=True,
+            )
         return page
 
     return page_action
