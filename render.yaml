@@ -17,7 +17,7 @@ services:
       - key: BATCH_SIZE
         value: '15'
       - key: WORKERS
-        value: '2'
+        value: '1'
       - key: PYTHONUNBUFFERED
         value: '1'
       # Render Cron Jobs spin up a fresh container per run, and ~/.cache
