@@ -239,16 +239,24 @@ def _worker_loop(
 def main() -> int:
     from dotenv import load_dotenv
 
-    # Load .env from repo root and from worker/ — both convenient.
+    # Load .env from repo root and from worker/ — both convenient. Also
+    # pick up Next.js's .env.local, which is what a developer running the
+    # worker on their own machine already has populated.
+    repo_root = os.path.dirname(os.path.dirname(__file__))
     load_dotenv()
     load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+    load_dotenv(os.path.join(repo_root, ".env.local"))
 
-    missing = [
-        k
-        for k in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY")
-        if not os.environ.get(k)
-    ]
-    if missing:
+    has_url = os.environ.get("SUPABASE_URL") or os.environ.get(
+        "NEXT_PUBLIC_SUPABASE_URL"
+    )
+    has_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if not has_url or not has_key:
+        missing: list[str] = []
+        if not has_url:
+            missing.append("SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)")
+        if not has_key:
+            missing.append("SUPABASE_SERVICE_ROLE_KEY")
         print(f"[scrape] missing env: {missing}", file=sys.stderr)
         return 2
 
