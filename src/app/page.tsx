@@ -458,8 +458,10 @@ function MapPageInner() {
       {/* Spot Search (floats below the banner block with a gap so it
           doesn't hug the boundary line). Hidden once a spot's detail
           sheet is on screen so the search bar doesn't sit on top of the
-          spot name and quick-action chips. */}
-      {!selectedSpot && (
+          spot name and quick-action chips, and also hidden while the
+          spot-request modal is open since the modal's body sits at the
+          same vertical offset and the search would peek through. */}
+      {!selectedSpot && !requestOpen && (
         <SpotSearchBox
           spots={spots}
           onPick={(spot) => {
