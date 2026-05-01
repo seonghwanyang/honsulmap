@@ -807,9 +807,9 @@ function MapPageInner() {
                           </div>
                         </div>,
                       );
-                      // Insert a native ad after every 5th story, but never
-                      // trail the very last story so the panel ends on content.
-                      if ((idx + 1) % 5 === 0 && idx < activeStories.length - 1) {
+                      // Insert a native ad after every story, but never trail
+                      // the very last one so the panel ends on content.
+                      if (idx < activeStories.length - 1) {
                         items.push(<NativeCard key={`ad-${idx}`} />);
                       }
                     });
