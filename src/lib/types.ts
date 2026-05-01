@@ -21,6 +21,8 @@ export interface Spot {
   business_hours: string | null;
   memo: string | null;
   naver_place_id: string | null;
+  naver_rating?: number | null;
+  naver_review_count?: number | null;
   like_count: number;
   mood_up: number;
   mood_down: number;

@@ -406,6 +406,39 @@ export default function SpotPage() {
           </p>
         </div>
         <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
+          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>네이버 별점</p>
+          <p className="text-xs font-medium" style={{ color: '#111827' }}>
+            {spot.naver_rating != null ? (
+              <>
+                <span style={{ color: '#f59e0b' }}>★</span> {spot.naver_rating.toFixed(2)}
+                {spot.naver_review_count != null && (
+                  <span style={{ color: '#9ca3af', fontWeight: 400 }}>
+                    {' '}
+                    ({spot.naver_review_count.toLocaleString()})
+                  </span>
+                )}
+              </>
+            ) : (
+              '정보 없음'
+            )}
+          </p>
+        </div>
+        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
+          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>전화</p>
+          <p className="text-xs font-medium" style={{ color: '#111827' }}>
+            {spot.phone ? (
+              <a
+                href={`tel:${spot.phone.replace(/[^0-9+]/g, '')}`}
+                style={{ color: '#111827', textDecoration: 'none' }}
+              >
+                {spot.phone}
+              </a>
+            ) : (
+              '정보 없음'
+            )}
+          </p>
+        </div>
+        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
           <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>지역</p>
           <p className="text-xs font-medium" style={{ color: '#111827' }}>
             {getRegionLabel(spot.region)}
