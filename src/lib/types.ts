@@ -7,6 +7,13 @@ export type MediaType = 'image' | 'video';
 export type TargetType = 'spot' | 'post' | 'comment';
 export type MoodVoteType = 'up' | 'down';
 
+export interface NaverMenuItem {
+  name: string;
+  price: string | null;
+  description: string | null;
+  image: string | null;
+}
+
 export interface Spot {
   id: string;
   name: string;
@@ -23,6 +30,8 @@ export interface Spot {
   naver_place_id: string | null;
   naver_rating?: number | null;
   naver_review_count?: number | null;
+  naver_photos?: string[] | null;
+  naver_menus?: NaverMenuItem[] | null;
   like_count: number;
   mood_up: number;
   mood_down: number;

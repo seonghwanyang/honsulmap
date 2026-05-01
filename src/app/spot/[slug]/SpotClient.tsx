@@ -565,6 +565,117 @@ export default function SpotPage() {
         )}
       </div>
 
+      {/* Naver Place Photos — horizontal carousel */}
+      {spot.naver_photos && spot.naver_photos.length > 0 && (
+        <div className="mt-6 px-4">
+          <p className="font-semibold text-sm mb-3" style={{ color: '#111827' }}>
+            가게 사진 <span style={{ color: '#9ca3af', fontWeight: 400 }}>({spot.naver_photos.length})</span>
+          </p>
+          <div
+            className="flex gap-2 overflow-x-auto hide-scrollbar"
+            style={{ paddingBottom: 4 }}
+          >
+            {spot.naver_photos.map((url: string, i: number) => (
+              <a
+                key={i}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative flex-shrink-0"
+                style={{
+                  width: 160,
+                  height: 160,
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  background: '#f3f4f6',
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`${spot.name} 사진 ${i + 1}`}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Naver Place Menus — list */}
+      {spot.naver_menus && spot.naver_menus.length > 0 && (
+        <div className="mt-6 px-4">
+          <p className="font-semibold text-sm mb-3" style={{ color: '#111827' }}>
+            메뉴 <span style={{ color: '#9ca3af', fontWeight: 400 }}>({spot.naver_menus.length})</span>
+          </p>
+          <div
+            className="flex flex-col"
+            style={{ background: '#f8f9fa', borderRadius: 12, overflow: 'hidden' }}
+          >
+            {spot.naver_menus.map((menu, i: number) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 px-3 py-2.5"
+                style={{
+                  borderBottom: i < spot.naver_menus!.length - 1 ? '1px solid #f3f4f6' : 'none',
+                }}
+              >
+                {menu.image && (
+                  <div
+                    className="flex-shrink-0"
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      background: '#fff',
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={menu.image}
+                      alt={menu.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-sm font-medium truncate"
+                    style={{ color: '#111827' }}
+                  >
+                    {menu.name}
+                  </p>
+                  {menu.description && (
+                    <p
+                      className="text-xs mt-0.5 truncate"
+                      style={{ color: '#9ca3af' }}
+                    >
+                      {menu.description}
+                    </p>
+                  )}
+                </div>
+                {menu.price && (
+                  <span
+                    className="text-xs font-semibold flex-shrink-0"
+                    style={{ color: '#374151' }}
+                  >
+                    {Number.isFinite(Number(menu.price))
+                      ? `${Number(menu.price).toLocaleString()}원`
+                      : menu.price}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] mt-1.5" style={{ color: '#9ca3af' }}>
+            * 메뉴·가격은 네이버 플레이스 기준이며 가게 사정에 따라 다를 수 있습니다.
+          </p>
+        </div>
+      )}
+
       {/* Ad Banner — horizontal native between body and comments */}
       <div className="px-4 mt-4">
         <NativeHorizontal />
