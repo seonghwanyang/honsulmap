@@ -22,12 +22,21 @@ const HEADERS = {
   Referer: 'https://m.place.naver.com/',
 };
 
+type MenuItem = {
+  name: string;
+  price: string | null;
+  description: string | null;
+  image: string | null;
+};
+
 type PlaceData = {
   business_hours: string | null;
   phone: string | null;
   image_urls: string[] | null;
   rating: number | null;
   review_count: number | null;
+  menus: MenuItem[] | null;
+  photos: string[] | null;
 };
 
 function formatHours(openingHours: unknown): string | null {
@@ -51,6 +60,47 @@ function formatHours(openingHours: unknown): string | null {
     })
     .filter(Boolean);
   return parts.length ? parts.join(' / ') : null;
+}
+
+function extractMenusFromApollo(json: Record<string, unknown>, placeId: string): MenuItem[] {
+  const items: MenuItem[] = [];
+  for (const [k, v] of Object.entries(json)) {
+    if (!k.startsWith(`Menu:${placeId}`)) continue;
+    const m = v as Record<string, unknown>;
+    const name = typeof m.name === 'string' ? m.name : '';
+    if (!name) continue;
+    const priceRaw = typeof m.price === 'string' ? m.price : '';
+    const price = priceRaw && priceRaw !== '0' ? priceRaw : null;
+    const description = typeof m.description === 'string' && m.description ? m.description : null;
+    const images = Array.isArray(m.images) ? (m.images as unknown[]) : [];
+    const image = typeof images[0] === 'string' ? (images[0] as string) : null;
+    items.push({ name, price, description, image });
+  }
+  return items.slice(0, 30); // cap to keep row small
+}
+
+async function fetchPhotosFromPhotoPage(
+  placeId: string,
+  pathPrefix: string,
+): Promise<string[]> {
+  const res = await fetch(`https://m.place.naver.com/${pathPrefix}/${placeId}/photo`, {
+    headers: HEADERS,
+  });
+  if (!res.ok) return [];
+  const html = await res.text();
+  // Original photo URLs sit URL-encoded inside the resizing CDN's src= param:
+  //   pstatic.net/common/?...&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F.../*.JPEG
+  const re = /src=(https%3A%2F%2Fldb-phinf\.pstatic\.net[^"'&\\]+?\.(?:JPEG|jpe?g|png|webp|gif|GIF))/g;
+  const urls = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html))) {
+    try {
+      urls.add(decodeURIComponent(match[1]));
+    } catch {
+      /* ignore decode errors */
+    }
+  }
+  return Array.from(urls).slice(0, 24);
 }
 
 async function fetchPlace(placeId: string): Promise<PlaceData | null> {
@@ -79,26 +129,34 @@ async function fetchPlace(placeId: string): Promise<PlaceData | null> {
     // Hours (Naver place may store as oh OR opentime list)
     const hours = formatHours(base.openingHours);
 
-    // Photos: scrape Photo:* entries
+    // Photos that happen to live in the home APOLLO state (rare). The
+    // dedicated /photo page below is the primary source.
     const photoEntries = Object.entries(json).filter(([k]) => k.startsWith('Photo:'));
-    const image_urls = photoEntries
+    const apolloPhotos = photoEntries
       .map(([, v]) => {
         const obj = v as Record<string, unknown>;
         return (obj?.imageUrl as string) || (obj?.url as string) || null;
       })
-      .filter((u): u is string => !!u && u.startsWith('http'))
-      .slice(0, 12); // cap so we don't bloat the row
+      .filter((u): u is string => !!u && u.startsWith('http'));
 
     const rating = typeof base.visitorReviewsScore === 'number' ? base.visitorReviewsScore : null;
     const review_count =
       typeof base.visitorReviewsTotal === 'number' ? base.visitorReviewsTotal : null;
 
+    const menus = extractMenusFromApollo(json, placeId);
+
+    // Try fetching the dedicated /photo page for the gallery.
+    const photoPagePhotos = await fetchPhotosFromPhotoPage(placeId, path);
+    const photos = [...new Set([...apolloPhotos, ...photoPagePhotos])].slice(0, 24);
+
     return {
       business_hours: hours,
       phone,
-      image_urls: image_urls.length ? image_urls : null,
+      image_urls: photos.length ? photos.slice(0, 12) : null,
       rating,
       review_count,
+      menus: menus.length ? menus : null,
+      photos: photos.length ? photos : null,
     };
   }
   return null;
@@ -107,7 +165,7 @@ async function fetchPlace(placeId: string): Promise<PlaceData | null> {
 (async () => {
   const { data: spots, error } = await s
     .from('spots')
-    .select('id, name, naver_place_id, business_hours, phone, image_urls')
+    .select('id, name, naver_place_id, business_hours, phone, image_urls, naver_photos, naver_menus')
     .not('naver_place_id', 'is', null)
     .neq('naver_place_id', '');
   if (error) {
@@ -129,15 +187,17 @@ async function fetchPlace(placeId: string): Promise<PlaceData | null> {
         continue;
       }
 
-      // Only overwrite null-ish fields. Skip if everything we'd set is empty.
+      // Only overwrite null-ish fields for slow-moving columns. For naver_*
+      // we always refresh because they change cheaply.
       const patch: Record<string, unknown> = {};
       if (!sp.business_hours && data.business_hours) patch.business_hours = data.business_hours;
       if (!sp.phone && data.phone) patch.phone = data.phone;
       if ((!sp.image_urls || sp.image_urls.length === 0) && data.image_urls)
         patch.image_urls = data.image_urls;
-      // Always refresh rating + review count (cheap to update, changes daily)
       if (data.rating != null) patch.naver_rating = data.rating;
       if (data.review_count != null) patch.naver_review_count = data.review_count;
+      if (data.photos) patch.naver_photos = data.photos;
+      if (data.menus) patch.naver_menus = data.menus;
 
       if (Object.keys(patch).length === 0) {
         skipped++;
