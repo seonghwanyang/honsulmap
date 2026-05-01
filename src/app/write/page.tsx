@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { POST_CATEGORIES, PostCategory, Spot } from '@/lib/types';
+import { supabase } from '@/lib/supabase';
+
+const MAX_IMAGES = 4;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const STORAGE_BUCKET = 'post-images';
 
 function BackButton() {
   return (
@@ -44,6 +49,9 @@ export default function WritePage() {
   const [spotsLoading, setSpotsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const spotRef = useRef<HTMLDivElement>(null);
   const needsSpot = SPOT_REQUIRED_CATEGORIES.includes(category);
@@ -123,6 +131,71 @@ export default function WritePage() {
     return null;
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(e.target.files ?? []);
+    e.target.value = ''; // reset so the same file can be re-picked later
+    if (!incoming.length) return;
+    const room = MAX_IMAGES - imageFiles.length;
+    if (room <= 0) {
+      setError(`이미지는 최대 ${MAX_IMAGES}개까지 첨부할 수 있어요.`);
+      return;
+    }
+    const accepted: File[] = [];
+    for (const f of incoming.slice(0, room)) {
+      if (!f.type.startsWith('image/')) continue;
+      if (f.size > MAX_IMAGE_BYTES) {
+        setError('각 이미지는 5MB를 넘을 수 없어요.');
+        continue;
+      }
+      accepted.push(f);
+    }
+    if (!accepted.length) return;
+    setImageFiles((prev) => [...prev, ...accepted]);
+    setPreviewUrls((prev) => [...prev, ...accepted.map((f) => URL.createObjectURL(f))]);
+    setError('');
+  };
+
+  const removeImage = (idx: number) => {
+    setPreviewUrls((prev) => {
+      const url = prev[idx];
+      if (url) URL.revokeObjectURL(url);
+      return prev.filter((_, i) => i !== idx);
+    });
+    setImageFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // Clean up all preview object URLs on unmount
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((u) => URL.revokeObjectURL(u));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const uploadImages = useCallback(async (): Promise<string[]> => {
+    if (imageFiles.length === 0) return [];
+    setUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const file of imageFiles) {
+        const ext =
+          (file.name.split('.').pop() || file.type.split('/')[1] || 'jpg')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '') || 'jpg';
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(path, file, { contentType: file.type, upsert: false });
+        if (upErr) throw new Error(`이미지 업로드 실패: ${upErr.message}`);
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        urls.push(data.publicUrl);
+      }
+      return urls;
+    } finally {
+      setUploading(false);
+    }
+  }, [imageFiles]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
@@ -134,6 +207,8 @@ export default function WritePage() {
     setError('');
     setSubmitting(true);
     try {
+      const image_urls = await uploadImages();
+
       const body: Record<string, unknown> = {
         category,
         title: title.trim(),
@@ -145,6 +220,9 @@ export default function WritePage() {
         body.spot_id = spotId;
       } else if (needsSpot && spotQuery.trim()) {
         body.spot_name = spotQuery.trim();
+      }
+      if (image_urls.length > 0) {
+        body.image_urls = image_urls;
       }
 
       const res = await fetch('/api/posts', {
@@ -343,6 +421,86 @@ export default function WritePage() {
           </div>
         </div>
 
+        {/* Photos */}
+        <div>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: '#6b7280' }}>
+            사진 첨부 <span style={{ color: HELP_TEXT, fontWeight: 400 }}>(선택, 최대 {MAX_IMAGES}장)</span>
+          </label>
+
+          {previewUrls.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar mb-2 pb-1">
+              {previewUrls.map((url, i) => (
+                <div
+                  key={url}
+                  className="relative flex-shrink-0"
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    background: '#f3f4f6',
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={`첨부 사진 ${i + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    aria-label="사진 제거"
+                    className="absolute top-1 right-1 flex items-center justify-center"
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: 'rgba(17,24,39,0.7)',
+                      color: '#ffffff',
+                      fontSize: 12,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {imageFiles.length < MAX_IMAGES && (
+            <label
+              className="flex items-center justify-center gap-2 w-full cursor-pointer"
+              style={{
+                background: '#f9fafb',
+                border: '1px dashed #d1d5db',
+                borderRadius: 8,
+                padding: '11px 12px',
+                fontSize: 13,
+                color: '#6b7280',
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              사진 선택 ({imageFiles.length}/{MAX_IMAGES})
+            </label>
+          )}
+          <p className="text-xs mt-1" style={{ color: HELP_TEXT }}>
+            한 장당 5MB 이하 · 모바일에서 카메라 또는 사진첩에서 선택
+          </p>
+        </div>
+
         {/* Error */}
         {error && (
           <p className="text-sm" style={{ color: '#ef4444' }}>
@@ -364,7 +522,7 @@ export default function WritePage() {
             transition: 'background 0.2s',
           }}
         >
-          {submitting ? '등록 중...' : '등록하기'}
+          {uploading ? '사진 업로드 중...' : submitting ? '등록 중...' : '등록하기'}
         </button>
       </form>
     </div>
