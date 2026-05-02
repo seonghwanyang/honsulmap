@@ -48,14 +48,14 @@ export default function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium no-underline transition-all duration-200 ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium no-underline whitespace-nowrap flex-shrink-0 transition-all duration-200 ${
               isActive
                 ? 'bg-gray-100 text-gray-900'
                 : 'text-gray-400 hover:text-gray-600'
             }`}
           >
             {item.icon}
-            <span>{item.label}</span>
+            <span className="whitespace-nowrap">{item.label}</span>
           </Link>
         );
       })}
