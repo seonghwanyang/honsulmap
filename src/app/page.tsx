@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Script from 'next/script';
 import RegionFilter from '@/components/RegionFilter';
+import CategoryFilter, { CategoryFilterValue } from '@/components/CategoryFilter';
 import SpotRequestModal from '@/components/SpotRequestModal';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
@@ -69,6 +70,7 @@ function MapPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const region = searchParams.get('region') || 'all';
+  const category = (searchParams.get('category') || 'all') as CategoryFilterValue;
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<NaverMap | null>(null);
@@ -132,6 +134,18 @@ function MapPageInner() {
 
   const spotsWithStories = spots.filter((s) => s.latest_story_at);
 
+  // Client-side category filter applied on top of the region-filtered spots
+  const filteredSpots = spots.filter((s) => {
+    if (category === 'all') return true;
+    if (category === 'bar') return s.category === 'bar';
+    if (category === 'guesthouse') return s.category === 'guesthouse';
+    if (category === 'party-guesthouse')
+      return s.category === 'guesthouse' && (s.vibe_tags ?? []).includes('party');
+    if (category === 'quiet-guesthouse')
+      return s.category === 'guesthouse' && (s.vibe_tags ?? []).includes('quiet');
+    return true;
+  });
+
   // Register global spot selector for map markers
   useEffect(() => {
     window.__selectSpot = (spotId: string) => {
@@ -187,6 +201,16 @@ function MapPageInner() {
       const params = new URLSearchParams(searchParams.toString());
       if (r === 'all') params.delete('region');
       else params.set('region', r);
+      router.push(`/?${params.toString()}`);
+    },
+    [router, searchParams],
+  );
+
+  const handleCategoryChange = useCallback(
+    (c: CategoryFilterValue) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (c === 'all') params.delete('category');
+      else params.set('category', c);
       router.push(`/?${params.toString()}`);
     },
     [router, searchParams],
@@ -256,13 +280,28 @@ function MapPageInner() {
 
     const esc = (s: string) => s.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 
+    // Returns the inner SVG glyph string for a spot based on category + vibe_tags
+    const spotIcon = (spot: SpotWithStories, iconSz: number, strokeColor: string): string => {
+      const stroke = `stroke="${strokeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"`;
+      const svgOpen = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSz}" height="${iconSz}" viewBox="0 0 24 24" fill="none" ${stroke}>`;
+      if (spot.category === 'bar') {
+        return `${svgOpen}<path d="M8 2h8l-2 10h-4L8 2z"/><path d="M12 12v6"/><path d="M9 18h6"/></svg>`;
+      }
+      if (spot.category === 'guesthouse' && (spot.vibe_tags ?? []).includes('party')) {
+        return `${svgOpen}<path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-1.99.21a2.9 2.9 0 0 0-2.4 1.99l-.45 1.21c-.39 1.06-1.27 1.86-2.36 2.16L13 19"/></svg>`;
+      }
+      // guesthouse (quiet or general) → home icon
+      return `${svgOpen}<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
+    };
+
     const renderSpotMarker = (spot: SpotWithStories) => {
       const hasStory = !!spot.latest_story_at;
       const sz = hasStory ? 32 : 24;
       const iconSz = hasStory ? 14 : 11;
       const tailW = hasStory ? 6 : 4;
       const tailH = hasStory ? 7 : 5;
-      const glassIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSz}" height="${iconSz}" viewBox="0 0 24 24" fill="none" stroke="${hasStory ? '#fff' : '#9ca3af'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-2 10h-4L8 2z"/><path d="M12 12v6"/><path d="M9 18h6"/></svg>`;
+      const strokeColor = hasStory ? '#fff' : '#9ca3af';
+      const glassIcon = spotIcon(spot, iconSz, strokeColor);
 
       const bg = hasStory ? '#111827' : '#fff';
       const border = hasStory ? '2px solid #fff' : '1.5px solid #d1d5db';
@@ -313,12 +352,12 @@ function MapPageInner() {
 
     // Viewport culling: only render markers within the visible map bounds
     // (with a small padding so markers near the edge stay visible during pan).
-    // Falls back to all spots before the first bounds measurement.
+    // Falls back to all filteredSpots before the first bounds measurement.
     const visibleSpots = viewBounds
       ? (() => {
           const padLat = (viewBounds.maxLat - viewBounds.minLat) * 0.1;
           const padLng = (viewBounds.maxLng - viewBounds.minLng) * 0.1;
-          return spots.filter(
+          return filteredSpots.filter(
             (s) =>
               s.lat >= viewBounds.minLat - padLat &&
               s.lat <= viewBounds.maxLat + padLat &&
@@ -326,7 +365,7 @@ function MapPageInner() {
               s.lng <= viewBounds.maxLng + padLng,
           );
         })()
-      : spots;
+      : filteredSpots;
 
     if (currentZoom >= CLUSTER_ZOOM) {
       visibleSpots.forEach((spot) => {
@@ -363,7 +402,7 @@ function MapPageInner() {
           : '';
 
         const inner = isSingle
-          ? `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${hasStory ? '#fff' : '#9ca3af'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-2 10h-4L8 2z"/><path d="M12 12v6"/><path d="M9 18h6"/></svg>`
+          ? spotIcon(cluster[0], 10, hasStory ? '#fff' : '#9ca3af')
           : `<span style="color:#fff;font-weight:600;font-size:${sz > 36 ? 14 : 12}px;">${count}</span>`;
 
         const clickFn = isSingle
@@ -402,7 +441,7 @@ function MapPageInner() {
         overlaysRef.current.push(marker);
       });
     }
-  }, [spots, mapReady, currentZoom, viewBounds]);
+  }, [filteredSpots, mapReady, currentZoom, viewBounds]);
 
   const handleGps = () => {
     if (!navigator.geolocation || !mapInstanceRef.current) return;
@@ -447,9 +486,10 @@ function MapPageInner() {
         </div>
       </header>
 
-      {/* Region Filter + Spot Request Banner (same bg so they feel unified) */}
+      {/* Region Filter + Category Filter + Spot Request Banner (same bg so they feel unified) */}
       <div className="absolute z-20 left-0 right-0 top-14 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
         <RegionFilter selected={region} onChange={handleRegionChange} />
+        <CategoryFilter selected={category} onChange={handleCategoryChange} />
         <div className="hidden sm:block px-4 pb-3">
           <SpotRequestButton variant="banner" />
         </div>
