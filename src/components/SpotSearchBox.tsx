@@ -67,7 +67,7 @@ export default function SpotSearchBox({ spots, onPick }: Props) {
       // Mobile: header (56) + region filter (~40) + small gap. Banner is
       // hidden on phones to keep the map visible. Desktop (sm+): the
       // banner appears, so push the search down by its height.
-      className="absolute z-30 left-1/2 top-[110px] sm:top-[160px]"
+      className="absolute z-30 left-1/2 top-[150px] sm:top-[200px]"
       style={{
         transform: 'translateX(-50%)',
         width: 'min(92vw, 440px)',

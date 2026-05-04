@@ -32,6 +32,14 @@ export interface Spot {
   naver_review_count?: number | null;
   naver_photos?: string[] | null;
   naver_menus?: NaverMenuItem[] | null;
+  /**
+   * Free-form vibe tags. For guesthouses we currently use:
+   *   'party' — 대형/소규모 파티 게하
+   *   'quiet' — 조용/힐링/소규모 소통
+   *   'general' — 일반 (default)
+   * Marker icon dispatch and filter chips read this column.
+   */
+  vibe_tags?: string[] | null;
   like_count: number;
   mood_up: number;
   mood_down: number;
