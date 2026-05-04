@@ -261,7 +261,7 @@ def main() -> int:
         return 2
 
     batch_size = int(os.environ.get("BATCH_SIZE", "15"))
-    workers = max(1, int(os.environ.get("WORKERS", "8")))
+    workers = max(1, int(os.environ.get("WORKERS", "1")))
 
     from worker.db import get_client, select_spots_for_scrape
 
