@@ -47,7 +47,7 @@ function StoryCard({ story }: { story: StoryWithSpot }) {
               {getRegionLabel(story.spot.region)}
             </span>
             <span className="text-white/40 text-xs">·</span>
-            <span className="text-white/70 text-xs">
+            <span className="text-white/70 text-xs" suppressHydrationWarning>
               {relativeTime(story.posted_at)}
             </span>
           </div>
