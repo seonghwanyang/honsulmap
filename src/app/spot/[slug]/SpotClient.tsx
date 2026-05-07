@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Image from 'next/image';
 import NativeHorizontal from '@/components/ads/NativeHorizontal';
 import NativeCard from '@/components/ads/NativeCard';
 import ReportModal from '@/components/ReportModal';
@@ -345,7 +344,7 @@ export default function SpotPage() {
 
   return (
     <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
-      {/* Header */}
+      {/* Sticky nav bar — back button only */}
       <header
         className="sticky top-0 z-20 flex items-center gap-3 px-4"
         style={{
@@ -361,207 +360,165 @@ export default function SpotPage() {
         </span>
       </header>
 
-      {/* Photo Strip */}
-      {spot.image_urls && spot.image_urls.length > 0 ? (
-        <div
-          className="flex gap-2 overflow-x-auto px-4 py-3 hide-scrollbar"
-        >
-          {spot.image_urls.map((url, idx) => (
-            <div
-              key={idx}
-              className="relative flex-shrink-0"
-              style={{ width: '160px', height: '120px', borderRadius: '10px', overflow: 'hidden', background: '#f3f4f6' }}
+      {/* Spot info block — mirrors the map sheet header exactly */}
+      <div className="px-4 pt-2 pb-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
+        <h2 className="font-bold text-base truncate" style={{ color: '#111827' }}>
+          {spot.name}
+        </h2>
+        <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
+          {getRegionLabel(spot.region)} · {getCategoryLabel(spot.category)}
+          {activeStories.length > 0 && ` · 스토리 ${activeStories.length}개`}
+        </p>
+
+        {/* Action chips — 상세보기 dropped (we are the detail page) */}
+        <div className="flex gap-2 mt-3">
+          {instagramUrl && (
+            <a
+              href={instagramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
+              style={{ background: '#f3f4f6', color: '#374151', borderRadius: '8px', textDecoration: 'none' }}
             >
-              <Image
-                src={url}
-                alt={`${spot.name} 사진 ${idx + 1}`}
-                fill
-                className="object-cover"
-                sizes="160px"
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div
-          className="mx-4 mt-3 flex items-center justify-center"
-          style={{ height: '120px', background: '#f8f9fa', borderRadius: '12px', color: '#d1d5db', fontSize: '12px' }}
-        >
-          등록된 사진이 없습니다
-        </div>
-      )}
-
-      {/* Meta Info */}
-      <div className="mx-4 mt-3 grid grid-cols-2 gap-2">
-        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
-          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>영업시간</p>
-          <p className="text-xs font-medium" style={{ color: '#111827' }}>
-            {spot.business_hours || '정보 없음'}
-          </p>
-        </div>
-        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
-          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>최근 스토리</p>
-          <p className="text-xs font-medium" style={{ color: '#111827' }}>
-            {spot.latest_story_at ? relativeTime(spot.latest_story_at) : '없음'}
-          </p>
-        </div>
-        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
-          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>네이버 별점</p>
-          <p className="text-xs font-medium" style={{ color: '#111827' }}>
-            {spot.naver_rating != null ? (
-              <>
-                <span style={{ color: '#f59e0b' }}>★</span> {spot.naver_rating.toFixed(2)}
-                {spot.naver_review_count != null && (
-                  <span style={{ color: '#9ca3af', fontWeight: 400 }}>
-                    {' '}
-                    ({spot.naver_review_count.toLocaleString()})
-                  </span>
-                )}
-              </>
-            ) : (
-              '정보 없음'
-            )}
-          </p>
-        </div>
-        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
-          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>전화</p>
-          <p className="text-xs font-medium" style={{ color: '#111827' }}>
-            {spot.phone ? (
-              <a
-                href={`tel:${spot.phone.replace(/[^0-9+]/g, '')}`}
-                style={{ color: '#111827', textDecoration: 'none' }}
-              >
-                {spot.phone}
-              </a>
-            ) : (
-              '정보 없음'
-            )}
-          </p>
-        </div>
-        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
-          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>지역</p>
-          <p className="text-xs font-medium" style={{ color: '#111827' }}>
-            {getRegionLabel(spot.region)}
-          </p>
-        </div>
-        <div className="p-3" style={{ background: '#f8f9fa', borderRadius: '10px' }}>
-          <p className="text-xs mb-1" style={{ color: '#9ca3af' }}>카테고리</p>
-          <p className="text-xs font-medium" style={{ color: '#111827' }}>
-            {getCategoryLabel(spot.category)}
-          </p>
-        </div>
-      </div>
-
-      {/* Vote Bar */}
-      <div className="px-4 mt-4">
-        <MoodVoteButton spotId={spot.slug} upCount={spot.mood_up} downCount={spot.mood_down} />
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex gap-2 px-4 mt-4 overflow-x-auto hide-scrollbar">
-        <LikeButton targetType="spot" targetId={spot.slug} initialCount={spot.like_count} />
-        <a
-          href={naverMapUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
-          style={{ background: '#f8f9fa', borderRadius: '10px', color: '#16a34a', border: '1.5px solid #e5e7eb', textDecoration: 'none' }}
-        >
-          <span>&#128506;</span>
-          <span>네이버 지도</span>
-        </a>
-        {instagramUrl && (
+              인스타
+            </a>
+          )}
           <a
-            href={instagramUrl}
+            href={naverMapUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
-            style={{ background: '#f8f9fa', borderRadius: '10px', color: '#c026d3', border: '1.5px solid #e5e7eb', textDecoration: 'none' }}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
+            style={{ background: '#f3f4f6', color: '#16a34a', borderRadius: '8px', textDecoration: 'none' }}
           >
-            <span>&#128247;</span>
-            <span>인스타</span>
+            네이버지도
           </a>
+        </div>
+
+        {/* Compact info bar — conditional, mirrors sheet exactly */}
+        {(spot.business_hours || spot.naver_rating != null || spot.phone) && (
+          <div
+            className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2.5 text-[11px]"
+            style={{ color: '#6b7280' }}
+          >
+            {spot.business_hours && (
+              <span className="inline-flex items-center gap-1">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span style={{ color: '#374151' }}>{spot.business_hours}</span>
+              </span>
+            )}
+            {spot.naver_rating != null && (
+              <span className="inline-flex items-center gap-1">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <span style={{ color: '#374151' }}>
+                  {spot.naver_rating.toFixed(2)}
+                  {spot.naver_review_count != null && (
+                    <span style={{ color: '#9ca3af' }}> ({spot.naver_review_count.toLocaleString()})</span>
+                  )}
+                </span>
+              </span>
+            )}
+            {spot.phone && (
+              <a
+                href={`tel:${spot.phone.replace(/[^0-9+]/g, '')}`}
+                className="inline-flex items-center gap-1"
+                style={{ color: '#374151', textDecoration: 'none' }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                {spot.phone}
+              </a>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Native ad — right below the map/Instagram action buttons (ref copy4) */}
-      <div className="px-4 mt-4">
-        <NativeCard />
+      {/* Like button + Mood vote */}
+      <div className="px-4 mt-4 flex flex-col gap-3">
+        <LikeButton targetType="spot" targetId={spot.slug} initialCount={spot.like_count} />
+        <MoodVoteButton spotId={spot.slug} upCount={spot.mood_up} downCount={spot.mood_down} />
       </div>
 
-      {/* Instagram Stories Section */}
-      <div className="mt-6 px-4">
-        <p className="font-semibold text-sm mb-3" style={{ color: '#111827' }}>
-          인스타 스토리
-        </p>
-
+      {/* Stories — 1-column full-width 9:16 cards, NativeCard after each except last */}
+      <div className="flex flex-col gap-3 px-4 py-3 mt-2">
         {activeStories.length === 0 ? (
-          <div
-            className="flex flex-col items-center justify-center gap-3 py-8"
-            style={{ background: '#f8f9fa', borderRadius: '12px' }}
-          >
-            <p className="text-sm" style={{ color: '#9ca3af' }}>
-              아직 스토리가 없습니다
-            </p>
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <span style={{ fontSize: '40px', opacity: 0.3 }}>📷</span>
+            <p className="text-sm" style={{ color: '#9ca3af' }}>현재 활성 스토리가 없습니다</p>
             {instagramUrl && (
               <a
                 href={instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs px-3 py-1.5 font-medium"
-                style={{ background: '#111827', color: '#ffffff', borderRadius: '6px', textDecoration: 'none' }}
+                style={{ background: '#111827', color: '#fff', borderRadius: '6px', textDecoration: 'none' }}
               >
-                인스타 바로가기
+                인스타에서 확인
               </a>
             )}
           </div>
         ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-              gap: '12px',
-            }}
-          >
-            {activeStories.map((story: Story) => (
-              <div
-                key={story.id}
-                className="relative"
-                style={{
-                  aspectRatio: '9/16',
-                  borderRadius: '12px',
-                  overflow: 'hidden',
-                  background: '#f3f4f6',
-                }}
-              >
-                {story.media_type === 'video' ? (
-                  <video
-                    src={story.media_url}
-                    poster={story.thumbnail_url || undefined}
-                    className="w-full h-full object-cover"
-                    muted
-                    playsInline
-                  />
-                ) : (
-                  <Image
-                    src={story.thumbnail_url || story.media_url}
-                    alt={`스토리 ${relativeTime(story.posted_at)}`}
-                    fill
-                    className="object-cover"
-                    sizes="120px"
-                  />
-                )}
+          (() => {
+            const items: React.ReactNode[] = [];
+            activeStories.forEach((story: Story, idx: number) => {
+              items.push(
                 <div
-                  className="absolute bottom-0 left-0 right-0 px-2 py-1.5"
-                  style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}
+                  key={story.id}
+                  className="relative w-full"
+                  style={{ aspectRatio: '9/16', borderRadius: '14px', overflow: 'hidden', background: '#000' }}
                 >
-                  <p className="text-xs font-medium" style={{ color: '#ffffff' }}>
-                    {relativeTime(story.posted_at)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+                  {story.media_type === 'video' ? (
+                    <video
+                      src={story.media_url}
+                      poster={story.thumbnail_url || undefined}
+                      className="w-full h-full object-cover"
+                      controls
+                      playsInline
+                      muted
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={story.thumbnail_url || story.media_url}
+                      alt={`스토리 ${relativeTime(story.posted_at)}`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                  {/* Top gradient overlay with avatar + name + time */}
+                  <div
+                    className="absolute top-0 left-0 right-0 px-3 py-2 flex items-center gap-2"
+                    style={{ background: 'linear-gradient(rgba(0,0,0,0.5), transparent)' }}
+                  >
+                    <div
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: '50%',
+                        background: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8 2h8l-2 10h-4L8 2z" /><path d="M12 12v6" /><path d="M9 18h6" />
+                      </svg>
+                    </div>
+                    <span className="text-xs font-semibold" style={{ color: '#fff' }}>
+                      {spot.name}
+                    </span>
+                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                      {relativeTime(story.posted_at)}
+                    </span>
+                  </div>
+                </div>,
+              );
+              if (idx < activeStories.length - 1) {
+                items.push(<NativeCard key={`ad-${idx}`} />);
+              }
+            });
+            return items;
+          })()
         )}
       </div>
 
