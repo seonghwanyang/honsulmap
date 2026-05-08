@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { POST_CATEGORIES, PostCategory, Spot } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
+import { track } from '@/lib/analytics';
 
 const MAX_IMAGES = 4;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -234,6 +235,10 @@ export default function WritePage() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || data.message || `등록 실패 (${res.status})`);
       }
+      track('write_submitted', {
+        category,
+        has_attached_photos: image_urls.length > 0,
+      });
       router.push('/community');
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다');

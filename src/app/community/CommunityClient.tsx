@@ -7,6 +7,9 @@ import NativeListItem from '@/components/ads/NativeListItem';
 import NativeHorizontal from '@/components/ads/NativeHorizontal';
 import { Post, POST_CATEGORIES, PostCategory } from '@/lib/types';
 import { relativeTime, getCategoryLabel } from '@/lib/utils';
+import { track } from '@/lib/analytics';
+import { usePageDwell } from '@/lib/hooks/usePageDwell';
+import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
 
 const categoryBadgeStyle: Record<string, { bg: string; text: string }> = {
   status: { bg: '#dcfce7', text: '#15803d' },
@@ -18,7 +21,17 @@ const categoryBadgeStyle: Record<string, { bg: string; text: string }> = {
 function PostItem({ post }: { post: Post }) {
   const style = categoryBadgeStyle[post.category] || categoryBadgeStyle.free;
   return (
-    <Link href={`/post/${post.id}`} className="block">
+    <Link
+      href={`/post/${post.id}?from=community_list`}
+      onClick={() => {
+        track('community_post_entered', {
+          post_id: post.id,
+          category: post.category,
+          entry_source: 'community',
+        });
+      }}
+      className="block"
+    >
       <div className="px-4 py-3.5" style={{ borderBottom: '1px solid #f3f4f6' }}>
         <div className="flex items-center gap-2 mb-1.5">
           <span
@@ -67,6 +80,9 @@ export default function CommunityClient({ initialPosts, category }: CommunityCli
   const observerRef = useRef<IntersectionObserver | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
+  usePageDwell('community', category);
+  useScrollDepth('community', category);
+
   // Reset when server-provided category or initialPosts change
   useEffect(() => {
     setPosts(initialPosts);
@@ -77,6 +93,7 @@ export default function CommunityClient({ initialPosts, category }: CommunityCli
 
   const handleCategoryChange = useCallback(
     (cat: PostCategory | 'all') => {
+      track('category_filter_changed', { category: cat, surface: 'community' });
       const params = new URLSearchParams();
       if (cat !== 'all') params.set('category', cat);
       router.push(`/community?${params.toString()}`);

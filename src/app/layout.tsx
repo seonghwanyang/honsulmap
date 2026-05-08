@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import Footer from '@/components/Footer';
 import SideBanner from '@/components/ads/SideBanner';
 import BottomStickyBar from '@/components/ads/BottomStickyBar';
+import ClarityScript from '@/components/analytics/ClarityScript';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
@@ -130,6 +131,7 @@ export default function RootLayout({
         <Footer />
         <BottomStickyBar />
         <BottomNav />
+        <ClarityScript />
       </body>
       {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
     </html>
