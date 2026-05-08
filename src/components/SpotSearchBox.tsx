@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SpotWithStories } from '@/lib/types';
+import { track } from '@/lib/analytics';
 
 interface Props {
   spots: SpotWithStories[];
@@ -13,6 +14,12 @@ export default function SpotSearchBox({ spots, onPick }: Props) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Tracks whether the latest open-session ended in a pick. When the user
+  // types something and never picks, we fire one search_executed with
+  // picked=false on close so abandoned searches still register.
+  const wasPickedRef = useRef(false);
+  const lastQueryLenRef = useRef(0);
+  const lastResultCountRef = useRef(0);
 
   // Close when clicking outside the component
   useEffect(() => {
@@ -53,9 +60,38 @@ export default function SpotSearchBox({ spots, onPick }: Props) {
 
   useEffect(() => {
     setHighlight(0);
-  }, [query]);
+    // Stash the latest stable query/result count so the close-on-blur
+    // effect below has something to send when the user abandons a search.
+    lastQueryLenRef.current = query.length;
+    lastResultCountRef.current = results.length;
+  }, [query, results.length]);
+
+  // Fire abandoned-search event once when the dropdown closes with a
+  // non-empty query and no pick in this open-session.
+  useEffect(() => {
+    if (open) return;
+    if (wasPickedRef.current) {
+      wasPickedRef.current = false;
+      return;
+    }
+    if (lastQueryLenRef.current > 0) {
+      track('search_executed', {
+        query_len: lastQueryLenRef.current,
+        result_count: lastResultCountRef.current,
+        picked: false,
+      });
+      lastQueryLenRef.current = 0;
+      lastResultCountRef.current = 0;
+    }
+  }, [open]);
 
   function pick(spot: SpotWithStories) {
+    track('search_executed', {
+      query_len: query.length,
+      result_count: results.length,
+      picked: true,
+    });
+    wasPickedRef.current = true;
     onPick(spot);
     setOpen(false);
     setQuery('');

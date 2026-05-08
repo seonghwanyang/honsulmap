@@ -1,12 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import NativeHorizontal from '@/components/ads/NativeHorizontal';
 import NativeCard from '@/components/ads/NativeCard';
 import ReportModal from '@/components/ReportModal';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
+import { track, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
+import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
+import { usePageDwell } from '@/lib/hooks/usePageDwell';
+import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
 
 function BackButton() {
   return (
@@ -271,15 +275,115 @@ function CommentSection({ spotId }: { spotId: string }) {
   );
 }
 
+// Single story card on the dedicated /spot/[slug] page. Mirrors the
+// map-sheet variant but emits surface='spot_page' on each event.
+function SpotPageStory({
+  story,
+  spot,
+}: {
+  story: Story;
+  spot: SpotWithStories;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useStoryImpression(ref, {
+    story_id: story.id,
+    spot_id: spot.id,
+    region: spot.region,
+    category: spot.category,
+    surface: 'spot_page',
+  });
+
+  const onPlay = () => {
+    if (shouldFireOnceForStory('story_play', story.id)) {
+      track('story_play', { story_id: story.id, spot_id: spot.id, surface: 'spot_page' });
+    }
+  };
+  const onTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const v = e.currentTarget;
+    if (v.duration && v.currentTime / v.duration >= 0.75) {
+      if (shouldFireOnceForStory('story_progress_75', story.id)) {
+        track('story_progress_75', { story_id: story.id, spot_id: spot.id, surface: 'spot_page' });
+      }
+    }
+  };
+  const onEnded = () => {
+    if (shouldFireOnceForStory('story_complete', story.id)) {
+      track('story_complete', { story_id: story.id, spot_id: spot.id, surface: 'spot_page' });
+    }
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="relative w-full"
+      style={{ aspectRatio: '9/16', borderRadius: '14px', overflow: 'hidden', background: '#000' }}
+    >
+      {story.media_type === 'video' ? (
+        <video
+          src={story.media_url}
+          poster={story.thumbnail_url || undefined}
+          className="w-full h-full object-cover"
+          controls
+          playsInline
+          muted
+          onPlay={onPlay}
+          onTimeUpdate={onTimeUpdate}
+          onEnded={onEnded}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={story.thumbnail_url || story.media_url}
+          alt={`스토리 ${relativeTime(story.posted_at)}`}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+      )}
+      {/* Top gradient overlay with avatar + name + time */}
+      <div
+        className="absolute top-0 left-0 right-0 px-3 py-2 flex items-center gap-2"
+        style={{ background: 'linear-gradient(rgba(0,0,0,0.5), transparent)' }}
+      >
+        <div
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: '50%',
+            background: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 2h8l-2 10h-4L8 2z" /><path d="M12 12v6" /><path d="M9 18h6" />
+          </svg>
+        </div>
+        <span className="text-xs font-semibold" style={{ color: '#fff' }}>
+          {spot.name}
+        </span>
+        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+          {relativeTime(story.posted_at)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ---- Main Page ----
 
 export default function SpotPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
 
   const [spot, setSpot] = useState<SpotWithStories | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  usePageDwell('spot', slug);
+  useScrollDepth('spot', slug);
 
   useEffect(() => {
     const fetchSpot = async () => {
@@ -298,6 +402,20 @@ export default function SpotPage() {
     };
     if (slug) fetchSpot();
   }, [slug]);
+
+  // Fire spot_detail_entered once we have the spot id and the resolved
+  // entry_source from ?from=. Defaults to 'direct' for raw URL hits.
+  useEffect(() => {
+    if (!spot) return;
+    const from = searchParams.get('from');
+    const allowed: EntrySource[] = ['map', 'feed', 'search', 'community', 'direct'];
+    const entry_source: EntrySource = (allowed as string[]).includes(from || '')
+      ? (from as EntrySource)
+      : 'direct';
+    track('spot_detail_entered', { spot_id: spot.id, entry_source });
+    // Only fire once per spot load — not on every searchParams tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spot?.id]);
 
   if (loading) {
     return (
@@ -377,6 +495,14 @@ export default function SpotPage() {
               href={instagramUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => {
+                track('instagram_link_clicked', {
+                  spot_id: spot.id,
+                  region: spot.region,
+                  category: spot.category,
+                  surface: 'spot_page_action',
+                });
+              }}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
               style={{ background: '#f3f4f6', color: '#374151', borderRadius: '8px', textDecoration: 'none' }}
             >
@@ -448,6 +574,14 @@ export default function SpotPage() {
                 href={instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => {
+                  track('instagram_link_clicked', {
+                    spot_id: spot.id,
+                    region: spot.region,
+                    category: spot.category,
+                    surface: 'spot_page_empty',
+                  });
+                }}
                 className="text-xs px-3 py-1.5 font-medium"
                 style={{ background: '#111827', color: '#fff', borderRadius: '6px', textDecoration: 'none' }}
               >
@@ -460,58 +594,7 @@ export default function SpotPage() {
             const items: React.ReactNode[] = [];
             activeStories.forEach((story: Story, idx: number) => {
               items.push(
-                <div
-                  key={story.id}
-                  className="relative w-full"
-                  style={{ aspectRatio: '9/16', borderRadius: '14px', overflow: 'hidden', background: '#000' }}
-                >
-                  {story.media_type === 'video' ? (
-                    <video
-                      src={story.media_url}
-                      poster={story.thumbnail_url || undefined}
-                      className="w-full h-full object-cover"
-                      controls
-                      playsInline
-                      muted
-                    />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={story.thumbnail_url || story.media_url}
-                      alt={`스토리 ${relativeTime(story.posted_at)}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  )}
-                  {/* Top gradient overlay with avatar + name + time */}
-                  <div
-                    className="absolute top-0 left-0 right-0 px-3 py-2 flex items-center gap-2"
-                    style={{ background: 'linear-gradient(rgba(0,0,0,0.5), transparent)' }}
-                  >
-                    <div
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: '50%',
-                        background: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M8 2h8l-2 10h-4L8 2z" /><path d="M12 12v6" /><path d="M9 18h6" />
-                      </svg>
-                    </div>
-                    <span className="text-xs font-semibold" style={{ color: '#fff' }}>
-                      {spot.name}
-                    </span>
-                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                      {relativeTime(story.posted_at)}
-                    </span>
-                  </div>
-                </div>,
+                <SpotPageStory key={story.id} story={story} spot={spot} />,
               );
               if (idx < activeStories.length - 1) {
                 items.push(<NativeCard key={`ad-${idx}`} />);

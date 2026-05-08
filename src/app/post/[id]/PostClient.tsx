@@ -7,6 +7,8 @@ import NativeHorizontal from '@/components/ads/NativeHorizontal';
 import ReportModal from '@/components/ReportModal';
 import { Post } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getFingerprint } from '@/lib/utils';
+import { usePageDwell } from '@/lib/hooks/usePageDwell';
+import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
 
 function BackButton() {
   return (
@@ -296,6 +298,9 @@ export default function PostPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
+
+  usePageDwell('post', id);
+  useScrollDepth('post', id);
 
   useEffect(() => {
     const fetchPost = async () => {

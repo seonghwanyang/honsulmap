@@ -12,6 +12,8 @@ import SpotSearchBox from '@/components/SpotSearchBox';
 import NativeCard from '@/components/ads/NativeCard';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
+import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
+import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
 
 declare global {
   interface Window {
@@ -66,6 +68,103 @@ function clusterByGrid(spots: SpotWithStories[], zoom: number): SpotWithStories[
   return Array.from(buckets.values());
 }
 
+// Single story card inside the map's selected-spot panel. Tracks the
+// impression once-per-session via IntersectionObserver and emits
+// story_play / story_progress_75 / story_complete from the <video>.
+function MapSheetStory({
+  story,
+  spot,
+}: {
+  story: Story;
+  spot: SpotWithStories;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useStoryImpression(ref, {
+    story_id: story.id,
+    spot_id: spot.id,
+    region: spot.region,
+    category: spot.category,
+    surface: 'map_sheet',
+  });
+
+  const onPlay = () => {
+    if (shouldFireOnceForStory('story_play', story.id)) {
+      track('story_play', { story_id: story.id, spot_id: spot.id, surface: 'map_sheet' });
+    }
+  };
+  const onTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const v = e.currentTarget;
+    if (v.duration && v.currentTime / v.duration >= 0.75) {
+      if (shouldFireOnceForStory('story_progress_75', story.id)) {
+        track('story_progress_75', { story_id: story.id, spot_id: spot.id, surface: 'map_sheet' });
+      }
+    }
+  };
+  const onEnded = () => {
+    if (shouldFireOnceForStory('story_complete', story.id)) {
+      track('story_complete', { story_id: story.id, spot_id: spot.id, surface: 'map_sheet' });
+    }
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="relative w-full"
+      style={{ aspectRatio: '9/16', borderRadius: '14px', overflow: 'hidden', background: '#000' }}
+    >
+      {story.media_type === 'video' ? (
+        <video
+          src={story.media_url}
+          poster={story.thumbnail_url || undefined}
+          className="w-full h-full object-cover"
+          controls
+          playsInline
+          muted
+          onPlay={onPlay}
+          onTimeUpdate={onTimeUpdate}
+          onEnded={onEnded}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={story.thumbnail_url || story.media_url}
+          alt={`스토리 ${relativeTime(story.posted_at)}`}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+      )}
+      {/* Time overlay */}
+      <div
+        className="absolute top-0 left-0 right-0 px-3 py-2 flex items-center gap-2"
+        style={{ background: 'linear-gradient(rgba(0,0,0,0.5), transparent)' }}
+      >
+        <div
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: '50%',
+            background: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 2h8l-2 10h-4L8 2z" /><path d="M12 12v6" /><path d="M9 18h6" />
+          </svg>
+        </div>
+        <span className="text-xs font-semibold" style={{ color: '#fff' }}>
+          {spot.name}
+        </span>
+        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+          {relativeTime(story.posted_at)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function MapPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -92,6 +191,45 @@ function MapPageInner() {
   const dragStartYRef = useRef<number>(0);
   const dragStartTimeRef = useRef<number>(0);
 
+  // Panel-dwell instrumentation: capture open timestamp + entry source so
+  // we can flush spot_panel_dwell on every close path.
+  const panelOpenAtRef = useRef<number | null>(null);
+  const panelEntrySourceRef = useRef<EntrySource>('map');
+  const panelSpotIdRef = useRef<string | null>(null);
+
+  const flushPanelDwell = useCallback(() => {
+    if (panelOpenAtRef.current === null || !panelSpotIdRef.current) return;
+    const dwell_ms = Date.now() - panelOpenAtRef.current;
+    track('spot_panel_dwell', {
+      spot_id: panelSpotIdRef.current,
+      dwell_ms,
+      entry_source: panelEntrySourceRef.current,
+    });
+    panelOpenAtRef.current = null;
+    panelSpotIdRef.current = null;
+  }, []);
+
+  const openSpotPanel = useCallback(
+    (spot: SpotWithStories, entry_source: EntrySource) => {
+      // If a panel is already open for a different spot, flush its dwell
+      // before swapping in the next one (replacement-by-other-pin path).
+      if (panelSpotIdRef.current && panelSpotIdRef.current !== spot.id) {
+        flushPanelDwell();
+      }
+      panelOpenAtRef.current = Date.now();
+      panelEntrySourceRef.current = entry_source;
+      panelSpotIdRef.current = spot.id;
+      setSelectedSpot(spot);
+      track('spot_detail_entered', { spot_id: spot.id, entry_source });
+    },
+    [flushPanelDwell],
+  );
+
+  const closeSpotPanel = useCallback(() => {
+    flushPanelDwell();
+    setSelectedSpot(null);
+  }, [flushPanelDwell]);
+
   const handleDragStart = (e: React.TouchEvent) => {
     dragStartYRef.current = e.touches[0].clientY;
     dragStartTimeRef.current = Date.now();
@@ -116,6 +254,7 @@ function MapPageInner() {
     if (dragY >= DISMISS_THRESHOLD || velocity >= VELOCITY_THRESHOLD) {
       // Animate off-screen then dismiss
       setDragY(window.innerHeight);
+      flushPanelDwell();
       setTimeout(() => {
         setSelectedSpot(null);
         setDragY(0);
@@ -151,12 +290,19 @@ function MapPageInner() {
     window.__selectSpot = (spotId: string) => {
       const spot = spots.find((s) => s.id === spotId);
       if (spot) {
-        setSelectedSpot(spot);
+        track('pin_clicked', {
+          spot_id: spot.id,
+          region: spot.region,
+          category: spot.category,
+          vibe_tags: joinVibes(spot.vibe_tags),
+          has_active_story: !!spot.latest_story_at,
+        });
+        openSpotPanel(spot, 'map');
         setSheetOpen(false);
       }
     };
     return () => { delete window.__selectSpot; };
-  }, [spots]);
+  }, [spots, openSpotPanel]);
 
   // Register cluster zoom handler
   useEffect(() => {
@@ -198,6 +344,7 @@ function MapPageInner() {
 
   const handleRegionChange = useCallback(
     (r: string) => {
+      track('region_filter_changed', { region: r, surface: 'map' });
       const params = new URLSearchParams(searchParams.toString());
       if (r === 'all') params.delete('region');
       else params.set('region', r);
@@ -208,6 +355,7 @@ function MapPageInner() {
 
   const handleCategoryChange = useCallback(
     (c: CategoryFilterValue) => {
+      track('category_filter_changed', { category: c, surface: 'map' });
       const params = new URLSearchParams(searchParams.toString());
       if (c === 'all') params.delete('category');
       else params.set('category', c);
@@ -505,10 +653,11 @@ function MapPageInner() {
         <SpotSearchBox
           spots={spots}
           onPick={(spot) => {
-            // Pan/zoom only. Opening the detail sheet here used to bury
-            // the pin under the Instagram story panel — the user couldn't
-            // see where on the map the place actually was. Let them
-            // hover/tap the pin themselves if they want details.
+            // Pan/zoom first so the user sees where the spot actually is
+            // on the map. After a short beat, slide the detail panel up
+            // so they can read the stories in context. The 700ms delay
+            // is intentional — it lets the camera move register before
+            // the panel covers the pin.
             if (mapInstanceRef.current && window.naver?.maps) {
               mapInstanceRef.current.morph(
                 new window.naver.maps.LatLng(spot.lat, spot.lng),
@@ -517,6 +666,9 @@ function MapPageInner() {
             }
             setSelectedSpot(null);
             setSheetOpen(false);
+            setTimeout(() => {
+              openSpotPanel(spot, 'search');
+            }, 700);
           }}
         />
       )}
@@ -569,7 +721,7 @@ function MapPageInner() {
           </svg>
         </button>
         <button
-          onClick={() => { setSheetOpen((v) => !v); setSelectedSpot(null); }}
+          onClick={() => { setSheetOpen((v) => !v); flushPanelDwell(); setSelectedSpot(null); }}
           className="w-11 h-11 flex items-center justify-center shadow-lg"
           style={{ background: '#111827', borderRadius: '50%' }}
           aria-label="목록 보기"
@@ -620,7 +772,7 @@ function MapPageInner() {
               {spots.map((spot) => (
                 <li key={spot.id}>
                   <button
-                    onClick={() => { setSelectedSpot(spot); setSheetOpen(false); }}
+                    onClick={() => { openSpotPanel(spot, 'map'); setSheetOpen(false); }}
                     className="flex items-center justify-between py-3 w-full text-left"
                   >
                     <div>
@@ -690,7 +842,7 @@ function MapPageInner() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setSelectedSpot(null)}
+                  onClick={closeSpotPanel}
                   className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
                   style={{ color: '#9ca3af', background: '#f3f4f6', borderRadius: '50%' }}
                 >
@@ -714,6 +866,14 @@ function MapPageInner() {
                     href={instagramUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      track('instagram_link_clicked', {
+                        spot_id: selectedSpot.id,
+                        region: selectedSpot.region,
+                        category: selectedSpot.category,
+                        surface: 'map_sheet_action',
+                      });
+                    }}
                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
                     style={{ background: '#f3f4f6', color: '#374151', borderRadius: '8px', textDecoration: 'none' }}
                   >
@@ -783,6 +943,14 @@ function MapPageInner() {
                       href={instagramUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => {
+                        track('instagram_link_clicked', {
+                          spot_id: selectedSpot.id,
+                          region: selectedSpot.region,
+                          category: selectedSpot.category,
+                          surface: 'map_sheet_empty',
+                        });
+                      }}
                       className="text-xs px-3 py-1.5 font-medium"
                       style={{ background: '#111827', color: '#fff', borderRadius: '6px', textDecoration: 'none' }}
                     >
@@ -796,58 +964,7 @@ function MapPageInner() {
                     const items: React.ReactNode[] = [];
                     activeStories.forEach((story: Story, idx: number) => {
                       items.push(
-                        <div
-                          key={story.id}
-                          className="relative w-full"
-                          style={{ aspectRatio: '9/16', borderRadius: '14px', overflow: 'hidden', background: '#000' }}
-                        >
-                          {story.media_type === 'video' ? (
-                            <video
-                              src={story.media_url}
-                              poster={story.thumbnail_url || undefined}
-                              className="w-full h-full object-cover"
-                              controls
-                              playsInline
-                              muted
-                            />
-                          ) : (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={story.thumbnail_url || story.media_url}
-                              alt={`스토리 ${relativeTime(story.posted_at)}`}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          )}
-                          {/* Time overlay */}
-                          <div
-                            className="absolute top-0 left-0 right-0 px-3 py-2 flex items-center gap-2"
-                            style={{ background: 'linear-gradient(rgba(0,0,0,0.5), transparent)' }}
-                          >
-                            <div
-                              style={{
-                                width: 26,
-                                height: 26,
-                                borderRadius: '50%',
-                                background: '#fff',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M8 2h8l-2 10h-4L8 2z" /><path d="M12 12v6" /><path d="M9 18h6" />
-                              </svg>
-                            </div>
-                            <span className="text-xs font-semibold" style={{ color: '#fff' }}>
-                              {selectedSpot.name}
-                            </span>
-                            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                              {relativeTime(story.posted_at)}
-                            </span>
-                          </div>
-                        </div>,
+                        <MapSheetStory key={story.id} story={story} spot={selectedSpot} />,
                       );
                       // Insert a native ad after every story, but never trail
                       // the very last one so the panel ends on content.

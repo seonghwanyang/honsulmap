@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getFingerprint } from '@/lib/utils';
+import { track } from '@/lib/analytics';
 
 interface Props {
   open: boolean;
@@ -74,6 +75,7 @@ export default function SpotRequestModal({ open, onClose }: Props) {
         throw new Error(body.error || '제출에 실패했습니다.');
       }
       setDone(true);
+      track('spot_request_submitted', { region, category });
     } catch (e) {
       setError((e as Error).message);
     } finally {

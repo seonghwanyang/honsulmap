@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import RegionFilter from '@/components/RegionFilter';
@@ -8,13 +8,48 @@ import NativeCard from '@/components/ads/NativeCard';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import { StoryWithSpot } from '@/lib/types';
 import { relativeTime, getRegionLabel } from '@/lib/utils';
+import { track, shouldFireOnceForStory } from '@/lib/analytics';
+import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
+import { usePageDwell } from '@/lib/hooks/usePageDwell';
+import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
 
 function StoryCard({ story }: { story: StoryWithSpot }) {
   const isVideo = story.media_type === 'video';
+  const ref = useRef<HTMLDivElement>(null);
+
+  useStoryImpression(ref, {
+    story_id: story.id,
+    spot_id: story.spot_id,
+    region: story.spot.region,
+    category: story.spot.category,
+    surface: 'feed',
+  });
+
+  const onPlay = () => {
+    if (shouldFireOnceForStory('story_play', story.id)) {
+      track('story_play', { story_id: story.id, spot_id: story.spot_id, surface: 'feed' });
+    }
+  };
+  const onTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const v = e.currentTarget;
+    if (v.duration && v.currentTime / v.duration >= 0.75) {
+      if (shouldFireOnceForStory('story_progress_75', story.id)) {
+        track('story_progress_75', { story_id: story.id, spot_id: story.spot_id, surface: 'feed' });
+      }
+    }
+  };
+  const onEnded = () => {
+    if (shouldFireOnceForStory('story_complete', story.id)) {
+      track('story_complete', { story_id: story.id, spot_id: story.spot_id, surface: 'feed' });
+    }
+  };
 
   return (
-    <Link href={`/spot/${story.spot.slug}`} className="block rounded-xl overflow-hidden bg-gray-100">
-      <div className="relative aspect-[4/5]">
+    <Link
+      href={`/spot/${story.spot.slug}?from=feed`}
+      className="block rounded-xl overflow-hidden bg-gray-100"
+    >
+      <div ref={ref} className="relative aspect-[4/5]">
         {isVideo ? (
           <video
             src={story.media_url}
@@ -22,6 +57,9 @@ function StoryCard({ story }: { story: StoryWithSpot }) {
             muted
             playsInline
             className="w-full h-full object-cover"
+            onPlay={onPlay}
+            onTimeUpdate={onTimeUpdate}
+            onEnded={onEnded}
           />
         ) : (
           <img
@@ -67,6 +105,9 @@ export default function FeedClient({ initialStories, region }: FeedClientProps) 
   const searchParams = useSearchParams();
   const [, setTick] = useState(0);
 
+  usePageDwell('feed', region);
+  useScrollDepth('feed', region);
+
   // Re-render every 30s to keep relative times accurate
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30_000);
@@ -75,6 +116,7 @@ export default function FeedClient({ initialStories, region }: FeedClientProps) 
 
   const handleRegionChange = useCallback(
     (r: string) => {
+      track('region_filter_changed', { region: r, surface: 'feed' });
       const params = new URLSearchParams(searchParams.toString());
       if (r === 'all') params.delete('region');
       else params.set('region', r);
