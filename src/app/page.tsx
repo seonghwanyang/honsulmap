@@ -271,10 +271,13 @@ function MapPageInner() {
     return () => clearInterval(id);
   }, []);
 
-  const spotsWithStories = spots.filter((s) => s.latest_story_at);
+  // Client-side region + category filter. Markers endpoint returns the
+  // full island so changing chips doesn't trigger a refetch.
+  const regionFilteredSpots = region === 'all'
+    ? spots
+    : spots.filter((s) => s.region === region);
 
-  // Client-side category filter applied on top of the region-filtered spots
-  const filteredSpots = spots.filter((s) => {
+  const filteredSpots = regionFilteredSpots.filter((s) => {
     if (category === 'all') return true;
     if (category === 'bar') return s.category === 'bar';
     if (category === 'guesthouse') return s.category === 'guesthouse';
@@ -364,13 +367,14 @@ function MapPageInner() {
     [router, searchParams],
   );
 
-  // Fetch spots
+  // Fetch lightweight markers once on mount. Region/category filter is
+  // applied client-side from this payload so chip changes don't refetch.
+  // Story bodies are lazy-loaded per spot when its panel opens.
   useEffect(() => {
     const fetchSpots = async () => {
       setLoading(true);
       try {
-        const url = region && region !== 'all' ? `/api/spots?region=${region}` : '/api/spots';
-        const res = await fetch(url);
+        const res = await fetch('/api/spots/markers');
         if (!res.ok) throw new Error('Failed to fetch spots');
         setSpots(await res.json());
       } catch (err) {
@@ -380,7 +384,28 @@ function MapPageInner() {
       }
     };
     fetchSpots();
-  }, [region]);
+  }, []);
+
+  // Lazy-load stories for the currently-selected spot. Cached server-side
+  // so repeated opens don't re-hit the DB.
+  useEffect(() => {
+    if (!selectedSpot) return;
+    if (selectedSpot.stories.length > 0) return; // already loaded
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/spots/${selectedSpot.slug}/stories`);
+        if (!res.ok) return;
+        const stories = (await res.json()) as Story[];
+        if (cancelled) return;
+        setSelectedSpot((cur) => (cur && cur.id === selectedSpot.id ? { ...cur, stories } : cur));
+        setSpots((prev) => prev.map((s) => (s.id === selectedSpot.id ? { ...s, stories } : s)));
+      } catch (err) {
+        console.error('Stories fetch error:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedSpot?.id]);
 
   // Initialize map via onReady callback (called by Script component)
   const initMap = useCallback(() => {
@@ -651,7 +676,7 @@ function MapPageInner() {
           same vertical offset and the search would peek through. */}
       {!selectedSpot && !requestOpen && (
         <SpotSearchBox
-          spots={spots}
+          spots={regionFilteredSpots}
           onPick={(spot) => {
             // Pan/zoom first so the user sees where the spot actually is
             // on the map. After a short beat, slide the detail panel up
@@ -754,7 +779,7 @@ function MapPageInner() {
         </div>
         <div className="flex items-center justify-between px-4 py-2">
           <span className="font-semibold text-sm" style={{ color: '#111827' }}>
-            가게 목록 {spots.length > 0 && `(${spots.length})`}
+            가게 목록 {regionFilteredSpots.length > 0 && `(${regionFilteredSpots.length})`}
           </span>
           <button onClick={() => setSheetOpen(false)} className="text-sm" style={{ color: '#9ca3af' }}>닫기</button>
         </div>
@@ -763,13 +788,13 @@ function MapPageInner() {
             <div className="flex items-center justify-center h-24">
               <span className="text-sm" style={{ color: '#9ca3af' }}>불러오는 중...</span>
             </div>
-          ) : spots.length === 0 ? (
+          ) : regionFilteredSpots.length === 0 ? (
             <div className="flex items-center justify-center h-24">
               <span className="text-sm" style={{ color: '#9ca3af' }}>가게가 없습니다</span>
             </div>
           ) : (
             <ul className="divide-y" style={{ borderColor: '#f3f4f6' }}>
-              {spots.map((spot) => (
+              {regionFilteredSpots.map((spot) => (
                 <li key={spot.id}>
                   <button
                     onClick={() => { openSpotPanel(spot, 'map'); setSheetOpen(false); }}
