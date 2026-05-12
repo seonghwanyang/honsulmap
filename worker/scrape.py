@@ -24,16 +24,44 @@ in production; flipping over later is a single edit to ``vercel.json``.
 """
 from __future__ import annotations
 
+import glob
 import multiprocessing
 import os
 import re
+import shutil
 import sys
+import tempfile
 import time
 import traceback
 from datetime import datetime, timedelta, timezone
 from queue import Empty
 from typing import Any
 from urllib.parse import urlparse
+
+
+# Patchright/Playwright spins up a fresh Chromium profile under %TEMP%
+# every launch and never cleans up on exit. With the worker firing every
+# 15 min that left ~500MB of orphan profile/BITS/url_fetcher dirs on
+# disk. This sweeps the leftovers at the start of each run.
+_TEMP_GLOBS = (
+    "playwright_chromiumdev_profile-*",
+    "chromium_chrome_BITS_*",
+    "chromium_chrome_url_fetcher_*",
+)
+
+
+def _purge_browser_temp_dirs() -> None:
+    tmp = tempfile.gettempdir()
+    removed = 0
+    for pattern in _TEMP_GLOBS:
+        for path in glob.glob(os.path.join(tmp, pattern)):
+            try:
+                shutil.rmtree(path, ignore_errors=True)
+                removed += 1
+            except OSError:
+                pass
+    if removed:
+        print(f"[scrape] swept {removed} stale browser temp dir(s) from {tmp}")
 
 
 def _utcnow_iso() -> str:
@@ -238,6 +266,8 @@ def _worker_loop(
 
 def main() -> int:
     from dotenv import load_dotenv
+
+    _purge_browser_temp_dirs()
 
     # Load .env from repo root and from worker/ — both convenient. Also
     # pick up Next.js's .env.local, which is what a developer running the
