@@ -538,10 +538,11 @@ function MapPageInner() {
     const esc = (s: string) => s.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 
     // Active-pin background color per category. Bar keeps the signature
-    // dark; guesthouse goes emerald so the two are distinguishable at a
-    // glance even when the glyph is too small to read (low zoom).
+    // dark; guesthouse uses a softer pastel blue so the two are
+    // distinguishable at a glance even when the glyph is too small to
+    // read (low zoom).
     const activeBg = (spot: SpotWithStories) =>
-      spot.category === 'guesthouse' ? '#059669' : '#111827';
+      spot.category === 'guesthouse' ? '#60A5FA' : '#111827';
 
     // Returns the inner SVG glyph string for a spot based on category + vibe_tags
     const spotIcon = (spot: SpotWithStories, iconSz: number, strokeColor: string): string => {
