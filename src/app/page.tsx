@@ -537,6 +537,13 @@ function MapPageInner() {
 
     const esc = (s: string) => s.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 
+    // Active-pin background color per category. Bar keeps the signature
+    // dark; guesthouse uses a softer pastel blue so the two are
+    // distinguishable at a glance even when the glyph is too small to
+    // read (low zoom).
+    const activeBg = (spot: SpotWithStories) =>
+      spot.category === 'guesthouse' ? '#60A5FA' : '#111827';
+
     // Returns the inner SVG glyph string for a spot based on category + vibe_tags
     const spotIcon = (spot: SpotWithStories, iconSz: number, strokeColor: string): string => {
       const stroke = `stroke="${strokeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"`;
@@ -560,9 +567,9 @@ function MapPageInner() {
       const strokeColor = hasStory ? '#fff' : '#9ca3af';
       const glassIcon = spotIcon(spot, iconSz, strokeColor);
 
-      const bg = hasStory ? '#111827' : '#fff';
+      const bg = hasStory ? activeBg(spot) : '#fff';
       const border = hasStory ? '2px solid #fff' : '1.5px solid #d1d5db';
-      const tailColor = hasStory ? '#111827' : '#d1d5db';
+      const tailColor = hasStory ? activeBg(spot) : '#d1d5db';
       const shadow = hasStory
         ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
         : 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))';
@@ -642,12 +649,13 @@ function MapPageInner() {
         const tailW = isSingle ? 4 : 5;
         const totalH = sz + tailH - 1;
 
+        const singleColor = isSingle ? activeBg(cluster[0]) : '#111827';
         const bg = isSingle
-          ? (hasStory ? '#111827' : '#fff')
+          ? (hasStory ? singleColor : '#fff')
           : '#111827';
         const border = !hasStory && isSingle ? '1.5px solid #d1d5db' : 'none';
         const tailColor = isSingle
-          ? (hasStory ? '#111827' : '#d1d5db')
+          ? (hasStory ? singleColor : '#d1d5db')
           : '#111827';
         const shadow = 'drop-shadow(0 1px 3px rgba(0,0,0,0.15))';
 
