@@ -33,6 +33,14 @@ export default function Footer() {
         </a>
       </div>
       <div className="mt-1">
+        <Link href="/about" style={{ color: '#6b7280', textDecoration: 'underline' }}>
+          소개
+        </Link>
+        {' · '}
+        <Link href="/terms" style={{ color: '#6b7280', textDecoration: 'underline' }}>
+          이용약관
+        </Link>
+        {' · '}
         <Link href="/privacy" style={{ color: '#6b7280', textDecoration: 'underline' }}>
           개인정보처리방침
         </Link>
