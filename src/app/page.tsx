@@ -386,12 +386,17 @@ function MapPageInner() {
     fetchSpots();
   }, []);
 
-  // Lazy-load stories for the currently-selected spot. Cached server-side
-  // so repeated opens don't re-hit the DB.
+  // Track which spots we've already issued a stories fetch for, so the
+  // idle-time prefetcher doesn't double-fire when `spots` re-renders.
+  const prefetchedRef = useRef<Set<string>>(new Set());
+
+  // Lazy-load stories for the currently-selected spot. Skips when the
+  // prefetcher has already cached them.
   useEffect(() => {
     if (!selectedSpot) return;
     if (selectedSpot.stories.length > 0) return; // already loaded
     let cancelled = false;
+    prefetchedRef.current.add(selectedSpot.id);
     (async () => {
       try {
         const res = await fetch(`/api/spots/${selectedSpot.slug}/stories`);
@@ -406,6 +411,85 @@ function MapPageInner() {
     })();
     return () => { cancelled = true; };
   }, [selectedSpot?.id]);
+
+  // Idle-time viewport prefetch. When the map settles on a new viewport
+  // we fire requestIdleCallback to fill stories for visible spots in the
+  // background, so a pin click feels instant. Cache key is spot_id —
+  // each spot is fetched at most once per session (until invalidated by
+  // the markers refresh below).
+  useEffect(() => {
+    if (!viewBounds || spots.length === 0) return;
+    const padLat = (viewBounds.maxLat - viewBounds.minLat) * 0.1;
+    const padLng = (viewBounds.maxLng - viewBounds.minLng) * 0.1;
+    const need = spots.filter(
+      (s) =>
+        s.latest_story_at &&
+        !prefetchedRef.current.has(s.id) &&
+        s.lat >= viewBounds.minLat - padLat &&
+        s.lat <= viewBounds.maxLat + padLat &&
+        s.lng >= viewBounds.minLng - padLng &&
+        s.lng <= viewBounds.maxLng + padLng,
+    );
+    if (need.length === 0) return;
+    need.forEach((s) => prefetchedRef.current.add(s.id));
+
+    let cancelled = false;
+    const run = async () => {
+      for (const spot of need) {
+        if (cancelled) return;
+        try {
+          const res = await fetch(`/api/spots/${spot.slug}/stories`);
+          if (!res.ok) continue;
+          const stories = (await res.json()) as Story[];
+          if (cancelled) return;
+          setSpots((prev) =>
+            prev.map((s) => (s.id === spot.id ? { ...s, stories } : s)),
+          );
+        } catch {
+          // Best-effort prefetch — silently skip and let lazy-load
+          // recover if the user clicks this spot.
+        }
+      }
+    };
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number })
+      .requestIdleCallback;
+    if (typeof ric === 'function') {
+      ric(run, { timeout: 2000 });
+    } else {
+      setTimeout(run, 100);
+    }
+    return () => { cancelled = true; };
+  }, [viewBounds, spots]);
+
+  // Every 5 min refresh the markers list. If a spot's latest_story_at
+  // changed, invalidate its cached stories so the next click (or next
+  // viewport prefetch) re-fetches just that one.
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const res = await fetch('/api/spots/markers');
+        if (!res.ok) return;
+        const fresh = (await res.json()) as SpotWithStories[];
+        setSpots((prev) => {
+          const byId = new Map(prev.map((s) => [s.id, s]));
+          return fresh.map((f) => {
+            const cached = byId.get(f.id);
+            if (!cached) return f; // new spot — empty stories already
+            const changed = cached.latest_story_at !== f.latest_story_at;
+            if (changed && cached.stories.length > 0) {
+              prefetchedRef.current.delete(f.id);
+              return { ...f, stories: [] };
+            }
+            return { ...f, stories: cached.stories };
+          });
+        });
+      } catch {
+        // Silent — next tick will retry.
+      }
+    };
+    const id = setInterval(refresh, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Initialize map via onReady callback (called by Script component)
   const initMap = useCallback(() => {
