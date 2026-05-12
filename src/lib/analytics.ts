@@ -118,6 +118,7 @@ export type EventParams = {
   spot_request_submitted: SpotRequestSubmittedParams;
   community_post_entered: CommunityPostEnteredParams;
   write_submitted: WriteSubmittedParams;
+  feed_load_more: { region: string; loaded: number };
 };
 
 export type EventName = keyof EventParams;

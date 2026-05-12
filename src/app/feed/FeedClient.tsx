@@ -100,13 +100,24 @@ interface FeedClientProps {
   region: string;
 }
 
+const PAGE_SIZE = 50;
+
 export default function FeedClient({ initialStories, region }: FeedClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, setTick] = useState(0);
+  const [stories, setStories] = useState<StoryWithSpot[]>(initialStories);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(initialStories.length === PAGE_SIZE);
 
   usePageDwell('feed', region);
   useScrollDepth('feed', region);
+
+  // Reset paginated state when a fresh SSR page arrives (region change).
+  useEffect(() => {
+    setStories(initialStories);
+    setHasMore(initialStories.length === PAGE_SIZE);
+  }, [initialStories]);
 
   // Re-render every 30s to keep relative times accurate
   useEffect(() => {
@@ -125,14 +136,36 @@ export default function FeedClient({ initialStories, region }: FeedClientProps) 
     [router, searchParams],
   );
 
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams();
+      if (region !== 'all') params.set('region', region);
+      params.set('offset', String(stories.length));
+      const res = await fetch(`/api/stories/latest?${params.toString()}`);
+      if (!res.ok) throw new Error('load_more_failed');
+      const next = (await res.json()) as StoryWithSpot[];
+      const seen = new Set(stories.map((s) => s.id));
+      const fresh = next.filter((s) => !seen.has(s.id));
+      setStories((prev) => [...prev, ...fresh]);
+      setHasMore(next.length === PAGE_SIZE);
+      track('feed_load_more', { region, loaded: fresh.length });
+    } catch (err) {
+      console.error('feed load more:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, region, stories]);
+
   const items: React.ReactNode[] = [];
-  initialStories.forEach((story, idx) => {
+  stories.forEach((story, idx) => {
     items.push(
       <div key={story.id} className="feed-item">
         <StoryCard story={story} />
       </div>,
     );
-    if ((idx + 1) % 6 === 0 && idx < initialStories.length - 1) {
+    if ((idx + 1) % 6 === 0 && idx < stories.length - 1) {
       items.push(
         <div key={`ad-${idx}`} className="feed-item">
           <NativeCard />
@@ -158,12 +191,30 @@ export default function FeedClient({ initialStories, region }: FeedClientProps) 
         <div className="mb-4">
           <SpotRequestButton variant="banner" />
         </div>
-        {initialStories.length === 0 ? (
+        {stories.length === 0 ? (
           <div className="flex items-center justify-center py-16">
             <span className="text-sm text-gray-400">활성 스토리가 없습니다</span>
           </div>
         ) : (
-          <div className="masonry-grid">{items}</div>
+          <>
+            <div className="masonry-grid">{items}</div>
+            {hasMore && (
+              <div className="flex justify-center py-6">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="px-6 py-2.5 text-sm font-medium"
+                  style={{
+                    background: loadingMore ? '#f3f4f6' : '#111827',
+                    color: loadingMore ? '#9ca3af' : '#fff',
+                    borderRadius: 10,
+                  }}
+                >
+                  {loadingMore ? '불러오는 중…' : '더 보기'}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
