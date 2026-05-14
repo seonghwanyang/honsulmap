@@ -55,6 +55,16 @@ interface NaverSize { width: number; height: number; }
 interface NaverMarker { setMap(map: NaverMap | null): void; }
 
 const CLUSTER_ZOOM = 12;
+const STORY_FRESH_MS = 24 * 60 * 60 * 1000;
+
+// 3-state freshness derived from the markers payload's latest_story_at
+// timestamp. IG stories naturally expire after 24h, so older entries are
+// "stale" (visited the spot but it's not active right now) vs "fresh".
+function getFreshness(spot: Pick<SpotWithStories, 'latest_story_at'>): 'fresh' | 'stale' | 'none' {
+  if (!spot.latest_story_at) return 'none';
+  const age = Date.now() - new Date(spot.latest_story_at).getTime();
+  return age < STORY_FRESH_MS ? 'fresh' : 'stale';
+}
 
 function clusterByGrid(spots: SpotWithStories[], zoom: number): SpotWithStories[][] {
   // Larger grid at low zoom to prevent overlapping clusters
@@ -573,7 +583,9 @@ function MapPageInner() {
     };
 
     const renderSpotMarker = (spot: SpotWithStories) => {
-      const hasStory = !!spot.latest_story_at;
+      const freshness = getFreshness(spot);
+      const hasStory = freshness !== 'none';
+      const isFresh = freshness === 'fresh';
       const sz = hasStory ? 32 : 24;
       const iconSz = hasStory ? 14 : 11;
       const tailW = hasStory ? 6 : 4;
@@ -581,16 +593,27 @@ function MapPageInner() {
       const strokeColor = hasStory ? '#fff' : '#9ca3af';
       const glassIcon = spotIcon(spot, iconSz, strokeColor);
 
-      const bg = hasStory ? activeBg(spot) : '#fff';
-      const border = hasStory ? '2px solid #fff' : '1.5px solid #d1d5db';
-      const tailColor = hasStory ? activeBg(spot) : '#d1d5db';
+      const baseBg = activeBg(spot);
+      // Stale (>24h) spots wear a pastel-washed version of activeBg — same
+      // shape and size as fresh, but no purple dot and noticeably dimmer
+      // so the eye still picks out today's spots first.
+      const stalePastel = `color-mix(in srgb, ${baseBg} 45%, #fff 55%)`;
+      const bg = !hasStory ? '#fff' : isFresh ? baseBg : stalePastel;
+      const border = !hasStory
+        ? '1.5px solid #d1d5db'
+        : isFresh
+          ? '2px solid #fff'
+          : `2px solid color-mix(in srgb, #fff 70%, ${baseBg} 30%)`;
+      const tailColor = !hasStory ? '#d1d5db' : isFresh ? baseBg : stalePastel;
       const shadow = hasStory
         ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
         : 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))';
       const name = esc(spot.name);
-      // Purple story dot matching design system
-      const storyDot = hasStory ? `<span style="position:absolute;top:-1px;right:-1px;width:8px;height:8px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>` : '';
-      const tipBadge = hasStory ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#7C3AED;margin-left:4px;flex-shrink:0;"></span>` : '';
+      // Purple story dot — fresh only. Stale spots had a story but it's
+      // outside the 24h activity window, so we drop the dot/tipBadge to
+      // signal "not active now".
+      const storyDot = isFresh ? `<span style="position:absolute;top:-1px;right:-1px;width:8px;height:8px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>` : '';
+      const tipBadge = isFresh ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#7C3AED;margin-left:4px;flex-shrink:0;"></span>` : '';
 
       const content = `
         <div onclick="window.__selectSpot && window.__selectSpot('${spot.id}')"
@@ -617,9 +640,10 @@ function MapPageInner() {
       return new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(spot.lat, spot.lng),
         map: mapInstanceRef.current!,
-        // Active-story pins sit above inactive ones so they aren't hidden
-        // behind cold pins when spots cluster tight on shore.
-        zIndex: hasStory ? 200 : 100,
+        // Fresh pins (<24h) sit highest, then stale (had a story but
+        // outside the 24h window), then never-had-a-story. Keeps today's
+        // activity visible when shore clusters get tight.
+        zIndex: isFresh ? 200 : hasStory ? 150 : 100,
         icon: {
           content,
           size: new window.naver.maps.Size(sz, totalH),
@@ -654,9 +678,12 @@ function MapPageInner() {
       clusters.forEach((cluster) => {
         const avgLat = cluster.reduce((s, sp) => s + sp.lat, 0) / cluster.length;
         const avgLng = cluster.reduce((s, sp) => s + sp.lng, 0) / cluster.length;
-        const hasStory = cluster.some((sp) => !!sp.latest_story_at);
+        const clusterHasFresh = cluster.some((sp) => getFreshness(sp) === 'fresh');
+        const clusterHasStale = !clusterHasFresh && cluster.some((sp) => getFreshness(sp) === 'stale');
+        const hasStory = clusterHasFresh || clusterHasStale;
         const count = cluster.length;
         const isSingle = count === 1;
+        const singleIsFresh = isSingle && clusterHasFresh;
 
         const sz = isSingle ? 22 : Math.min(28 + count * 2, 44);
         const tailH = isSingle ? 5 : 7;
@@ -664,19 +691,28 @@ function MapPageInner() {
         const totalH = sz + tailH - 1;
 
         const singleColor = isSingle ? activeBg(cluster[0]) : '#111827';
+        const singleStalePastel = `color-mix(in srgb, ${singleColor} 45%, #fff 55%)`;
         const bg = isSingle
-          ? (hasStory ? singleColor : '#fff')
+          ? (!hasStory ? '#fff' : singleIsFresh ? singleColor : singleStalePastel)
           : '#111827';
-        const border = !hasStory && isSingle ? '1.5px solid #d1d5db' : 'none';
+        const border = isSingle
+          ? (!hasStory
+              ? '1.5px solid #d1d5db'
+              : singleIsFresh
+                ? 'none'
+                : `1px solid color-mix(in srgb, #fff 70%, ${singleColor} 30%)`)
+          : 'none';
         const tailColor = isSingle
-          ? (hasStory ? singleColor : '#d1d5db')
+          ? (!hasStory ? '#d1d5db' : singleIsFresh ? singleColor : singleStalePastel)
           : '#111827';
         const shadow = 'drop-shadow(0 1px 3px rgba(0,0,0,0.15))';
 
-        const storyDot = hasStory && isSingle
+        // Purple dot signals "active right now (<24h)". Stale single pins
+        // and stale-only multi clusters drop it.
+        const storyDot = singleIsFresh
           ? `<span style="position:absolute;top:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>`
           : '';
-        const clusterStoryDot = hasStory && !isSingle
+        const clusterStoryDot = clusterHasFresh && !isSingle
           ? `<span style="position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#7C3AED;border:2px solid #fff;"></span>`
           : '';
 
@@ -688,7 +724,7 @@ function MapPageInner() {
           ? `window.__selectSpot && window.__selectSpot('${cluster[0].id}')`
           : `window.__zoomToCluster && window.__zoomToCluster(${avgLat},${avgLng})`;
         const tipText = isSingle ? esc(cluster[0].name) : `${count}개 가게`;
-        const tipBadge = hasStory ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#7C3AED;margin-left:4px;flex-shrink:0;"></span>` : '';
+        const tipBadge = clusterHasFresh ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#7C3AED;margin-left:4px;flex-shrink:0;"></span>` : '';
 
         const content = `
           <div onclick="${clickFn}"
@@ -919,7 +955,7 @@ function MapPageInner() {
                       <p className="text-sm font-medium" style={{ color: '#111827' }}>{spot.name}</p>
                       <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>{spot.address}</p>
                     </div>
-                    {spot.latest_story_at && (
+                    {getFreshness(spot) === 'fresh' && (
                       <span
                         className="text-xs font-medium px-2 py-0.5 ml-2 flex-shrink-0"
                         style={{ background: '#EDE9FE', color: '#7C3AED', borderRadius: '999px' }}
