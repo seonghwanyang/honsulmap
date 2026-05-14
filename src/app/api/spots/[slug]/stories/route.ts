@@ -7,28 +7,23 @@ export async function GET(
 ) {
   const { slug } = await params;
 
-  // Look up spot by slug
-  const { data: spot } = await supabase
-    .from('spots')
-    .select('id')
-    .eq('slug', slug)
-    .single();
-
-  if (!spot) {
-    return NextResponse.json({ error: '가게를 찾을 수 없습니다.' }, { status: 404 });
-  }
-
+  // Single embedded query: fetch spot + its stories in one Supabase round-trip
+  // instead of two sequential queries (slug → id → stories).
   const { data, error } = await supabase
-    .from('stories')
-    .select('*')
-    .eq('spot_id', spot.id)
-    .order('posted_at', { ascending: false });
+    .from('spots')
+    .select('stories(*)')
+    .eq('slug', slug)
+    .order('posted_at', { referencedTable: 'stories', ascending: false })
+    .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  if (!data) {
+    return NextResponse.json({ error: '가게를 찾을 수 없습니다.' }, { status: 404 });
+  }
 
-  return NextResponse.json(data || [], {
+  return NextResponse.json(data.stories || [], {
     headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=180' },
   });
 }
