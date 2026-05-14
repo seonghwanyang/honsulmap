@@ -71,6 +71,18 @@ function clusterByGrid(spots: SpotWithStories[], zoom: number): SpotWithStories[
 // Single story card inside the map's selected-spot panel. Tracks the
 // impression once-per-session via IntersectionObserver and emits
 // story_play / story_progress_75 / story_complete from the <video>.
+// Placeholder card shown in the map sheet while stories are being fetched.
+// Matches the 9:16 aspect / radius of MapSheetStory so the layout doesn't
+// jump when real cards swap in.
+function StorySkeleton() {
+  return (
+    <div
+      className="relative w-full animate-pulse"
+      style={{ aspectRatio: '9/16', borderRadius: '14px', background: '#e5e7eb' }}
+    />
+  );
+}
+
 function MapSheetStory({
   story,
   spot,
@@ -391,10 +403,12 @@ function MapPageInner() {
   const prefetchedRef = useRef<Set<string>>(new Set());
 
   // Lazy-load stories for the currently-selected spot. Skips when the
-  // prefetcher has already cached them.
+  // prefetcher has already cached them, or when the markers payload tells
+  // us this spot has never had a story (latest_story_at is null).
   useEffect(() => {
     if (!selectedSpot) return;
     if (selectedSpot.stories.length > 0) return; // already loaded
+    if (!selectedSpot.latest_story_at) return; // spot has no stories — skip fetch
     let cancelled = false;
     prefetchedRef.current.add(selectedSpot.id);
     (async () => {
@@ -733,6 +747,15 @@ function MapPageInner() {
       )
     : [];
 
+  // Stories are loading when the markers payload promised at least one
+  // (latest_story_at != null) but the lazy/prefetch fetch hasn't filled
+  // the array yet. Distinguishes loading from truly-empty so the empty
+  // message doesn't flash on click.
+  const isLoadingStories =
+    selectedSpot != null &&
+    activeStories.length === 0 &&
+    selectedSpot.latest_story_at != null;
+
   const instagramUrl = selectedSpot?.instagram_id
     ? `https://www.instagram.com/${selectedSpot.instagram_id}/`
     : null;
@@ -1051,7 +1074,12 @@ function MapPageInner() {
 
             {/* Stories Vertical Scroll */}
             <div className="overflow-y-auto" style={{ height: 'calc(85dvh - 140px)' }}>
-              {activeStories.length === 0 ? (
+              {isLoadingStories ? (
+                <div className="flex flex-col gap-3 px-4 py-3">
+                  <StorySkeleton />
+                  <StorySkeleton />
+                </div>
+              ) : activeStories.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-16">
                   <span style={{ fontSize: '40px', opacity: 0.3 }}>📷</span>
                   <p className="text-sm" style={{ color: '#9ca3af' }}>현재 활성 스토리가 없습니다</p>
