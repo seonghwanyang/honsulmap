@@ -5,9 +5,12 @@ export type City = 'jeju' | 'seoul';
 export type Region =
   // Jeju
   | 'jeju' | 'aewol' | 'seogwipo' | 'east' | 'west'
-  // Seoul (9 권역)
-  | 'gangnam' | 'songpa' | 'hongdae' | 'yongsan' | 'seongsu'
-  | 'jongno' | 'yeongdeungpo' | 'gwanak';
+  // Seoul (25 구)
+  | 'gangnam' | 'gangdong' | 'gangbuk' | 'gangseo' | 'gwanak'
+  | 'gwangjin' | 'guro' | 'geumcheon' | 'nowon' | 'dobong'
+  | 'dongdaemun' | 'dongjak' | 'mapo' | 'seodaemun' | 'seocho'
+  | 'seongdong' | 'seongbuk' | 'songpa' | 'yangcheon' | 'yeongdeungpo'
+  | 'yongsan' | 'eunpyeong' | 'jongno' | 'jung' | 'jungnang';
 export type PostCategory = 'status' | 'review' | 'tip' | 'free';
 export type MediaType = 'image' | 'video';
 export type TargetType = 'spot' | 'post' | 'comment';
@@ -160,15 +163,32 @@ export const REGIONS: { value: Region | 'all'; label: string; city?: City }[] = 
   { value: 'seogwipo', label: '서귀포', city: 'jeju' },
   { value: 'east', label: '동쪽', city: 'jeju' },
   { value: 'west', label: '서쪽', city: 'jeju' },
-  // Seoul (9 권역)
-  { value: 'gangnam', label: '강남/서초', city: 'seoul' },
-  { value: 'songpa', label: '송파/강동', city: 'seoul' },
-  { value: 'hongdae', label: '홍대/마포', city: 'seoul' },
-  { value: 'yongsan', label: '용산/이태원', city: 'seoul' },
-  { value: 'seongsu', label: '성수/건대', city: 'seoul' },
-  { value: 'jongno', label: '종로/중구', city: 'seoul' },
-  { value: 'yeongdeungpo', label: '영등포/구로', city: 'seoul' },
-  { value: 'gwanak', label: '신림/사당', city: 'seoul' },
+  // Seoul (25 구, 가나다순)
+  { value: 'gangnam', label: '강남구', city: 'seoul' },
+  { value: 'gangdong', label: '강동구', city: 'seoul' },
+  { value: 'gangbuk', label: '강북구', city: 'seoul' },
+  { value: 'gangseo', label: '강서구', city: 'seoul' },
+  { value: 'gwanak', label: '관악구', city: 'seoul' },
+  { value: 'gwangjin', label: '광진구', city: 'seoul' },
+  { value: 'guro', label: '구로구', city: 'seoul' },
+  { value: 'geumcheon', label: '금천구', city: 'seoul' },
+  { value: 'nowon', label: '노원구', city: 'seoul' },
+  { value: 'dobong', label: '도봉구', city: 'seoul' },
+  { value: 'dongdaemun', label: '동대문구', city: 'seoul' },
+  { value: 'dongjak', label: '동작구', city: 'seoul' },
+  { value: 'mapo', label: '마포구', city: 'seoul' },
+  { value: 'seodaemun', label: '서대문구', city: 'seoul' },
+  { value: 'seocho', label: '서초구', city: 'seoul' },
+  { value: 'seongdong', label: '성동구', city: 'seoul' },
+  { value: 'seongbuk', label: '성북구', city: 'seoul' },
+  { value: 'songpa', label: '송파구', city: 'seoul' },
+  { value: 'yangcheon', label: '양천구', city: 'seoul' },
+  { value: 'yeongdeungpo', label: '영등포구', city: 'seoul' },
+  { value: 'yongsan', label: '용산구', city: 'seoul' },
+  { value: 'eunpyeong', label: '은평구', city: 'seoul' },
+  { value: 'jongno', label: '종로구', city: 'seoul' },
+  { value: 'jung', label: '중구', city: 'seoul' },
+  { value: 'jungnang', label: '중랑구', city: 'seoul' },
 ];
 
 export const CITIES: { value: City; label: string }[] = [
@@ -182,9 +202,12 @@ export const CITIES: { value: City; label: string }[] = [
 export const VALID_REGIONS = [
   // Jeju
   'jeju', 'aewol', 'seogwipo', 'east', 'west',
-  // Seoul
-  'gangnam', 'songpa', 'hongdae', 'yongsan', 'seongsu',
-  'jongno', 'yeongdeungpo', 'gwanak',
+  // Seoul (25 구)
+  'gangnam', 'gangdong', 'gangbuk', 'gangseo', 'gwanak',
+  'gwangjin', 'guro', 'geumcheon', 'nowon', 'dobong',
+  'dongdaemun', 'dongjak', 'mapo', 'seodaemun', 'seocho',
+  'seongdong', 'seongbuk', 'songpa', 'yangcheon', 'yeongdeungpo',
+  'yongsan', 'eunpyeong', 'jongno', 'jung', 'jungnang',
 ] as const satisfies readonly Region[];
 
 export const VALID_CITIES = ['jeju', 'seoul'] as const satisfies readonly City[];
