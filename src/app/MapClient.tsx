@@ -81,10 +81,10 @@ function clusterByGrid(spots: SpotWithStories[], zoom: number): SpotWithStories[
 // Compact story card sizing — caps height so 3 cards fit per viewport
 // instead of the old 9:16 portrait (which filled most of the screen and
 // forced 2+ scrolls per spot). object-fit: cover preserves the visual.
-// IG stories are 9:16 portrait. Use the aspect-ratio so the card scales
-// with the panel width (one tall card per viewport scroll) instead of
-// the old fixed 300px that squashed media into a landscape strip.
-const STORY_CARD_ASPECT = '9 / 16';
+// Each story snaps to one full panel viewport — like flipping through IG
+// stories. The card stretches to the inner panel height; video/image
+// use object-cover so the 9:16 source fills without letterboxing.
+const STORY_SLOT_HEIGHT = 'calc(92dvh - 140px)';
 
 // Single story card inside the map's selected-spot panel. Tracks the
 // impression once-per-session via IntersectionObserver and emits
@@ -96,7 +96,7 @@ function StorySkeleton() {
   return (
     <div
       className="relative w-full animate-pulse"
-      style={{ aspectRatio: STORY_CARD_ASPECT, borderRadius: '14px', background: '#e5e7eb' }}
+      style={{ height: STORY_SLOT_HEIGHT, borderRadius: '14px', background: '#e5e7eb', scrollSnapAlign: 'start' }}
     />
   );
 }
@@ -140,7 +140,7 @@ function MapSheetStory({
     <div
       ref={ref}
       className="relative w-full"
-      style={{ aspectRatio: STORY_CARD_ASPECT, borderRadius: '14px', overflow: 'hidden', background: '#000' }}
+      style={{ height: STORY_SLOT_HEIGHT, borderRadius: '14px', overflow: 'hidden', background: '#000', scrollSnapAlign: 'start' }}
     >
       {story.media_type === 'video' ? (
         <video
@@ -1288,11 +1288,18 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               )}
             </div>
 
-            {/* Stories Vertical Scroll */}
-            <div className="overflow-y-auto" style={{ height: 'calc(92dvh - 140px)' }}>
+            {/* Stories Vertical Scroll — snap so each story takes one
+                panel viewport, like flipping through IG stories. */}
+            <div
+              className="overflow-y-auto"
+              style={{
+                height: 'calc(92dvh - 140px)',
+                scrollSnapType: 'y mandatory',
+                scrollBehavior: 'smooth',
+              }}
+            >
               {isLoadingStories ? (
-                <div className="flex flex-col gap-3 px-4 py-3">
-                  <StorySkeleton />
+                <div className="flex flex-col px-4">
                   <StorySkeleton />
                 </div>
               ) : activeStories.length === 0 ? (
@@ -1320,17 +1327,30 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col gap-3 px-4 py-3">
+                <div className="flex flex-col px-4">
                   {(() => {
                     const items: React.ReactNode[] = [];
                     activeStories.forEach((story: Story, idx: number) => {
                       items.push(
                         <MapSheetStory key={story.id} story={story} spot={selectedSpot} />,
                       );
-                      // Insert a native ad after every story, but never trail
-                      // the very last one so the panel ends on content.
+                      // Native ad between stories — wrap so it snaps to one
+                      // panel viewport like the story cards do.
                       if (idx < activeStories.length - 1) {
-                        items.push(<NativeCard key={`ad-${idx}`} />);
+                        items.push(
+                          <div
+                            key={`ad-${idx}`}
+                            style={{
+                              height: STORY_SLOT_HEIGHT,
+                              scrollSnapAlign: 'start',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <NativeCard />
+                          </div>,
+                        );
                       }
                     });
                     return items;
@@ -1340,7 +1360,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       type="button"
                       onClick={loadMoreStories}
                       disabled={storyLoadingMore}
-                      className="w-full text-sm font-medium py-2.5 mt-1"
+                      className="w-full text-sm font-medium py-2.5 mt-3"
                       style={{
                         background: '#f3f4f6',
                         color: '#374151',
