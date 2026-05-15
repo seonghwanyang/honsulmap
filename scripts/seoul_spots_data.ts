@@ -10,7 +10,7 @@
 
 export type SeoulRegion =
   | 'gangnam' | 'songpa' | 'hongdae' | 'yongsan' | 'seongsu'
-  | 'jongno' | 'yeongdeungpo' | 'gwanak' | 'seoul_north';
+  | 'jongno' | 'yeongdeungpo' | 'gwanak';
 
 export interface SeoulSpot {
   name: string;
@@ -31,7 +31,6 @@ export const REGION_CENTROID: Record<SeoulRegion, [number, number]> = {
   jongno: [37.5704, 126.9826],         // 광화문
   yeongdeungpo: [37.5260, 126.8964],   // 영등포역
   gwanak: [37.4838, 126.9295],         // 서울대입구역
-  seoul_north: [37.5895, 127.0167],    // 성신여대역
 };
 
 export const SEOUL_SPOTS: SeoulSpot[] = [
@@ -46,12 +45,12 @@ export const SEOUL_SPOTS: SeoulSpot[] = [
   { name: '제주아홉 잠실점', slug: '9jeju-jamsil', instagram_id: '9_jeju20', region: 'songpa', address: '서울 송파구 송파동 29-12 지하2층', memo: null },
   { name: '제주아홉 천호점', slug: '9jeju-cheonho', instagram_id: null, region: 'songpa', address: '서울 강동구 천호동 550-9', memo: 'IG 핸들 미매핑' },
   { name: '제주아홉 마곡나루점', slug: '9jeju-magongnaru', instagram_id: '9_jeju12', region: 'yeongdeungpo', address: '서울 강서구 강서로 409', memo: null },
-  { name: '제주아홉 연신내점', slug: '9jeju-yeonsinnae', instagram_id: '9_jeju22', region: 'seoul_north', address: '서울 은평구 갈현동 399-25', memo: null },
+  { name: '제주아홉 연신내점', slug: '9jeju-yeonsinnae', instagram_id: '9_jeju22', region: 'hongdae', address: '서울 은평구 갈현동 399-25', memo: null },
   { name: '제주아홉 사당점', slug: '9jeju-sadang', instagram_id: '9_jeju24', region: 'gwanak', address: '서울 동작구 사당동 708-446', memo: null },
   { name: '제주아홉 문래점', slug: '9jeju-mullae', instagram_id: '9_jeju25', region: 'yeongdeungpo', address: '서울 영등포구 문래동3가 58-8', memo: null },
-  { name: '제주아홉 성신여대점', slug: '9jeju-sungshin', instagram_id: '9_jeju27', region: 'seoul_north', address: '서울 성북구 동소문로20다길 30-7', memo: null },
-  { name: '제주아홉 노원점', slug: '9jeju-nowon', instagram_id: '9_jeju37', region: 'seoul_north', address: '서울 노원구 노해로85길 15-5', memo: null },
-  { name: '제주아홉 신촌점', slug: '9jeju-sinchon', instagram_id: null, region: 'seoul_north', address: '서울 서대문구 연세로5가길 17', memo: 'IG 핸들 미매핑' },
+  { name: '제주아홉 성신여대점', slug: '9jeju-sungshin', instagram_id: '9_jeju27', region: 'jongno', address: '서울 성북구 동소문로20다길 30-7', memo: null },
+  { name: '제주아홉 노원점', slug: '9jeju-nowon', instagram_id: '9_jeju37', region: 'jongno', address: '서울 노원구 노해로85길 15-5', memo: null },
+  { name: '제주아홉 신촌점', slug: '9jeju-sinchon', instagram_id: null, region: 'hongdae', address: '서울 서대문구 연세로5가길 17', memo: 'IG 핸들 미매핑' },
 
   // ── 야화 (10개 서울 지점) ──────────────────────────────────
   { name: '야화 논현점', slug: 'yahwa-nonhyeon', instagram_id: 'yahwa.bar_official', region: 'gangnam', address: '서울 강남구 강남대로122길 30 지하1층 01호', memo: 'MZ 감성 / 시그니처: 도화, 꽃잠 / 직영 본점' },

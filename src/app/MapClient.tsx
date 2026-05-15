@@ -198,10 +198,12 @@ const CITY_CENTER: Record<City, { lat: number; lng: number; zoom: number }> = {
 function MapPageInner({ initialCity }: { initialCity: City }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // URL param wins (deep links, sharing). Otherwise default to the city
-  // the server geo'd us into — so first-time visitors land on their own
-  // region's map without manual filtering.
-  const city = (searchParams.get('city') || initialCity) as City | 'all';
+  // URL param wins (deep links, sharing). Otherwise the filter defaults
+  // to '전체' — IP geo is too coarse for KR (all ISPs route through
+  // Seoul DCs) so auto-filtering by detected city traps Jeju users in
+  // Seoul or vice versa. We still center the *map* on initialCity for
+  // the first frame, just don't filter spots.
+  const city = (searchParams.get('city') || 'all') as City | 'all';
   const region = searchParams.get('region') || 'all';
   const category = (searchParams.get('category') || 'all') as CategoryFilterValue;
 

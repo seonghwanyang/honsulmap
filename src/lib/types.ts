@@ -7,7 +7,7 @@ export type Region =
   | 'jeju' | 'aewol' | 'seogwipo' | 'east' | 'west'
   // Seoul (9 권역)
   | 'gangnam' | 'songpa' | 'hongdae' | 'yongsan' | 'seongsu'
-  | 'jongno' | 'yeongdeungpo' | 'gwanak' | 'seoul_north';
+  | 'jongno' | 'yeongdeungpo' | 'gwanak';
 export type PostCategory = 'status' | 'review' | 'tip' | 'free';
 export type MediaType = 'image' | 'video';
 export type TargetType = 'spot' | 'post' | 'comment';
@@ -169,7 +169,6 @@ export const REGIONS: { value: Region | 'all'; label: string; city?: City }[] = 
   { value: 'jongno', label: '종로/중구', city: 'seoul' },
   { value: 'yeongdeungpo', label: '영등포/구로', city: 'seoul' },
   { value: 'gwanak', label: '신림/사당', city: 'seoul' },
-  { value: 'seoul_north', label: '서울 동북부', city: 'seoul' },
 ];
 
 export const CITIES: { value: City; label: string }[] = [
@@ -185,7 +184,7 @@ export const VALID_REGIONS = [
   'jeju', 'aewol', 'seogwipo', 'east', 'west',
   // Seoul
   'gangnam', 'songpa', 'hongdae', 'yongsan', 'seongsu',
-  'jongno', 'yeongdeungpo', 'gwanak', 'seoul_north',
+  'jongno', 'yeongdeungpo', 'gwanak',
 ] as const satisfies readonly Region[];
 
 export const VALID_CITIES = ['jeju', 'seoul'] as const satisfies readonly City[];

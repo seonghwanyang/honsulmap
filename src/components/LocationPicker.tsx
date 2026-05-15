@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { City, Region, CITIES, REGIONS } from '@/lib/types';
 
 interface LocationPickerProps {
@@ -116,8 +117,11 @@ export default function LocationPicker({ city, region, onChange }: LocationPicke
         </button>
       </div>
 
-      {/* Backdrop */}
-      {open && (
+      {/* Backdrop + sheet are rendered into <body> so the z-20 filter row
+          they live under doesn't trap them in a stacking context — the
+          search box (z-30) was clipping us otherwise. */}
+      {open && typeof document !== 'undefined' && createPortal(
+        <>
         <div
           onClick={handleClose}
           style={{
@@ -127,10 +131,7 @@ export default function LocationPicker({ city, region, onChange }: LocationPicke
             background: 'rgba(0,0,0,0.35)',
           }}
         />
-      )}
 
-      {/* Sheet / Modal */}
-      {open && (
         <div
           style={{
             position: 'fixed',
@@ -321,23 +322,25 @@ export default function LocationPicker({ city, region, onChange }: LocationPicke
           {/* Safe-area spacer for iOS home indicator */}
           <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
         </div>
-      )}
 
-      {/* Responsive override: ≥768px → centered modal */}
-      <style>{`
-        @media (min-width: 768px) {
-          .location-picker-panel {
-            bottom: auto !important;
-            left: 50% !important;
-            right: auto !important;
-            top: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            width: 360px !important;
-            border-radius: 16px !important;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.18) !important;
+        {/* Responsive override: ≥768px → centered modal */}
+        <style>{`
+          @media (min-width: 768px) {
+            .location-picker-panel {
+              bottom: auto !important;
+              left: 50% !important;
+              right: auto !important;
+              top: 50% !important;
+              transform: translate(-50%, -50%) !important;
+              width: 360px !important;
+              border-radius: 16px !important;
+              box-shadow: 0 8px 40px rgba(0,0,0,0.18) !important;
+            }
           }
-        }
-      `}</style>
+        `}</style>
+        </>,
+        document.body,
+      )}
     </>
   );
 }
