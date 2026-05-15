@@ -81,7 +81,10 @@ function clusterByGrid(spots: SpotWithStories[], zoom: number): SpotWithStories[
 // Compact story card sizing — caps height so 3 cards fit per viewport
 // instead of the old 9:16 portrait (which filled most of the screen and
 // forced 2+ scrolls per spot). object-fit: cover preserves the visual.
-const STORY_CARD_HEIGHT = 300;
+// IG stories are 9:16 portrait. Use the aspect-ratio so the card scales
+// with the panel width (one tall card per viewport scroll) instead of
+// the old fixed 300px that squashed media into a landscape strip.
+const STORY_CARD_ASPECT = '9 / 16';
 
 // Single story card inside the map's selected-spot panel. Tracks the
 // impression once-per-session via IntersectionObserver and emits
@@ -93,7 +96,7 @@ function StorySkeleton() {
   return (
     <div
       className="relative w-full animate-pulse"
-      style={{ height: STORY_CARD_HEIGHT, borderRadius: '14px', background: '#e5e7eb' }}
+      style={{ aspectRatio: STORY_CARD_ASPECT, borderRadius: '14px', background: '#e5e7eb' }}
     />
   );
 }
@@ -137,7 +140,7 @@ function MapSheetStory({
     <div
       ref={ref}
       className="relative w-full"
-      style={{ height: STORY_CARD_HEIGHT, borderRadius: '14px', overflow: 'hidden', background: '#000' }}
+      style={{ aspectRatio: STORY_CARD_ASPECT, borderRadius: '14px', overflow: 'hidden', background: '#000' }}
     >
       {story.media_type === 'video' ? (
         <video
@@ -1153,7 +1156,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         className="absolute left-0 right-0 z-[25] overflow-hidden"
         style={{
           bottom: 0,
-          height: '85dvh',
+          height: '92dvh',
           background: '#ffffff',
           borderRadius: '16px 16px 0 0',
           transform: selectedSpot
@@ -1286,7 +1289,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             </div>
 
             {/* Stories Vertical Scroll */}
-            <div className="overflow-y-auto" style={{ height: 'calc(85dvh - 140px)' }}>
+            <div className="overflow-y-auto" style={{ height: 'calc(92dvh - 140px)' }}>
               {isLoadingStories ? (
                 <div className="flex flex-col gap-3 px-4 py-3">
                   <StorySkeleton />
