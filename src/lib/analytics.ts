@@ -119,6 +119,7 @@ export type EventParams = {
   community_post_entered: CommunityPostEnteredParams;
   write_submitted: WriteSubmittedParams;
   feed_load_more: { region: string; loaded: number };
+  gps_centered: { lat: number; lng: number };
 };
 
 export type EventName = keyof EventParams;

@@ -4,13 +4,13 @@ import { useEffect, useRef, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Script from 'next/script';
-import RegionFilter from '@/components/RegionFilter';
+import LocationPicker from '@/components/LocationPicker';
 import CategoryFilter, { CategoryFilterValue } from '@/components/CategoryFilter';
 import SpotRequestModal from '@/components/SpotRequestModal';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
 import NativeCard from '@/components/ads/NativeCard';
-import { SpotWithStories, Story } from '@/lib/types';
+import { SpotWithStories, Story, City, Region } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
 import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
@@ -190,12 +190,14 @@ function MapSheetStory({
 function MapPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const city = (searchParams.get('city') || 'all') as City | 'all';
   const region = searchParams.get('region') || 'all';
   const category = (searchParams.get('category') || 'all') as CategoryFilterValue;
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<NaverMap | null>(null);
   const overlaysRef = useRef<NaverMarker[]>([]);
+  const userLocationMarkerRef = useRef<NaverMarker | null>(null);
 
   const [spots, setSpots] = useState<SpotWithStories[]>([]);
   const [loading, setLoading] = useState(false);
@@ -206,6 +208,7 @@ function MapPageInner() {
   const [currentZoom, setCurrentZoom] = useState(10);
   const [viewBounds, setViewBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
   const [, setTick] = useState(0);
+  const [gpsToast, setGpsToast] = useState<string | null>(null);
 
   // Swipe-down-to-dismiss state for the spot detail panel
   const [dragY, setDragY] = useState(0);
@@ -293,11 +296,15 @@ function MapPageInner() {
     return () => clearInterval(id);
   }, []);
 
-  // Client-side region + category filter. Markers endpoint returns the
-  // full island so changing chips doesn't trigger a refetch.
-  const regionFilteredSpots = region === 'all'
+  // Client-side city + region + category filter. Markers endpoint
+  // returns every spot so toggling chips doesn't refetch. City filters
+  // first (jeju vs seoul), then region (권역 within city), then category.
+  const cityFilteredSpots = city === 'all'
     ? spots
-    : spots.filter((s) => s.region === region);
+    : spots.filter((s) => s.city === city);
+  const regionFilteredSpots = region === 'all'
+    ? cityFilteredSpots
+    : cityFilteredSpots.filter((s) => s.region === region);
 
   const filteredSpots = regionFilteredSpots.filter((s) => {
     if (category === 'all') return true;
@@ -367,12 +374,18 @@ function MapPageInner() {
     };
   }, [mapReady]);
 
-  const handleRegionChange = useCallback(
-    (r: string) => {
-      track('region_filter_changed', { region: r, surface: 'map' });
+  const handleLocationChange = useCallback(
+    (c: City | null, r: Region | null) => {
+      track('region_filter_changed', { region: r ?? c ?? 'all', surface: 'map' });
       const params = new URLSearchParams(searchParams.toString());
-      if (r === 'all') params.delete('region');
-      else params.set('region', r);
+      if (!c) {
+        params.delete('city');
+        params.delete('region');
+      } else {
+        params.set('city', c);
+        if (r) params.set('region', r);
+        else params.delete('region');
+      }
       router.push(`/?${params.toString()}`);
     },
     [router, searchParams],
@@ -762,10 +775,47 @@ function MapPageInner() {
     if (!navigator.geolocation || !mapInstanceRef.current) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const latlng = new window.naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
-        mapInstanceRef.current!.setCenter(latlng);
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const latlng = new window.naver.maps.LatLng(lat, lng);
+        mapInstanceRef.current!.morph(latlng, 15);
+
+        // Inject keyframes once
+        if (!document.getElementById('gps-pulse-style')) {
+          const style = document.createElement('style');
+          style.id = 'gps-pulse-style';
+          style.textContent = '@keyframes gps-pulse{0%{transform:scale(1);opacity:0.6}70%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}';
+          document.head.appendChild(style);
+        }
+
+        const markerContent =
+          '<div style="position:relative;width:18px;height:18px;">' +
+            '<div style="position:absolute;inset:0;border-radius:50%;background:#4285F4;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.15);z-index:2;"></div>' +
+            '<div style="position:absolute;inset:-12px;border-radius:50%;background:rgba(66,133,244,0.2);animation:gps-pulse 2s ease-out infinite;"></div>' +
+          '</div>';
+
+        if (userLocationMarkerRef.current) {
+          userLocationMarkerRef.current.setMap(null);
+        }
+        userLocationMarkerRef.current = new window.naver.maps.Marker({
+          position: latlng,
+          map: mapInstanceRef.current!,
+          icon: {
+            content: markerContent,
+            size: new window.naver.maps.Size(18, 18),
+            anchor: new window.naver.maps.Point(9, 9),
+          },
+        });
+
+        track('gps_centered', { lat, lng });
       },
-      (err) => console.error('GPS error:', err),
+      (err) => {
+        console.error('GPS error:', err);
+        const msg = err.code === 1
+          ? '위치 권한이 필요해요'
+          : '현재 위치를 가져올 수 없어요';
+        setGpsToast(msg);
+        setTimeout(() => setGpsToast(null), 3000);
+      },
     );
   };
 
@@ -812,7 +862,11 @@ function MapPageInner() {
 
       {/* Region Filter + Category Filter + Spot Request Banner (same bg so they feel unified) */}
       <div className="absolute z-20 left-0 right-0 top-14 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
-        <RegionFilter selected={region} onChange={handleRegionChange} />
+        <LocationPicker
+          city={city === 'all' ? null : city}
+          region={region === 'all' ? null : (region as Region)}
+          onChange={handleLocationChange}
+        />
         {/* <CategoryFilter selected={category} onChange={handleCategoryChange} /> */}
         <div className="hidden sm:block px-4 pb-3">
           <SpotRequestButton variant="banner" />
@@ -908,6 +962,28 @@ function MapPageInner() {
           </svg>
         </button>
       </div>
+
+      {/* GPS error toast */}
+      {gpsToast && (
+        <div
+          className="absolute z-50 left-1/2"
+          style={{ bottom: '160px', transform: 'translateX(-50%)', pointerEvents: 'none' }}
+        >
+          <div
+            style={{
+              background: 'rgba(31,31,31,0.88)',
+              color: '#fff',
+              fontSize: '13px',
+              padding: '8px 16px',
+              borderRadius: '999px',
+              whiteSpace: 'nowrap',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            {gpsToast}
+          </div>
+        </div>
+      )}
 
       <SpotRequestModal open={requestOpen} onClose={() => setRequestOpen(false)} />
 
