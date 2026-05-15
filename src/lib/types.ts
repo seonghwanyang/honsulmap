@@ -1,7 +1,13 @@
 // ===== Database Types =====
 
 export type SpotCategory = 'bar' | 'guesthouse';
-export type Region = 'jeju' | 'aewol' | 'seogwipo' | 'east' | 'west';
+export type City = 'jeju' | 'seoul';
+export type Region =
+  // Jeju
+  | 'jeju' | 'aewol' | 'seogwipo' | 'east' | 'west'
+  // Seoul (9 권역)
+  | 'gangnam' | 'songpa' | 'hongdae' | 'yongsan' | 'seongsu'
+  | 'jongno' | 'yeongdeungpo' | 'gwanak' | 'seoul_north';
 export type PostCategory = 'status' | 'review' | 'tip' | 'free';
 export type MediaType = 'image' | 'video';
 export type TargetType = 'spot' | 'post' | 'comment';
@@ -20,6 +26,7 @@ export interface Spot {
   slug: string;
   instagram_id: string | null;
   category: SpotCategory;
+  city: City;
   region: Region;
   address: string;
   lat: number;
@@ -145,14 +152,43 @@ export interface CommentCreateRequest {
 
 // ===== Filter Types =====
 
-export const REGIONS: { value: Region | 'all'; label: string }[] = [
+export const REGIONS: { value: Region | 'all'; label: string; city?: City }[] = [
   { value: 'all', label: '전체' },
-  { value: 'jeju', label: '제주시' },
-  { value: 'aewol', label: '애월' },
-  { value: 'seogwipo', label: '서귀포' },
-  { value: 'east', label: '동쪽' },
-  { value: 'west', label: '서쪽' },
+  // Jeju
+  { value: 'jeju', label: '제주시', city: 'jeju' },
+  { value: 'aewol', label: '애월', city: 'jeju' },
+  { value: 'seogwipo', label: '서귀포', city: 'jeju' },
+  { value: 'east', label: '동쪽', city: 'jeju' },
+  { value: 'west', label: '서쪽', city: 'jeju' },
+  // Seoul (9 권역)
+  { value: 'gangnam', label: '강남/서초', city: 'seoul' },
+  { value: 'songpa', label: '송파/강동', city: 'seoul' },
+  { value: 'hongdae', label: '홍대/마포', city: 'seoul' },
+  { value: 'yongsan', label: '용산/이태원', city: 'seoul' },
+  { value: 'seongsu', label: '성수/건대', city: 'seoul' },
+  { value: 'jongno', label: '종로/중구', city: 'seoul' },
+  { value: 'yeongdeungpo', label: '영등포/구로', city: 'seoul' },
+  { value: 'gwanak', label: '신림/사당', city: 'seoul' },
+  { value: 'seoul_north', label: '서울 동북부', city: 'seoul' },
 ];
+
+export const CITIES: { value: City; label: string }[] = [
+  { value: 'jeju', label: '제주' },
+  { value: 'seoul', label: '서울' },
+];
+
+// Source of truth for API validation. Keep in lockstep with the Region
+// union and the spot_requests CHECK constraint in the 2026-05-15
+// migration.
+export const VALID_REGIONS = [
+  // Jeju
+  'jeju', 'aewol', 'seogwipo', 'east', 'west',
+  // Seoul
+  'gangnam', 'songpa', 'hongdae', 'yongsan', 'seongsu',
+  'jongno', 'yeongdeungpo', 'gwanak', 'seoul_north',
+] as const satisfies readonly Region[];
+
+export const VALID_CITIES = ['jeju', 'seoul'] as const satisfies readonly City[];
 
 export const POST_CATEGORIES: { value: PostCategory | 'all'; label: string }[] = [
   { value: 'all', label: '전체' },
