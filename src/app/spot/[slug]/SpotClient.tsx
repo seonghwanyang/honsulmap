@@ -381,6 +381,11 @@ export default function SpotPage() {
   const [spot, setSpot] = useState<SpotWithStories | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Total story count returned by the API; the initial response only
+  // includes the most-recent 5, so this drives the "이전 스토리 더 보기"
+  // button visibility.
+  const [storyTotal, setStoryTotal] = useState<number>(0);
+  const [loadingMoreStories, setLoadingMoreStories] = useState(false);
 
   usePageDwell('spot', slug);
   useScrollDepth('spot', slug);
@@ -392,8 +397,9 @@ export default function SpotPage() {
       try {
         const res = await fetch(`/api/spots/${slug}`);
         if (!res.ok) throw new Error(`가게 정보를 불러오지 못했습니다 (${res.status})`);
-        const data: SpotWithStories = await res.json();
+        const data: SpotWithStories & { story_total?: number } = await res.json();
         setSpot(data);
+        setStoryTotal(data.story_total ?? data.stories?.length ?? 0);
       } catch (err) {
         setError(err instanceof Error ? err.message : '알 수 없는 오류');
       } finally {
@@ -402,6 +408,23 @@ export default function SpotPage() {
     };
     if (slug) fetchSpot();
   }, [slug]);
+
+  const loadMoreStories = async () => {
+    if (!spot || loadingMoreStories) return;
+    setLoadingMoreStories(true);
+    try {
+      const offset = spot.stories.length;
+      const res = await fetch(`/api/spots/${slug}/stories?offset=${offset}&limit=5`);
+      if (!res.ok) return;
+      const json = (await res.json()) as { stories: Story[]; total: number };
+      setSpot((cur) =>
+        cur ? { ...cur, stories: [...cur.stories, ...(json.stories ?? [])] } : cur,
+      );
+      setStoryTotal(json.total ?? offset + (json.stories?.length ?? 0));
+    } finally {
+      setLoadingMoreStories(false);
+    }
+  };
 
   // Fire spot_detail_entered once we have the spot id and the resolved
   // entry_source from ?from=. Defaults to 'direct' for raw URL hits.
@@ -485,7 +508,7 @@ export default function SpotPage() {
         </h2>
         <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
           {getRegionLabel(spot.region)} · {getCategoryLabel(spot.category)}
-          {activeStories.length > 0 && ` · 스토리 ${activeStories.length}개`}
+          {storyTotal > 0 && ` · 스토리 ${storyTotal}개`}
         </p>
 
         {/* Action chips — 상세보기 dropped (we are the detail page) */}
@@ -590,18 +613,39 @@ export default function SpotPage() {
             )}
           </div>
         ) : (
-          (() => {
-            const items: React.ReactNode[] = [];
-            activeStories.forEach((story: Story, idx: number) => {
-              items.push(
-                <SpotPageStory key={story.id} story={story} spot={spot} />,
-              );
-              if (idx < activeStories.length - 1) {
-                items.push(<NativeCard key={`ad-${idx}`} />);
-              }
-            });
-            return items;
-          })()
+          <>
+            {(() => {
+              const items: React.ReactNode[] = [];
+              activeStories.forEach((story: Story, idx: number) => {
+                items.push(
+                  <SpotPageStory key={story.id} story={story} spot={spot} />,
+                );
+                if (idx < activeStories.length - 1) {
+                  items.push(<NativeCard key={`ad-${idx}`} />);
+                }
+              });
+              return items;
+            })()}
+            {activeStories.length < storyTotal && (
+              <button
+                onClick={loadMoreStories}
+                disabled={loadingMoreStories}
+                className="w-full py-3 mt-2 text-sm font-medium"
+                style={{
+                  background: '#f3f4f6',
+                  color: loadingMoreStories ? '#9ca3af' : '#374151',
+                  borderRadius: '10px',
+                  border: 'none',
+                  cursor: loadingMoreStories ? 'default' : 'pointer',
+                  letterSpacing: '-0.1px',
+                }}
+              >
+                {loadingMoreStories
+                  ? '불러오는 중…'
+                  : `이전 스토리 더 보기 (${storyTotal - activeStories.length})`}
+              </button>
+            )}
+          </>
         )}
       </div>
 
