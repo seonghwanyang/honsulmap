@@ -78,17 +78,22 @@ function clusterByGrid(spots: SpotWithStories[], zoom: number): SpotWithStories[
   return Array.from(buckets.values());
 }
 
+// Compact story card sizing — caps height so 3 cards fit per viewport
+// instead of the old 9:16 portrait (which filled most of the screen and
+// forced 2+ scrolls per spot). object-fit: cover preserves the visual.
+const STORY_CARD_HEIGHT = 300;
+
 // Single story card inside the map's selected-spot panel. Tracks the
 // impression once-per-session via IntersectionObserver and emits
 // story_play / story_progress_75 / story_complete from the <video>.
 // Placeholder card shown in the map sheet while stories are being fetched.
-// Matches the 9:16 aspect / radius of MapSheetStory so the layout doesn't
-// jump when real cards swap in.
+// Matches the height/radius of MapSheetStory so the layout doesn't jump
+// when real cards swap in.
 function StorySkeleton() {
   return (
     <div
       className="relative w-full animate-pulse"
-      style={{ aspectRatio: '9/16', borderRadius: '14px', background: '#e5e7eb' }}
+      style={{ height: STORY_CARD_HEIGHT, borderRadius: '14px', background: '#e5e7eb' }}
     />
   );
 }
@@ -132,7 +137,7 @@ function MapSheetStory({
     <div
       ref={ref}
       className="relative w-full"
-      style={{ aspectRatio: '9/16', borderRadius: '14px', overflow: 'hidden', background: '#000' }}
+      style={{ height: STORY_CARD_HEIGHT, borderRadius: '14px', overflow: 'hidden', background: '#000' }}
     >
       {story.media_type === 'video' ? (
         <video
@@ -222,6 +227,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [viewBounds, setViewBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
   const [, setTick] = useState(0);
   const [gpsToast, setGpsToast] = useState<string | null>(null);
+
+  // Story pagination state for the currently-selected spot. `total` is
+  // the server-reported count; `loading` toggles during initial + "더 보기"
+  // fetches so the skeleton/button render correctly even when the spot
+  // already has cached stories.
+  const [storyTotal, setStoryTotal] = useState<number | null>(null);
+  const [storyLoading, setStoryLoading] = useState(false);
+  const [storyLoadingMore, setStoryLoadingMore] = useState(false);
 
   // Swipe-down-to-dismiss state for the spot detail panel
   const [dragY, setDragY] = useState(0);
@@ -399,7 +412,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         if (r) params.set('region', r);
         else params.delete('region');
       }
-      router.push(`/?${params.toString()}`);
+      // replace (not push) + scroll:false so the async server component
+      // in page.tsx does not re-execute and remount MapClient. router.push
+      // here re-rendered the server tree, which manifested as a "hard
+      // reload" (map re-init, story state lost, ads re-run) after a few
+      // interactions because each push stacked a fresh RSC fetch.
+      router.replace(`/?${params.toString()}`, { scroll: false });
     },
     [router, searchParams],
   );
@@ -410,7 +428,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       const params = new URLSearchParams(searchParams.toString());
       if (c === 'all') params.delete('category');
       else params.set('category', c);
-      router.push(`/?${params.toString()}`);
+      router.replace(`/?${params.toString()}`, { scroll: false });
     },
     [router, searchParams],
   );
@@ -438,29 +456,89 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   // idle-time prefetcher doesn't double-fire when `spots` re-renders.
   const prefetchedRef = useRef<Set<string>>(new Set());
 
-  // Lazy-load stories for the currently-selected spot. Skips when the
-  // prefetcher has already cached them, or when the markers payload tells
-  // us this spot has never had a story (latest_story_at is null).
+  // Lazy-load the first page (5) of stories for the currently-selected
+  // spot. Skips when the prefetcher has already cached them, or when the
+  // markers payload tells us this spot has never had a story
+  // (latest_story_at is null). The full count is returned alongside so
+  // we know whether to show "이전 스토리 더 보기".
   useEffect(() => {
-    if (!selectedSpot) return;
-    if (selectedSpot.stories.length > 0) return; // already loaded
-    if (!selectedSpot.latest_story_at) return; // spot has no stories — skip fetch
+    if (!selectedSpot) {
+      setStoryTotal(null);
+      setStoryLoading(false);
+      return;
+    }
+    if (!selectedSpot.latest_story_at) {
+      // Markers payload says no stories — render empty state immediately.
+      setStoryTotal(0);
+      setStoryLoading(false);
+      return;
+    }
+    if (selectedSpot.stories.length > 0) {
+      // Prefetcher already filled at least one page. Treat what's cached
+      // as the lower bound for total until the user asks for more.
+      setStoryTotal((cur) =>
+        cur != null && cur >= selectedSpot.stories.length ? cur : selectedSpot.stories.length,
+      );
+      setStoryLoading(false);
+      return;
+    }
     let cancelled = false;
     prefetchedRef.current.add(selectedSpot.id);
+    setStoryLoading(true);
+    setStoryTotal(null);
     (async () => {
       try {
-        const res = await fetch(`/api/spots/${selectedSpot.slug}/stories`);
+        const res = await fetch(`/api/spots/${selectedSpot.slug}/stories?limit=5&offset=0`);
         if (!res.ok) return;
-        const stories = (await res.json()) as Story[];
+        const payload = (await res.json()) as { stories: Story[]; total: number };
         if (cancelled) return;
-        setSelectedSpot((cur) => (cur && cur.id === selectedSpot.id ? { ...cur, stories } : cur));
-        setSpots((prev) => prev.map((s) => (s.id === selectedSpot.id ? { ...s, stories } : s)));
+        setSelectedSpot((cur) =>
+          cur && cur.id === selectedSpot.id ? { ...cur, stories: payload.stories } : cur,
+        );
+        setSpots((prev) =>
+          prev.map((s) => (s.id === selectedSpot.id ? { ...s, stories: payload.stories } : s)),
+        );
+        setStoryTotal(payload.total);
       } catch (err) {
         console.error('Stories fetch error:', err);
+      } finally {
+        if (!cancelled) setStoryLoading(false);
       }
     })();
     return () => { cancelled = true; };
   }, [selectedSpot?.id]);
+
+  // Fetch the next batch of older stories on user request ("더 보기").
+  const loadMoreStories = useCallback(async () => {
+    if (!selectedSpot) return;
+    if (storyLoadingMore) return;
+    const offset = selectedSpot.stories.length;
+    setStoryLoadingMore(true);
+    try {
+      const res = await fetch(
+        `/api/spots/${selectedSpot.slug}/stories?limit=5&offset=${offset}`,
+      );
+      if (!res.ok) return;
+      const payload = (await res.json()) as { stories: Story[]; total: number };
+      setSelectedSpot((cur) =>
+        cur && cur.id === selectedSpot.id
+          ? { ...cur, stories: [...cur.stories, ...payload.stories] }
+          : cur,
+      );
+      setSpots((prev) =>
+        prev.map((s) =>
+          s.id === selectedSpot.id
+            ? { ...s, stories: [...s.stories, ...payload.stories] }
+            : s,
+        ),
+      );
+      setStoryTotal(payload.total);
+    } catch (err) {
+      console.error('Load more stories error:', err);
+    } finally {
+      setStoryLoadingMore(false);
+    }
+  }, [selectedSpot, storyLoadingMore]);
 
   // Idle-time viewport prefetch. When the map settles on a new viewport
   // we fire requestIdleCallback to fill stories for visible spots in the
@@ -488,12 +566,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       for (const spot of need) {
         if (cancelled) return;
         try {
-          const res = await fetch(`/api/spots/${spot.slug}/stories`);
+          const res = await fetch(`/api/spots/${spot.slug}/stories?limit=5&offset=0`);
           if (!res.ok) continue;
-          const stories = (await res.json()) as Story[];
+          const payload = (await res.json()) as { stories: Story[]; total: number };
           if (cancelled) return;
           setSpots((prev) =>
-            prev.map((s) => (s.id === spot.id ? { ...s, stories } : s)),
+            prev.map((s) => (s.id === spot.id ? { ...s, stories: payload.stories } : s)),
           );
         } catch {
           // Best-effort prefetch — silently skip and let lazy-load
@@ -847,14 +925,23 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       )
     : [];
 
-  // Stories are loading when the markers payload promised at least one
-  // (latest_story_at != null) but the lazy/prefetch fetch hasn't filled
-  // the array yet. Distinguishes loading from truly-empty so the empty
-  // message doesn't flash on click.
+  // Stories are loading when an initial fetch is in flight. Falls back
+  // to the markers-payload hint (latest_story_at != null but no stories
+  // cached yet) so the skeleton appears the instant the panel opens,
+  // before the useEffect has had a chance to flip storyLoading on.
   const isLoadingStories =
     selectedSpot != null &&
     activeStories.length === 0 &&
-    selectedSpot.latest_story_at != null;
+    (storyLoading ||
+      (selectedSpot.latest_story_at != null && storyTotal == null));
+
+  // Whether the "이전 스토리 더 보기" button should render. Visible when
+  // we know the server has more stories than we've loaded.
+  const canLoadMoreStories =
+    selectedSpot != null &&
+    storyTotal != null &&
+    activeStories.length > 0 &&
+    activeStories.length < storyTotal;
 
   const instagramUrl = selectedSpot?.instagram_id
     ? `https://www.instagram.com/${selectedSpot.instagram_id}/`
@@ -1245,6 +1332,23 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     });
                     return items;
                   })()}
+                  {canLoadMoreStories && (
+                    <button
+                      type="button"
+                      onClick={loadMoreStories}
+                      disabled={storyLoadingMore}
+                      className="w-full text-sm font-medium py-2.5 mt-1"
+                      style={{
+                        background: '#f3f4f6',
+                        color: '#374151',
+                        borderRadius: '10px',
+                        opacity: storyLoadingMore ? 0.6 : 1,
+                        cursor: storyLoadingMore ? 'default' : 'pointer',
+                      }}
+                    >
+                      {storyLoadingMore ? '불러오는 중…' : '이전 스토리 더 보기'}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
