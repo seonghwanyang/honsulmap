@@ -1338,11 +1338,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       // natural height; snap still pulls the user to the
                       // next story card.
                       if (idx < activeStories.length - 1) {
-                        items.push(
-                          <div key={`ad-${idx}`} style={{ padding: '12px 0' }}>
-                            <NativeCard />
-                          </div>,
-                        );
+                        items.push(<NativeCard key={`ad-${idx}`} />);
                       }
                     });
                     return items;
