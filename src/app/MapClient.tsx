@@ -1294,7 +1294,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               className="overflow-y-auto"
               style={{
                 height: 'calc(92dvh - 140px)',
-                scrollSnapType: 'y mandatory',
+                scrollSnapType: 'y proximity',
                 scrollBehavior: 'smooth',
               }}
             >
@@ -1334,20 +1334,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       items.push(
                         <MapSheetStory key={story.id} story={story} spot={selectedSpot} />,
                       );
-                      // Native ad between stories — wrap so it snaps to one
-                      // panel viewport like the story cards do.
+                      // Native ad between stories — sits at its own
+                      // natural height; snap still pulls the user to the
+                      // next story card.
                       if (idx < activeStories.length - 1) {
                         items.push(
-                          <div
-                            key={`ad-${idx}`}
-                            style={{
-                              height: STORY_SLOT_HEIGHT,
-                              scrollSnapAlign: 'start',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
+                          <div key={`ad-${idx}`} style={{ padding: '12px 0' }}>
                             <NativeCard />
                           </div>,
                         );
