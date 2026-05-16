@@ -459,6 +459,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   // idle-time prefetcher doesn't double-fire when `spots` re-renders.
   const prefetchedRef = useRef<Set<string>>(new Set());
 
+  // Off-state stories cache. Storing fetched stories here (instead of in
+  // `spots` state) prevents the 200-marker map from re-rendering on every
+  // prefetch tick — the panel reads from this map when opening a spot.
+  const prefetchedStoriesRef = useRef<Map<string, { stories: Story[]; total: number }>>(new Map());
+
   // Lazy-load the first page (5) of stories for the currently-selected
   // spot. Skips when the prefetcher has already cached them, or when the
   // markers payload tells us this spot has never had a story
@@ -477,11 +482,21 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       return;
     }
     if (selectedSpot.stories.length > 0) {
-      // Prefetcher already filled at least one page. Treat what's cached
-      // as the lower bound for total until the user asks for more.
+      // Already populated on this selectedSpot (e.g. loadMore appended).
       setStoryTotal((cur) =>
         cur != null && cur >= selectedSpot.stories.length ? cur : selectedSpot.stories.length,
       );
+      setStoryLoading(false);
+      return;
+    }
+    const cached = prefetchedStoriesRef.current.get(selectedSpot.id);
+    if (cached) {
+      // Prefetcher already loaded this spot — hand it to the panel
+      // without touching `spots` (so the map markers don't re-render).
+      setSelectedSpot((cur) =>
+        cur && cur.id === selectedSpot.id ? { ...cur, stories: cached.stories } : cur,
+      );
+      setStoryTotal(cached.total);
       setStoryLoading(false);
       return;
     }
@@ -495,11 +510,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         if (!res.ok) return;
         const payload = (await res.json()) as { stories: Story[]; total: number };
         if (cancelled) return;
+        prefetchedStoriesRef.current.set(selectedSpot.id, {
+          stories: payload.stories,
+          total: payload.total,
+        });
         setSelectedSpot((cur) =>
           cur && cur.id === selectedSpot.id ? { ...cur, stories: payload.stories } : cur,
-        );
-        setSpots((prev) =>
-          prev.map((s) => (s.id === selectedSpot.id ? { ...s, stories: payload.stories } : s)),
         );
         setStoryTotal(payload.total);
       } catch (err) {
@@ -523,18 +539,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       );
       if (!res.ok) return;
       const payload = (await res.json()) as { stories: Story[]; total: number };
-      setSelectedSpot((cur) =>
-        cur && cur.id === selectedSpot.id
-          ? { ...cur, stories: [...cur.stories, ...payload.stories] }
-          : cur,
-      );
-      setSpots((prev) =>
-        prev.map((s) =>
-          s.id === selectedSpot.id
-            ? { ...s, stories: [...s.stories, ...payload.stories] }
-            : s,
-        ),
-      );
+      setSelectedSpot((cur) => {
+        if (!cur || cur.id !== selectedSpot.id) return cur;
+        const merged = [...cur.stories, ...payload.stories];
+        // Mirror to the ref cache so re-opening the panel keeps the
+        // already-loaded "older" pages without another network call.
+        prefetchedStoriesRef.current.set(cur.id, { stories: merged, total: payload.total });
+        return { ...cur, stories: merged };
+      });
       setStoryTotal(payload.total);
     } catch (err) {
       console.error('Load more stories error:', err);
@@ -573,9 +585,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           if (!res.ok) continue;
           const payload = (await res.json()) as { stories: Story[]; total: number };
           if (cancelled) return;
-          setSpots((prev) =>
-            prev.map((s) => (s.id === spot.id ? { ...s, stories: payload.stories } : s)),
-          );
+          // Stash in the off-state cache only — writing to React state
+          // would force every pin to re-render and stall the map.
+          prefetchedStoriesRef.current.set(spot.id, {
+            stories: payload.stories,
+            total: payload.total,
+          });
         } catch {
           // Best-effort prefetch — silently skip and let lazy-load
           // recover if the user clicks this spot.
@@ -593,7 +608,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   }, [viewBounds, spots]);
 
   // Every 5 min refresh the markers list. If a spot's latest_story_at
-  // changed, invalidate its cached stories so the next click (or next
+  // changed, drop the spot's cached stories so the next click (or next
   // viewport prefetch) re-fetches just that one.
   useEffect(() => {
     const refresh = async () => {
@@ -602,17 +617,15 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         if (!res.ok) return;
         const fresh = (await res.json()) as SpotWithStories[];
         setSpots((prev) => {
-          const byId = new Map(prev.map((s) => [s.id, s]));
-          return fresh.map((f) => {
-            const cached = byId.get(f.id);
-            if (!cached) return f; // new spot — empty stories already
-            const changed = cached.latest_story_at !== f.latest_story_at;
-            if (changed && cached.stories.length > 0) {
+          const byId = new Map(prev.map((s) => [s.id, s.latest_story_at]));
+          for (const f of fresh) {
+            const prevAt = byId.get(f.id);
+            if (prevAt != null && prevAt !== f.latest_story_at) {
               prefetchedRef.current.delete(f.id);
-              return { ...f, stories: [] };
+              prefetchedStoriesRef.current.delete(f.id);
             }
-            return { ...f, stories: cached.stories };
-          });
+          }
+          return fresh;
         });
       } catch {
         // Silent — next tick will retry.
