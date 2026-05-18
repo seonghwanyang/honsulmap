@@ -100,10 +100,10 @@ export default function SpotSearchBox({ spots, onPick }: Props) {
   return (
     <div
       ref={wrapRef}
-      // Mobile: header (56) + region filter (~40) + small gap. Banner is
-      // hidden on phones to keep the map visible. Desktop (sm+): the
-      // banner appears, so push the search down by its height.
-      className="absolute z-30 left-1/2 top-[110px] sm:top-[160px]"
+      // Mobile: header (56) + 2-row LocationPicker (~82 when 구 row is
+      // expanded, ~48 when collapsed). Top kept at ~148 so the 구 row
+      // can swing down without overlapping. Desktop adds the banner.
+      className="absolute z-30 left-1/2 top-[148px] sm:top-[198px]"
       style={{
         transform: 'translateX(-50%)',
         width: 'min(92vw, 440px)',

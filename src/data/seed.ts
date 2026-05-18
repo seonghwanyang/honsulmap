@@ -10,7 +10,8 @@ function makeSlug(name: string): string {
     .replace(/-+/g, '-');
 }
 
-export const SEED_SPOTS: Omit<Spot, 'id' | 'created_at'>[] = [
+// city is omitted — the DB default 'jeju' covers these legacy rows.
+export const SEED_SPOTS: Omit<Spot, 'id' | 'created_at' | 'city'>[] = [
   // ── 제주시 ──────────────────────────────────────────────────
   {
     name: '중립',

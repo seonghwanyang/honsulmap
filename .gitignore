@@ -48,8 +48,30 @@ scripts/*.json
 scripts/*_log.txt
 scripts/debug_*.py
 scripts/test_*.py
+scripts/test_*.ts
 scripts/naver_tls_probe.py
 scripts/naver_playwright_probe.py
+
+# scripts/ output artifacts (always cruft)
+scripts/*.log
+scripts/*.html
+scripts/*.png
+scripts/*.txt
+scripts/*.js
+
+# Throwaway debug / probe scripts go under scripts/debug/, which is
+# never committed. Anything in scripts/ root is treated as a real,
+# reusable script.
+scripts/debug/
+
+# favicon reference image (kept locally, not in repo)
+/honsulmap_favicon_ref.png
+
+# session temp logs at repo root
+.tmp-*
+
+# one-off data import sources
+*.xlsx
 
 # python
 __pycache__/

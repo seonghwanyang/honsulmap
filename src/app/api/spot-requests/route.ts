@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { VALID_REGIONS } from '@/lib/types';
 
-const VALID_REGIONS = ['jeju', 'aewol', 'seogwipo', 'east', 'west'] as const;
 const VALID_CATEGORIES = ['bar', 'guesthouse'] as const;
 
 export async function POST(request: NextRequest) {
