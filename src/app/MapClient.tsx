@@ -171,9 +171,14 @@ function MapSheetStory({
           controls
           playsInline
           muted
-          // First card preloads body so tap-to-play is instant; later
-          // cards stay at metadata-only until the user scrolls to them.
-          preload={priority ? 'auto' : 'metadata'}
+          // Background-download every visible card's body. Browser
+          // queues small thumbnails first via HTTP/2 priority, then the
+          // video bodies in parallel — fetchPriority on the first card
+          // jumps it to the front of that queue.
+          preload="auto"
+          // fetchPriority hint propagates to the video request when the
+          // browser supports it (Chrome 102+, Safari 17.2+).
+          {...({ fetchPriority: priority ? 'high' : 'auto' } as { fetchPriority?: 'high' | 'low' | 'auto' })}
           onPlay={onPlay}
           onTimeUpdate={onTimeUpdate}
           onEnded={onEnded}
@@ -184,7 +189,10 @@ function MapSheetStory({
           src={story.thumbnail_url || story.media_url}
           alt={`스토리 ${relativeTime(story.posted_at)}`}
           className="w-full h-full object-cover"
-          loading={priority ? 'eager' : 'lazy'}
+          // Always eager — we want all 5 thumbnails (which are small)
+          // up immediately so the panel feels populated before videos
+          // finish downloading.
+          loading="eager"
           fetchPriority={priority ? 'high' : 'auto'}
         />
       )}
