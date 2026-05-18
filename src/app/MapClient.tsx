@@ -880,42 +880,61 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     }
   }, [filteredSpots, mapReady, currentZoom, viewBounds]);
 
-  const handleGps = () => {
-    if (!navigator.geolocation || !mapInstanceRef.current) return;
+  // Coords are queued here if the user grants location permission before
+  // the Naver map script has finished loading (happens when the welcome
+  // modal is tapped in the first second). The mapReady effect below
+  // applies them as soon as the map is ready.
+  const pendingGpsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  const applyGpsCoords = useCallback((lat: number, lng: number): boolean => {
+    if (!mapInstanceRef.current || !window.naver?.maps) return false;
+    const latlng = new window.naver.maps.LatLng(lat, lng);
+    mapInstanceRef.current.morph(latlng, 15);
+
+    if (!document.getElementById('gps-pulse-style')) {
+      const style = document.createElement('style');
+      style.id = 'gps-pulse-style';
+      style.textContent = '@keyframes gps-pulse{0%{transform:scale(1);opacity:0.6}70%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}';
+      document.head.appendChild(style);
+    }
+
+    const markerContent =
+      '<div style="position:relative;width:18px;height:18px;">' +
+        '<div style="position:absolute;inset:0;border-radius:50%;background:#4285F4;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.15);z-index:2;"></div>' +
+        '<div style="position:absolute;inset:-12px;border-radius:50%;background:rgba(66,133,244,0.2);animation:gps-pulse 2s ease-out infinite;"></div>' +
+      '</div>';
+
+    if (userLocationMarkerRef.current) {
+      userLocationMarkerRef.current.setMap(null);
+    }
+    userLocationMarkerRef.current = new window.naver.maps.Marker({
+      position: latlng,
+      map: mapInstanceRef.current,
+      icon: {
+        content: markerContent,
+        size: new window.naver.maps.Size(18, 18),
+        anchor: new window.naver.maps.Point(9, 9),
+      },
+    });
+
+    track('gps_centered', { lat, lng });
+    return true;
+  }, []);
+
+  const handleGps = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGpsToast('이 브라우저는 위치를 지원하지 않아요');
+      setTimeout(() => setGpsToast(null), 3000);
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
-        const latlng = new window.naver.maps.LatLng(lat, lng);
-        mapInstanceRef.current!.morph(latlng, 15);
-
-        // Inject keyframes once
-        if (!document.getElementById('gps-pulse-style')) {
-          const style = document.createElement('style');
-          style.id = 'gps-pulse-style';
-          style.textContent = '@keyframes gps-pulse{0%{transform:scale(1);opacity:0.6}70%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}';
-          document.head.appendChild(style);
+        // If the map is still loading (welcome-modal early tap), park
+        // the coords; the mapReady effect picks them up later.
+        if (!applyGpsCoords(lat, lng)) {
+          pendingGpsRef.current = { lat, lng };
         }
-
-        const markerContent =
-          '<div style="position:relative;width:18px;height:18px;">' +
-            '<div style="position:absolute;inset:0;border-radius:50%;background:#4285F4;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.15);z-index:2;"></div>' +
-            '<div style="position:absolute;inset:-12px;border-radius:50%;background:rgba(66,133,244,0.2);animation:gps-pulse 2s ease-out infinite;"></div>' +
-          '</div>';
-
-        if (userLocationMarkerRef.current) {
-          userLocationMarkerRef.current.setMap(null);
-        }
-        userLocationMarkerRef.current = new window.naver.maps.Marker({
-          position: latlng,
-          map: mapInstanceRef.current!,
-          icon: {
-            content: markerContent,
-            size: new window.naver.maps.Size(18, 18),
-            anchor: new window.naver.maps.Point(9, 9),
-          },
-        });
-
-        track('gps_centered', { lat, lng });
       },
       (err) => {
         console.error('GPS error:', err);
@@ -926,7 +945,17 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         setTimeout(() => setGpsToast(null), 3000);
       },
     );
-  };
+  }, [applyGpsCoords]);
+
+  // Flush a queued GPS request once the Naver map finishes loading.
+  useEffect(() => {
+    if (!mapReady) return;
+    const pending = pendingGpsRef.current;
+    if (!pending) return;
+    if (applyGpsCoords(pending.lat, pending.lng)) {
+      pendingGpsRef.current = null;
+    }
+  }, [mapReady, applyGpsCoords]);
 
   const handleSelectFromCircle = (spot: SpotWithStories) => {
     setSelectedSpot(spot);
