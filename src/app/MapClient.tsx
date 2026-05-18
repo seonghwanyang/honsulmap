@@ -950,8 +950,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         setTimeout(() => setGpsToast(null), 3000);
       },
       {
+        // The timeout window includes the time the user spends on the
+        // browser's native permission prompt — 30s gives them room to
+        // grant permission and for the first GPS fix afterwards.
         enableHighAccuracy: false,
-        timeout: 10_000,
+        timeout: 30_000,
         maximumAge: 60_000,
       },
     );
