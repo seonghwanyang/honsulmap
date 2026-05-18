@@ -20,12 +20,15 @@ export const metadata: Metadata = {
   },
 };
 
-async function getStories(region: string): Promise<StoryWithSpot[]> {
+async function getStories(city: string, region: string): Promise<StoryWithSpot[]> {
   let query = supabase
     .from('stories')
-    .select('*, spot:spots!inner(name, slug, region, category)')
+    .select('*, spot:spots!inner(name, slug, city, region, category)')
     .order('posted_at', { ascending: false })
     .limit(50);
+  if (city && city !== 'all') {
+    query = query.eq('spot.city', city);
+  }
   if (region && region !== 'all') {
     query = query.eq('spot.region', region);
   }
@@ -36,10 +39,11 @@ async function getStories(region: string): Promise<StoryWithSpot[]> {
 export default async function FeedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ region?: string }>;
+  searchParams: Promise<{ city?: string; region?: string }>;
 }) {
   const params = await searchParams;
+  const city = params.city || 'all';
   const region = params.region || 'all';
-  const stories = await getStories(region);
-  return <FeedClient initialStories={stories} region={region} />;
+  const stories = await getStories(city, region);
+  return <FeedClient initialStories={stories} city={city} region={region} />;
 }

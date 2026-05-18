@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import RegionFilter from '@/components/RegionFilter';
+import LocationPicker from '@/components/LocationPicker';
 import NativeCard from '@/components/ads/NativeCard';
 import SpotRequestButton from '@/components/SpotRequestButton';
-import { StoryWithSpot } from '@/lib/types';
+import { City, Region, StoryWithSpot } from '@/lib/types';
 import { relativeTime, getRegionLabel } from '@/lib/utils';
 import { track, shouldFireOnceForStory } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
@@ -97,12 +97,13 @@ function StoryCard({ story }: { story: StoryWithSpot }) {
 
 interface FeedClientProps {
   initialStories: StoryWithSpot[];
+  city: string;
   region: string;
 }
 
 const PAGE_SIZE = 50;
 
-export default function FeedClient({ initialStories, region }: FeedClientProps) {
+export default function FeedClient({ initialStories, city, region }: FeedClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, setTick] = useState(0);
@@ -113,7 +114,7 @@ export default function FeedClient({ initialStories, region }: FeedClientProps) 
   usePageDwell('feed', region);
   useScrollDepth('feed', region);
 
-  // Reset paginated state when a fresh SSR page arrives (region change).
+  // Reset paginated state when a fresh SSR page arrives (filter change).
   useEffect(() => {
     setStories(initialStories);
     setHasMore(initialStories.length === PAGE_SIZE);
@@ -125,12 +126,18 @@ export default function FeedClient({ initialStories, region }: FeedClientProps) 
     return () => clearInterval(id);
   }, []);
 
-  const handleRegionChange = useCallback(
-    (r: string) => {
-      track('region_filter_changed', { region: r, surface: 'feed' });
+  const handleLocationChange = useCallback(
+    (c: City | null, r: Region | null) => {
+      track('region_filter_changed', { region: r ?? c ?? 'all', surface: 'feed' });
       const params = new URLSearchParams(searchParams.toString());
-      if (r === 'all') params.delete('region');
-      else params.set('region', r);
+      if (!c) {
+        params.delete('city');
+        params.delete('region');
+      } else {
+        params.set('city', c);
+        if (r) params.set('region', r);
+        else params.delete('region');
+      }
       router.push(`/feed?${params.toString()}`);
     },
     [router, searchParams],
@@ -141,6 +148,7 @@ export default function FeedClient({ initialStories, region }: FeedClientProps) 
     setLoadingMore(true);
     try {
       const params = new URLSearchParams();
+      if (city !== 'all') params.set('city', city);
       if (region !== 'all') params.set('region', region);
       params.set('offset', String(stories.length));
       const res = await fetch(`/api/stories/latest?${params.toString()}`);
@@ -156,7 +164,7 @@ export default function FeedClient({ initialStories, region }: FeedClientProps) 
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, region, stories]);
+  }, [loadingMore, hasMore, city, region, stories]);
 
   const items: React.ReactNode[] = [];
   stories.forEach((story, idx) => {
@@ -184,7 +192,11 @@ export default function FeedClient({ initialStories, region }: FeedClientProps) 
       </header>
 
       <div className="sticky top-14 z-10 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
-        <RegionFilter selected={region} onChange={handleRegionChange} />
+        <LocationPicker
+          city={city === 'all' ? null : (city as City)}
+          region={region === 'all' ? null : (region as Region)}
+          onChange={handleLocationChange}
+        />
       </div>
 
       <div className="px-4 pt-4">

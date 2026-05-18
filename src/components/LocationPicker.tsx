@@ -35,6 +35,11 @@ export default function LocationPicker({ city, region, onChange }: LocationPicke
           <Chip
             key={c.value}
             active={city === c.value}
+            // The ▾ hints that picking this chip reveals more options
+            // (the 구 row underneath). Rotates to ▴ when expanded so
+            // it's clear what the chevron is referring to.
+            expandable
+            expanded={city === c.value}
             onClick={() => onChange(c.value, null)}
           >
             {c.label}
@@ -81,11 +86,15 @@ export default function LocationPicker({ city, region, onChange }: LocationPicke
 function Chip({
   active,
   subtle,
+  expandable,
+  expanded,
   onClick,
   children,
 }: {
   active: boolean;
   subtle?: boolean;
+  expandable?: boolean;
+  expanded?: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -95,7 +104,7 @@ function Chip({
       className="flex-shrink-0 rounded-full cursor-pointer"
       style={{
         height: subtle ? 26 : 30,
-        padding: subtle ? '0 11px' : '0 14px',
+        padding: subtle ? '0 11px' : expandable ? '0 10px 0 14px' : '0 14px',
         fontSize: subtle ? 12 : 13,
         fontWeight: active ? 600 : 400,
         letterSpacing: '-0.1px',
@@ -107,9 +116,31 @@ function Chip({
           ? '1px solid #111827'
           : `1px solid ${subtle ? '#f3f4f6' : '#e5e7eb'}`,
         transition: 'background-color 120ms ease, color 120ms ease, border-color 120ms ease',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: expandable ? 4 : 0,
       }}
     >
       {children}
+      {expandable && (
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            transform: expanded ? 'rotate(180deg)' : 'rotate(0)',
+            transition: 'transform 180ms ease',
+            opacity: 0.85,
+          }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      )}
     </button>
   );
 }
