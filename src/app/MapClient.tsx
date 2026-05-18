@@ -937,12 +937,22 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         }
       },
       (err) => {
-        console.error('GPS error:', err);
-        const msg = err.code === 1
-          ? '위치 권한이 필요해요'
-          : '현재 위치를 가져올 수 없어요';
+        // GeolocationPositionError's fields are non-enumerable, so
+        // logging the object directly prints "{}". Pull code/message out
+        // so we can actually see what failed.
+        console.error('GPS error:', { code: err.code, message: err.message });
+        let msg: string;
+        if (err.code === 1) msg = '위치 권한이 필요해요';
+        else if (err.code === 2) msg = '현재 위치를 알 수 없어요 (신호 약함)';
+        else if (err.code === 3) msg = '위치 확인 시간 초과';
+        else msg = '현재 위치를 가져올 수 없어요';
         setGpsToast(msg);
         setTimeout(() => setGpsToast(null), 3000);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 10_000,
+        maximumAge: 60_000,
       },
     );
   }, [applyGpsCoords]);
