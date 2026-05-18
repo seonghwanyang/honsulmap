@@ -935,8 +935,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
 
     const markerContent =
       '<div style="position:relative;width:18px;height:18px;">' +
-        '<div style="position:absolute;inset:0;border-radius:50%;background:#4285F4;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.15);z-index:2;"></div>' +
-        '<div style="position:absolute;inset:-12px;border-radius:50%;background:rgba(66,133,244,0.2);animation:gps-pulse 2s ease-out infinite;"></div>' +
+        '<div style="position:absolute;inset:0;border-radius:50%;background:#ef4444;border:2px solid #111827;box-shadow:0 0 0 1px rgba(0,0,0,0.18);z-index:2;"></div>' +
+        '<div style="position:absolute;inset:-12px;border-radius:50%;background:rgba(239,68,68,0.25);animation:gps-pulse 2s ease-out infinite;"></div>' +
       '</div>';
 
     if (userLocationMarkerRef.current) {
