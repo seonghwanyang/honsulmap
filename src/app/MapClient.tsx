@@ -308,6 +308,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       panelSpotIdRef.current = spot.id;
       setSelectedSpot(spot);
       track('spot_detail_entered', { spot_id: spot.id, entry_source });
+      // Fire-and-forget view counter — failures are silent so the panel
+      // open never blocks on this network call.
+      fetch(`/api/spots/${spot.slug}/view`, { method: 'POST' }).catch(() => {});
     },
     [flushPanelDwell],
   );

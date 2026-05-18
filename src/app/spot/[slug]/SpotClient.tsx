@@ -436,6 +436,9 @@ export default function SpotPage() {
       ? (from as EntrySource)
       : 'direct';
     track('spot_detail_entered', { spot_id: spot.id, entry_source });
+    // Bump the spot's view counter (fire-and-forget; same endpoint the
+    // map sheet hits when it opens). Each /spot/[slug] mount counts.
+    fetch(`/api/spots/${spot.slug}/view`, { method: 'POST' }).catch(() => {});
     // Only fire once per spot load — not on every searchParams tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spot?.id]);
