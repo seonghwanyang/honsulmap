@@ -7,6 +7,7 @@ import Script from 'next/script';
 import LocationPicker from '@/components/LocationPicker';
 import CategoryFilter, { CategoryFilterValue } from '@/components/CategoryFilter';
 import SpotRequestModal from '@/components/SpotRequestModal';
+import WelcomeModal from '@/components/WelcomeModal';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
 import NativeCard from '@/components/ads/NativeCard';
@@ -1103,6 +1104,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       )}
 
       <SpotRequestModal open={requestOpen} onClose={() => setRequestOpen(false)} />
+      <WelcomeModal
+        onFindNearby={handleGps}
+        onReportSpot={() => setRequestOpen(true)}
+      />
 
       {/* Bottom Sheet: Spot List */}
       <div
