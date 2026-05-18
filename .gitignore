@@ -52,34 +52,17 @@ scripts/test_*.ts
 scripts/naver_tls_probe.py
 scripts/naver_playwright_probe.py
 
-# one-off scraper R&D leftovers under scripts/
+# scripts/ output artifacts (always cruft)
 scripts/*.log
 scripts/*.html
 scripts/*.png
 scripts/*.txt
 scripts/*.js
 
-# one-off ad-hoc TS/PY scripts (DB checks, scraper probes, migrations)
-scripts/check_*
-scripts/find_*
-scripts/list_*
-scripts/delete_*
-scripts/insert_*
-scripts/resolve_*
-scripts/verify_*
-scripts/mig_*
-scripts/geocode_*
-scripts/alive_*
-scripts/ig_auth_*
-scripts/scrapling_*
-scripts/storysaver_*
-scripts/snapinsta_*
-scripts/savefree_*
-scripts/savetheinsta_*
-scripts/storiesig_*
-scripts/snaplytics_*
-scripts/igram_*
-scripts/alt_sites_*
+# Throwaway debug / probe scripts go under scripts/debug/, which is
+# never committed. Anything in scripts/ root is treated as a real,
+# reusable script.
+scripts/debug/
 
 # favicon reference image (kept locally, not in repo)
 /honsulmap_favicon_ref.png
