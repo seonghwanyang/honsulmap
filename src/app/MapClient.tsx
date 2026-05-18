@@ -947,9 +947,15 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // and let getCurrentPosition itself prompt + report.
     }
 
+    // Progress toast — between permission grant and the first GPS fix
+    // is a 2-3s silent gap on mobile. Without feedback users assume
+    // nothing happened and tap again.
+    setGpsToast('내 위치 찾는 중…');
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
+        setGpsToast(null);
         // If the map is still loading (welcome-modal early tap), park
         // the coords; the mapReady effect picks them up later.
         if (!applyGpsCoords(lat, lng)) {
@@ -1145,7 +1151,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         </button>
       </div>
 
-      {/* GPS error toast */}
+      {/* GPS toast (loading + error). The "찾는 중" variant gets a
+          spinner so users see we're working on it. */}
       {gpsToast && (
         <div
           className="absolute z-50 left-1/2"
@@ -1160,10 +1167,27 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               borderRadius: '999px',
               whiteSpace: 'nowrap',
               backdropFilter: 'blur(4px)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
+            {gpsToast.includes('찾는 중') && (
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 12,
+                  height: 12,
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  borderTopColor: '#fff',
+                  borderRadius: '50%',
+                  animation: 'gps-spin 0.8s linear infinite',
+                }}
+              />
+            )}
             {gpsToast}
           </div>
+          <style>{'@keyframes gps-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}'}</style>
         </div>
       )}
 
