@@ -933,10 +933,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       document.head.appendChild(style);
     }
 
+    // Naver-style current-location chip — small red core wrapped in a
+    // thick white ring so it pops on either light or dark map tiles.
+    // A 1px dark halo just outside the white ring keeps the ring from
+    // disappearing against bright (near-white) road backgrounds.
     const markerContent =
-      '<div style="position:relative;width:18px;height:18px;">' +
-        '<div style="position:absolute;inset:0;border-radius:50%;background:#ef4444;border:2px solid #111827;box-shadow:0 0 0 1px rgba(0,0,0,0.18);z-index:2;"></div>' +
-        '<div style="position:absolute;inset:-12px;border-radius:50%;background:rgba(239,68,68,0.25);animation:gps-pulse 2s ease-out infinite;"></div>' +
+      '<div style="position:relative;width:22px;height:22px;">' +
+        '<div style="position:absolute;inset:0;border-radius:50%;background:#ef4444;border:6px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
+        '<div style="position:absolute;inset:-14px;border-radius:50%;background:rgba(239,68,68,0.25);animation:gps-pulse 2s ease-out infinite;"></div>' +
       '</div>';
 
     if (userLocationMarkerRef.current) {
@@ -947,8 +951,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       map: mapInstanceRef.current,
       icon: {
         content: markerContent,
-        size: new window.naver.maps.Size(18, 18),
-        anchor: new window.naver.maps.Point(9, 9),
+        size: new window.naver.maps.Size(22, 22),
+        anchor: new window.naver.maps.Point(11, 11),
       },
     });
 
