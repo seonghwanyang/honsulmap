@@ -48,8 +48,47 @@ scripts/*.json
 scripts/*_log.txt
 scripts/debug_*.py
 scripts/test_*.py
+scripts/test_*.ts
 scripts/naver_tls_probe.py
 scripts/naver_playwright_probe.py
+
+# one-off scraper R&D leftovers under scripts/
+scripts/*.log
+scripts/*.html
+scripts/*.png
+scripts/*.txt
+scripts/*.js
+
+# one-off ad-hoc TS/PY scripts (DB checks, scraper probes, migrations)
+scripts/check_*
+scripts/find_*
+scripts/list_*
+scripts/delete_*
+scripts/insert_*
+scripts/resolve_*
+scripts/verify_*
+scripts/mig_*
+scripts/geocode_*
+scripts/alive_*
+scripts/ig_auth_*
+scripts/scrapling_*
+scripts/storysaver_*
+scripts/snapinsta_*
+scripts/savefree_*
+scripts/savetheinsta_*
+scripts/storiesig_*
+scripts/snaplytics_*
+scripts/igram_*
+scripts/alt_sites_*
+
+# favicon reference image (kept locally, not in repo)
+/honsulmap_favicon_ref.png
+
+# session temp logs at repo root
+.tmp-*
+
+# one-off data import sources
+*.xlsx
 
 # python
 __pycache__/
