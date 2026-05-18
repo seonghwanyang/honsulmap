@@ -950,11 +950,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         setTimeout(() => setGpsToast(null), 3000);
       },
       {
-        // The timeout window includes the time the user spends on the
-        // browser's native permission prompt — 30s gives them room to
-        // grant permission and for the first GPS fix afterwards.
+        // No client timeout: the permission prompt + GPS fix shouldn't
+        // be raced. Browsers eventually surface code 2/3 themselves if
+        // the device truly can't locate — that's the only useful
+        // failure signal anyway.
         enableHighAccuracy: false,
-        timeout: 30_000,
         maximumAge: 60_000,
       },
     );
