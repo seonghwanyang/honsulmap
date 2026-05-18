@@ -94,20 +94,40 @@ const STORY_SLOT_HEIGHT = 'calc(92dvh - 140px)';
 // Matches the height/radius of MapSheetStory so the layout doesn't jump
 // when real cards swap in.
 function StorySkeleton() {
+  // Shimmer: a translucent diagonal band slides across a light gray
+  // base. Reads as "actively loading" better than the default pulse.
   return (
     <div
-      className="relative w-full animate-pulse"
-      style={{ height: STORY_SLOT_HEIGHT, borderRadius: '14px', background: '#e5e7eb', scrollSnapAlign: 'start' }}
-    />
+      className="relative w-full overflow-hidden"
+      style={{
+        height: STORY_SLOT_HEIGHT,
+        borderRadius: '14px',
+        background: '#e5e7eb',
+        scrollSnapAlign: 'start',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)',
+          animation: 'story-shimmer 1.4s ease-in-out infinite',
+        }}
+      />
+      <style>{'@keyframes story-shimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}'}</style>
+    </div>
   );
 }
 
 function MapSheetStory({
   story,
   spot,
+  priority,
 }: {
   story: Story;
   spot: SpotWithStories;
+  priority: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useStoryImpression(ref, {
@@ -151,6 +171,9 @@ function MapSheetStory({
           controls
           playsInline
           muted
+          // First card preloads body so tap-to-play is instant; later
+          // cards stay at metadata-only until the user scrolls to them.
+          preload={priority ? 'auto' : 'metadata'}
           onPlay={onPlay}
           onTimeUpdate={onTimeUpdate}
           onEnded={onEnded}
@@ -161,7 +184,8 @@ function MapSheetStory({
           src={story.thumbnail_url || story.media_url}
           alt={`스토리 ${relativeTime(story.posted_at)}`}
           className="w-full h-full object-cover"
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
         />
       )}
       {/* Time overlay */}
@@ -1438,7 +1462,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     const items: React.ReactNode[] = [];
                     activeStories.forEach((story: Story, idx: number) => {
                       items.push(
-                        <MapSheetStory key={story.id} story={story} spot={selectedSpot} />,
+                        <MapSheetStory
+                          key={story.id}
+                          story={story}
+                          spot={selectedSpot}
+                          priority={idx === 0}
+                        />,
                       );
                       // Native ad between stories — sits at its own
                       // natural height; snap still pulls the user to the
