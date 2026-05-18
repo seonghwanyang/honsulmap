@@ -921,12 +921,32 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     return true;
   }, []);
 
-  const handleGps = useCallback(() => {
+  const handleGps = useCallback(async () => {
     if (!navigator.geolocation) {
       setGpsToast('이 브라우저는 위치를 지원하지 않아요');
       setTimeout(() => setGpsToast(null), 3000);
       return;
     }
+
+    // Pre-check permission state when the API is available — lets us
+    // give a specific "go enable in settings" message instead of waiting
+    // for the silent failure path.
+    try {
+      if ('permissions' in navigator) {
+        const perm = await navigator.permissions.query({
+          name: 'geolocation' as PermissionName,
+        });
+        if (perm.state === 'denied') {
+          setGpsToast('위치 권한이 차단됐어요. 브라우저 설정에서 허용해주세요');
+          setTimeout(() => setGpsToast(null), 4000);
+          return;
+        }
+      }
+    } catch {
+      // Permissions API not supported (older Safari) — fall through
+      // and let getCurrentPosition itself prompt + report.
+    }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
@@ -937,14 +957,16 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         }
       },
       (err) => {
-        // GeolocationPositionError's fields are non-enumerable, so
-        // logging the object directly prints "{}". Pull code/message out
-        // so we can actually see what failed.
-        console.error('GPS error:', { code: err.code, message: err.message });
+        // GeolocationPositionError fields are non-enumerable, so logging
+        // the object directly prints "{}" in the Next dev overlay.
+        // Stringify code/message into the format string instead.
+        console.error(
+          `GPS error code=${err?.code} message=${err?.message || '(none)'}`,
+        );
         let msg: string;
-        if (err.code === 1) msg = '위치 권한이 필요해요';
-        else if (err.code === 2) msg = '현재 위치를 알 수 없어요 (신호 약함)';
-        else if (err.code === 3) msg = '위치 확인 시간 초과';
+        if (err?.code === 1) msg = '위치 권한이 거부됐어요';
+        else if (err?.code === 2) msg = '현재 위치를 알 수 없어요 (신호 약함)';
+        else if (err?.code === 3) msg = '위치 확인 시간 초과';
         else msg = '현재 위치를 가져올 수 없어요';
         setGpsToast(msg);
         setTimeout(() => setGpsToast(null), 3000);
