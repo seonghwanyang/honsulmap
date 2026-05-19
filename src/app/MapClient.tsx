@@ -937,9 +937,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     // thick white ring so it pops on either light or dark map tiles.
     // A 1px dark halo just outside the white ring keeps the ring from
     // disappearing against bright (near-white) road backgrounds.
+    // 25/5/15 split: red core 15, white ring 5 per side, outer 25.
+    // Matches ref/4.jpg's 60% red-to-outer ratio (measured: 27px red
+    // core inside 45px outer).
     const markerContent =
-      '<div style="position:relative;width:22px;height:22px;">' +
-        '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:6px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
+      '<div style="position:relative;width:25px;height:25px;">' +
+        '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
         '<div style="position:absolute;inset:-14px;border-radius:50%;background:rgba(234,87,62,0.28);animation:gps-pulse 2s ease-out infinite;"></div>' +
       '</div>';
 
@@ -951,8 +954,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       map: mapInstanceRef.current,
       icon: {
         content: markerContent,
-        size: new window.naver.maps.Size(22, 22),
-        anchor: new window.naver.maps.Point(11, 11),
+        size: new window.naver.maps.Size(25, 25),
+        anchor: new window.naver.maps.Point(12, 12),
       },
     });
 
