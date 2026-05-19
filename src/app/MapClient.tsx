@@ -939,7 +939,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     // disappearing against bright (near-white) road backgrounds.
     const markerContent =
       '<div style="position:relative;width:22px;height:22px;">' +
-        '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:6px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
+        '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:4px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
         '<div style="position:absolute;inset:-14px;border-radius:50%;background:rgba(234,87,62,0.28);animation:gps-pulse 2s ease-out infinite;"></div>' +
       '</div>';
 
