@@ -586,21 +586,28 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const handleVisit = useCallback(async () => {
     if (!selectedSpot) return;
     if (visitSubmitting || justVisited) return;
+    // Snapshot the spot we're acting on so a panel swap (or close) mid-
+    // flight doesn't leak the response into another spot's UI.
+    const targetSpotId = selectedSpot.id;
+    const targetSlug = selectedSpot.slug;
     setVisitSubmitting(true);
     try {
-      const res = await fetch(`/api/spots/${selectedSpot.slug}/visit`, {
+      const res = await fetch(`/api/spots/${targetSlug}/visit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fingerprint: getFingerprint() }),
       });
       if (!res.ok) throw new Error('visit_failed');
       const payload = (await res.json()) as { ok: boolean; count: number };
+      if (panelSpotIdRef.current !== targetSpotId) return; // user moved on
       setVisitCount(payload.count);
       setJustVisited(true);
     } catch (err) {
       console.error('visit error:', err);
     } finally {
-      setVisitSubmitting(false);
+      if (panelSpotIdRef.current === targetSpotId) {
+        setVisitSubmitting(false);
+      }
     }
   }, [selectedSpot, visitSubmitting, justVisited]);
 
@@ -710,6 +717,21 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     const id = setInterval(refresh, 5 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
+
+  // Deep-link to a spot via ?spot=<slug> (used by HotSpotCarousel and
+  // /write redirects). Opens that spot's panel once the markers list is
+  // loaded, then strips the param so closing the panel doesn't re-open
+  // it on rerender.
+  useEffect(() => {
+    const slug = searchParams.get('spot');
+    if (!slug || spots.length === 0) return;
+    const spot = spots.find((s) => s.slug === slug);
+    if (spot) openSpotPanel(spot, 'map');
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete('spot');
+    const qs = next.toString();
+    router.replace(qs ? `/?${qs}` : '/', { scroll: false });
+  }, [searchParams, spots, router, openSpotPanel]);
 
   // Initialize map via onReady callback (called by Script component)
   const initMap = useCallback(() => {
@@ -1567,7 +1589,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               style={{
                 position: 'absolute',
                 right: 16,
-                bottom: 20,
+                // Respect iOS gesture bar / Android nav bar — fall back
+                // to 20px on browsers that don't support env().
+                bottom: 'max(20px, calc(env(safe-area-inset-bottom) + 8px))',
                 zIndex: 30,
                 display: 'flex',
                 flexDirection: 'column',
@@ -1577,11 +1601,19 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               }}
             >
               {justVisited ? (
-                <>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: 8,
+                    animation: 'visit-pop 220ms cubic-bezier(0.4,0,0.2,1)',
+                  }}
+                >
                   <span
                     style={{
                       pointerEvents: 'auto',
-                      background: 'rgba(17,24,39,0.92)',
+                      background: '#111827',
                       color: '#fff',
                       borderRadius: 999,
                       padding: '6px 12px',
@@ -1590,10 +1622,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 4,
-                      backdropFilter: 'blur(6px)',
                     }}
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                     {visitCount != null ? `${visitCount}명 다녀감` : '다녀왔어요'}
@@ -1602,17 +1633,17 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     href={`/write?spot=${selectedSpot.slug}&category=review`}
                     style={{
                       pointerEvents: 'auto',
-                      background: '#111827',
+                      background: '#ea573e',
                       color: '#fff',
                       borderRadius: 999,
-                      padding: '11px 18px',
+                      padding: '10px 14px',
                       fontSize: 13,
                       fontWeight: 600,
                       textDecoration: 'none',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 6,
-                      boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+                      boxShadow: '0 6px 18px rgba(234,87,62,0.32)',
                     }}
                   >
                     후기를 남겨주세요
@@ -1620,7 +1651,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       <polyline points="9 18 15 12 9 6" />
                     </svg>
                   </Link>
-                </>
+                  <style>{'@keyframes visit-pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}'}</style>
+                </div>
               ) : (
                 <button
                   onClick={handleVisit}
@@ -1630,7 +1662,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     background: visitSubmitting ? '#374151' : '#111827',
                     color: '#fff',
                     borderRadius: 999,
-                    padding: '11px 18px',
+                    padding: '10px 14px',
                     fontSize: 13,
                     fontWeight: 600,
                     border: 'none',
@@ -1641,7 +1673,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
                   }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                   {visitSubmitting ? '기록 중…' : '다녀왔어요'}

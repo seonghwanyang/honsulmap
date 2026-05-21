@@ -13,8 +13,12 @@ interface HotSpot {
 
 // Dark strip showing spots that posted a new story in the last 24h.
 // Visual tone: matches our brand (#111827 dark + #ea573e accent + white
-// text) rather than ref/5.jpg's beige/orange. Hidden entirely when there
-// are no fresh spots so it doesn't leave an empty band on the map.
+// text) — never the beige/orange of the reference Naver overlay.
+//
+// While the API is in flight we render a skeleton band of the same
+// height so the LocationPicker below doesn't jump up and down when the
+// data arrives. Only once we know the list is empty do we hide the
+// component entirely.
 export default function HotSpotCarousel() {
   const router = useRouter();
   const [spots, setSpots] = useState<HotSpot[] | null>(null);
@@ -24,17 +28,32 @@ export default function HotSpotCarousel() {
     (async () => {
       try {
         const res = await fetch('/api/spots/carousel');
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (!cancelled) setSpots([]);
+          return;
+        }
         const data = (await res.json()) as HotSpot[];
         if (!cancelled) setSpots(data);
       } catch {
-        // Silent — the carousel is optional decoration.
+        if (!cancelled) setSpots([]);
       }
     })();
     return () => { cancelled = true; };
   }, []);
 
-  if (!spots || spots.length === 0) return null;
+  // Loading: keep the strip's height so layout doesn't shift when data
+  // resolves. Same dark background, no content.
+  if (spots === null) {
+    return (
+      <div
+        style={{ background: '#111827', height: 60 }}
+        aria-hidden="true"
+      />
+    );
+  }
+
+  // Confirmed empty — collapse the band so the map gets the space back.
+  if (spots.length === 0) return null;
 
   return (
     <div
@@ -58,24 +77,25 @@ export default function HotSpotCarousel() {
       </div>
 
       {/* Cards */}
-      <div className="flex-1 min-w-0 flex gap-2 overflow-x-auto hide-scrollbar">
+      <div className="flex-1 min-w-0 flex gap-3 overflow-x-auto hide-scrollbar">
         {spots.map((spot) => (
           <button
             key={spot.slug}
             onClick={() => router.push(`/?spot=${spot.slug}`)}
-            className="flex items-center gap-2 flex-shrink-0 px-2 py-1"
+            aria-label={`${spot.name} 상세보기`}
+            className="flex items-center gap-2 flex-shrink-0 px-2 py-2"
             style={{
-              background: 'rgba(255,255,255,0.06)',
+              background: '#1f2937',
               borderRadius: 10,
-              border: '1px solid rgba(255,255,255,0.08)',
+              border: 'none',
             }}
           >
-            <SpotThumb photo={spot.naver_photo} />
+            <SpotThumb photo={spot.naver_photo} name={spot.name} />
             <div className="flex flex-col items-start min-w-0 max-w-[120px]">
               <span className="text-[12px] font-semibold truncate w-full text-left">
                 {spot.name}
               </span>
-              <span className="text-[10px]" style={{ color: '#9ca3af' }}>
+              <span className="text-[11px]" style={{ color: '#9ca3af' }}>
                 {spot.latest_story_at ? relativeTime(spot.latest_story_at) : ''}
               </span>
             </div>
@@ -93,7 +113,7 @@ export default function HotSpotCarousel() {
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ opacity: 0.4, flexShrink: 0 }}
+        style={{ opacity: 0.7, flexShrink: 0 }}
         aria-hidden="true"
       >
         <polyline points="9 18 15 12 9 6" />
@@ -102,16 +122,22 @@ export default function HotSpotCarousel() {
   );
 }
 
-function SpotThumb({ photo }: { photo: string | null }) {
-  if (photo) {
+function SpotThumb({ photo, name }: { photo: string | null; name: string }) {
+  // Naver photo URLs occasionally 404 or block hotlinking. `failed`
+  // flips to the placeholder so the carousel never shows a broken-image
+  // icon.
+  const [failed, setFailed] = useState(false);
+
+  if (photo && !failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={photo}
-        alt=""
+        alt={name}
         className="object-cover"
-        style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0 }}
+        style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0 }}
         loading="lazy"
+        onError={() => setFailed(true)}
       />
     );
   }
@@ -121,12 +147,13 @@ function SpotThumb({ photo }: { photo: string | null }) {
       style={{
         width: 36,
         height: 36,
-        borderRadius: 8,
+        borderRadius: 10,
         background: 'rgba(255,255,255,0.08)',
         flexShrink: 0,
       }}
+      aria-hidden="true"
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
         <circle cx="12" cy="10" r="3" />
       </svg>
