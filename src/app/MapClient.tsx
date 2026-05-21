@@ -1152,16 +1152,18 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         </div>
       </header>
 
-      {/* Sticky stack above the map. Order chosen so the eye lands on
-          the filter chips first (where am I looking?), then the spot
-          request CTA (큰 진입점), then search (find by name), and
-          finally the hot strip (what's live right now) above the map. */}
-      <div className="absolute z-20 left-0 right-0 top-14 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
-        <LocationPicker
-          city={city === 'all' ? null : city}
-          region={region === 'all' ? null : (region as Region)}
-          onChange={handleLocationChange}
-        />
+      {/* Sticky overlay stack above the map. The filter chips keep
+          their own white band (chips need a solid surface), but the
+          rest — request banner, search box, hot strip — float over the
+          map as individual cards so the map is visible between them. */}
+      <div className="absolute z-20 left-0 right-0 top-14">
+        <div className="bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
+          <LocationPicker
+            city={city === 'all' ? null : city}
+            region={region === 'all' ? null : (region as Region)}
+            onChange={handleLocationChange}
+          />
+        </div>
         <div className="hidden sm:block px-4 pt-2">
           <SpotRequestButton variant="banner" />
         </div>
