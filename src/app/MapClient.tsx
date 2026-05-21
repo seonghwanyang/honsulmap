@@ -1157,15 +1157,17 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           rest — request banner, search box, hot strip — float over the
           map as individual cards so the map is visible between them. */}
       <div className="absolute z-20 left-0 right-0 top-14">
-        <div className="bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
-          <LocationPicker
-            city={city === 'all' ? null : city}
-            region={region === 'all' ? null : (region as Region)}
-            onChange={handleLocationChange}
-          />
-        </div>
-        <div className="hidden sm:block px-4 pt-2">
-          <SpotRequestButton variant="banner" />
+        <div className="bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0] flex items-start">
+          <div className="flex-1 min-w-0">
+            <LocationPicker
+              city={city === 'all' ? null : city}
+              region={region === 'all' ? null : (region as Region)}
+              onChange={handleLocationChange}
+            />
+          </div>
+          <div className="flex-shrink-0 pr-3" style={{ paddingTop: 9 }}>
+            <SpotRequestButton variant="compact" />
+          </div>
         </div>
         {!selectedSpot && !requestOpen && (
           <div className="px-3 pt-2 pb-1">

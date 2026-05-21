@@ -48,7 +48,13 @@ export default function HotSpotCarousel() {
     return (
       <div className="px-3 pt-1 pb-2">
         <div
-          style={{ background: '#111827', height: 52, borderRadius: 16 }}
+          style={{
+            background: '#fff',
+            height: 52,
+            borderRadius: 16,
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+          }}
           aria-hidden="true"
         />
       </div>
@@ -69,12 +75,14 @@ export default function HotSpotCarousel() {
       <div
         className="flex items-center gap-2 overflow-hidden"
         style={{
-          background: '#111827',
-          color: '#fff',
+          background: '#fff',
+          color: '#111827',
           borderRadius: 16,
           height: 52,
           paddingLeft: 12,
           paddingRight: 8,
+          border: '1px solid #e5e7eb',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
         }}
       >
         {/* Left label */}
@@ -121,7 +129,7 @@ export default function HotSpotCarousel() {
                 aria-label={`${spot.name} 상세보기`}
                 className="flex items-center gap-2 flex-shrink-0"
                 style={{
-                  background: '#1f2937',
+                  background: '#f3f4f6',
                   borderRadius: 999,
                   padding: '3px 12px 3px 3px',
                   border: 'none',
@@ -135,11 +143,11 @@ export default function HotSpotCarousel() {
                   className="flex flex-col items-start min-w-0 max-w-[110px]"
                   style={{ paddingTop: 1, lineHeight: 1.15 }}
                 >
-                  <span className="text-[12px] font-semibold truncate w-full text-left text-white">
+                  <span className="text-[12px] font-semibold truncate w-full text-left" style={{ color: '#111827' }}>
                     {spot.name}
                   </span>
                   {spot.latest_story_at && (
-                    <span className="text-[10px] truncate w-full text-left" style={{ color: '#9ca3af' }}>
+                    <span className="text-[10px] truncate w-full text-left" style={{ color: '#6b7280' }}>
                       {relativeTime(spot.latest_story_at)}
                     </span>
                   )}
@@ -195,7 +203,7 @@ function SpotThumb({ photo, name }: { photo: string | null; name: string }) {
         width: 32,
         height: 32,
         borderRadius: 999,
-        background: 'rgba(255,255,255,0.08)',
+        background: '#e5e7eb',
         flexShrink: 0,
       }}
       aria-hidden="true"
