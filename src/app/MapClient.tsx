@@ -1152,49 +1152,46 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         </div>
       </header>
 
-      {/* Region Filter + Category Filter + Spot Request Banner (same bg so they feel unified) */}
+      {/* Sticky stack above the map. Order chosen so the eye lands on
+          the filter chips first (where am I looking?), then the spot
+          request CTA (큰 진입점), then search (find by name), and
+          finally the hot strip (what's live right now) above the map. */}
       <div className="absolute z-20 left-0 right-0 top-14 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
         <LocationPicker
           city={city === 'all' ? null : city}
           region={region === 'all' ? null : (region as Region)}
           onChange={handleLocationChange}
         />
-        {/* <CategoryFilter selected={category} onChange={handleCategoryChange} /> */}
-        <HotSpotCarousel />
-        <div className="hidden sm:block px-4 pb-3">
+        <div className="hidden sm:block px-4 pt-2">
           <SpotRequestButton variant="banner" />
         </div>
+        {!selectedSpot && !requestOpen && (
+          <div className="px-3 pt-2 pb-1">
+            <SpotSearchBox
+              spots={regionFilteredSpots}
+              onPick={(spot) => {
+                // Pan/zoom first so the user sees where the spot actually is
+                // on the map. After a short beat, slide the detail panel up
+                // so they can read the stories in context. The 700ms delay
+                // is intentional — it lets the camera move register before
+                // the panel covers the pin.
+                if (mapInstanceRef.current && window.naver?.maps) {
+                  mapInstanceRef.current.morph(
+                    new window.naver.maps.LatLng(spot.lat, spot.lng),
+                    16,
+                  );
+                }
+                setSelectedSpot(null);
+                setSheetOpen(false);
+                setTimeout(() => {
+                  openSpotPanel(spot, 'search');
+                }, 700);
+              }}
+            />
+          </div>
+        )}
+        <HotSpotCarousel />
       </div>
-
-      {/* Spot Search (floats below the banner block with a gap so it
-          doesn't hug the boundary line). Hidden once a spot's detail
-          sheet is on screen so the search bar doesn't sit on top of the
-          spot name and quick-action chips, and also hidden while the
-          spot-request modal is open since the modal's body sits at the
-          same vertical offset and the search would peek through. */}
-      {!selectedSpot && !requestOpen && (
-        <SpotSearchBox
-          spots={regionFilteredSpots}
-          onPick={(spot) => {
-            // Pan/zoom first so the user sees where the spot actually is
-            // on the map. After a short beat, slide the detail panel up
-            // so they can read the stories in context. The 700ms delay
-            // is intentional — it lets the camera move register before
-            // the panel covers the pin.
-            if (mapInstanceRef.current && window.naver?.maps) {
-              mapInstanceRef.current.morph(
-                new window.naver.maps.LatLng(spot.lat, spot.lng),
-                16,
-              );
-            }
-            setSelectedSpot(null);
-            setSheetOpen(false);
-            setTimeout(() => {
-              openSpotPanel(spot, 'search');
-            }, 700);
-          }}
-        />
-      )}
 
 
       {/* Naver Maps Script */}

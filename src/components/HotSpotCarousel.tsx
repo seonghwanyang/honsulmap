@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { relativeTime } from '@/lib/utils';
 
 interface HotSpot {
   slug: string;
@@ -47,7 +48,7 @@ export default function HotSpotCarousel() {
     return (
       <div className="px-3 pt-1 pb-2">
         <div
-          style={{ background: '#111827', height: 44, borderRadius: 16 }}
+          style={{ background: '#111827', height: 52, borderRadius: 16 }}
           aria-hidden="true"
         />
       </div>
@@ -71,7 +72,7 @@ export default function HotSpotCarousel() {
           background: '#111827',
           color: '#fff',
           borderRadius: 16,
-          height: 44,
+          height: 52,
           paddingLeft: 12,
           paddingRight: 8,
         }}
@@ -127,8 +128,21 @@ export default function HotSpotCarousel() {
                 }}
               >
                 <SpotThumb photo={spot.naver_photo} name={spot.name} />
-                <span className="text-[12px] font-semibold truncate max-w-[90px] text-white">
-                  {spot.name}
+                {/* Name on top, time underneath. Top-anchored against
+                    the photo (not vertically centered) so the chip feels
+                    informational rather than centered text. */}
+                <span
+                  className="flex flex-col items-start min-w-0 max-w-[110px]"
+                  style={{ paddingTop: 1, lineHeight: 1.15 }}
+                >
+                  <span className="text-[12px] font-semibold truncate w-full text-left text-white">
+                    {spot.name}
+                  </span>
+                  {spot.latest_story_at && (
+                    <span className="text-[10px] truncate w-full text-left" style={{ color: '#9ca3af' }}>
+                      {relativeTime(spot.latest_story_at)}
+                    </span>
+                  )}
                 </span>
               </button>
             ))}
