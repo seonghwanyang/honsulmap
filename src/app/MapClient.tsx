@@ -8,11 +8,12 @@ import LocationPicker from '@/components/LocationPicker';
 import CategoryFilter, { CategoryFilterValue } from '@/components/CategoryFilter';
 import SpotRequestModal from '@/components/SpotRequestModal';
 import WelcomeModal from '@/components/WelcomeModal';
+import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
 import NativeCard from '@/components/ads/NativeCard';
 import { SpotWithStories, Story, City, Region } from '@/lib/types';
-import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
+import { relativeTime, getCategoryLabel, getRegionLabel, getFingerprint } from '@/lib/utils';
 import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
 
@@ -272,6 +273,13 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [storyLoading, setStoryLoading] = useState(false);
   const [storyLoadingMore, setStoryLoadingMore] = useState(false);
 
+  // "다녀왔어요" state for the currently-selected spot. `justVisited`
+  // flips on tap and triggers the inline "후기를 남겨주세요" prompt.
+  // Both reset whenever the user opens a different spot's panel.
+  const [visitCount, setVisitCount] = useState<number | null>(null);
+  const [justVisited, setJustVisited] = useState(false);
+  const [visitSubmitting, setVisitSubmitting] = useState(false);
+
   // Swipe-down-to-dismiss state for the spot detail panel
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -504,6 +512,13 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   // spot. Skips when the prefetcher has already cached them, or when the
   // markers payload tells us this spot has never had a story
   // (latest_story_at is null). The full count is returned alongside so
+  // Reset 다녀왔어요 state when the user opens a different spot's panel.
+  useEffect(() => {
+    setVisitCount(null);
+    setJustVisited(false);
+    setVisitSubmitting(false);
+  }, [selectedSpot?.id]);
+
   // we know whether to show "이전 스토리 더 보기".
   useEffect(() => {
     if (!selectedSpot) {
@@ -564,6 +579,31 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   }, [selectedSpot?.id]);
 
   // Fetch the next batch of older stories on user request ("더 보기").
+  // Records a "다녀왔어요" tap for the currently-open spot and flips
+  // `justVisited` so the inline 후기 prompt appears. The /visit endpoint
+  // does no dedup, so re-tapping always increments — UI just hides the
+  // button once visited to prevent accidental double-tap inflation.
+  const handleVisit = useCallback(async () => {
+    if (!selectedSpot) return;
+    if (visitSubmitting || justVisited) return;
+    setVisitSubmitting(true);
+    try {
+      const res = await fetch(`/api/spots/${selectedSpot.slug}/visit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fingerprint: getFingerprint() }),
+      });
+      if (!res.ok) throw new Error('visit_failed');
+      const payload = (await res.json()) as { ok: boolean; count: number };
+      setVisitCount(payload.count);
+      setJustVisited(true);
+    } catch (err) {
+      console.error('visit error:', err);
+    } finally {
+      setVisitSubmitting(false);
+    }
+  }, [selectedSpot, visitSubmitting, justVisited]);
+
   const loadMoreStories = useCallback(async () => {
     if (!selectedSpot) return;
     if (storyLoadingMore) return;
@@ -1098,6 +1138,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           onChange={handleLocationChange}
         />
         {/* <CategoryFilter selected={category} onChange={handleCategoryChange} /> */}
+        <HotSpotCarousel />
         <div className="hidden sm:block px-4 pb-3">
           <SpotRequestButton variant="banner" />
         </div>
@@ -1514,6 +1555,97 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     </button>
                   )}
                 </div>
+              )}
+            </div>
+
+            {/* "다녀왔어요" floating button. Bottom-right of the panel,
+                above the story scroll. After tap, the button is
+                replaced by a small visit-count chip plus a primary
+                "후기를 남겨주세요" CTA that deep-links into /write
+                with the spot + review category pre-selected. */}
+            <div
+              style={{
+                position: 'absolute',
+                right: 16,
+                bottom: 20,
+                zIndex: 30,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: 8,
+                pointerEvents: 'none',
+              }}
+            >
+              {justVisited ? (
+                <>
+                  <span
+                    style={{
+                      pointerEvents: 'auto',
+                      background: 'rgba(17,24,39,0.92)',
+                      color: '#fff',
+                      borderRadius: 999,
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      backdropFilter: 'blur(6px)',
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    {visitCount != null ? `${visitCount}명 다녀감` : '다녀왔어요'}
+                  </span>
+                  <Link
+                    href={`/write?spot=${selectedSpot.slug}&category=review`}
+                    style={{
+                      pointerEvents: 'auto',
+                      background: '#111827',
+                      color: '#fff',
+                      borderRadius: 999,
+                      padding: '11px 18px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+                    }}
+                  >
+                    후기를 남겨주세요
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </Link>
+                </>
+              ) : (
+                <button
+                  onClick={handleVisit}
+                  disabled={visitSubmitting}
+                  style={{
+                    pointerEvents: 'auto',
+                    background: visitSubmitting ? '#374151' : '#111827',
+                    color: '#fff',
+                    borderRadius: 999,
+                    padding: '11px 18px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: visitSubmitting ? 'default' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  {visitSubmitting ? '기록 중…' : '다녀왔어요'}
+                </button>
               )}
             </div>
           </>

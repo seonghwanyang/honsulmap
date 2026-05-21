@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { POST_CATEGORIES, PostCategory, Spot } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
@@ -33,12 +33,22 @@ const WRITE_CATEGORIES = POST_CATEGORIES.filter((c) => c.value !== 'all') as {
 
 const SPOT_REQUIRED_CATEGORIES: PostCategory[] = ['status', 'review'];
 
+const VALID_WRITE_CATEGORIES = new Set<PostCategory>(['status', 'review', 'tip', 'free']);
+
 const HELP_TEXT = '#9ca3af';
 
-export default function WritePage() {
+function WritePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [category, setCategory] = useState<PostCategory>('free');
+  // ?category= takes precedence over the default 'free' so deep links
+  // from the spot panel can land users straight into "후기" mode.
+  const initialCategory: PostCategory = (() => {
+    const c = searchParams.get('category');
+    return c && VALID_WRITE_CATEGORIES.has(c as PostCategory) ? (c as PostCategory) : 'free';
+  })();
+
+  const [category, setCategory] = useState<PostCategory>(initialCategory);
   const [spotId, setSpotId] = useState('');
   const [spotQuery, setSpotQuery] = useState('');
   const [spotOpen, setSpotOpen] = useState(false);
@@ -75,6 +85,30 @@ export default function WritePage() {
   useEffect(() => {
     if (needsSpot) fetchSpots();
   }, [needsSpot, fetchSpots]);
+
+  // Deep-link prefill: ?spot=<slug> resolves once on mount and slots
+  // the spot into the picker. Silent on miss — we don't surface an
+  // error toast since the user is already on a writable form.
+  useEffect(() => {
+    const slug = searchParams.get('spot');
+    if (!slug) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/spots/${slug}`);
+        if (!res.ok) return;
+        const spot = (await res.json()) as { id?: string; name?: string };
+        if (cancelled || !spot?.id || !spot?.name) return;
+        setSpotId(spot.id);
+        setSpotQuery(spot.name);
+      } catch {
+        // Network blip — leave the form blank.
+      }
+    })();
+    return () => { cancelled = true; };
+    // Mount-only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!needsSpot) {
@@ -531,5 +565,20 @@ export default function WritePage() {
         </button>
       </form>
     </div>
+  );
+}
+
+// useSearchParams requires a Suspense boundary in the App Router.
+export default function WritePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-dvh flex items-center justify-center" style={{ color: '#9ca3af' }}>
+          로딩 중...
+        </div>
+      }
+    >
+      <WritePageInner />
+    </Suspense>
   );
 }
