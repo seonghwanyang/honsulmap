@@ -1786,10 +1786,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     href={`/write?spot=${selectedSpot.slug}&category=review`}
                     style={{
                       pointerEvents: 'auto',
-                      // Brand purple — matches the story dot, signals
-                      // "your content here". Passes WCAG AA at 5.2:1
-                      // unlike the previous vermillion (~3.4:1).
-                      background: '#7C3AED',
+                      // Anthropic-style coral/terracotta — warmer and
+                      // less aggressive than vermillion, more inviting
+                      // than the brand purple for an action-prompt.
+                      background: '#D97757',
                       color: '#fff',
                       borderRadius: 999,
                       height: 46,
@@ -1803,7 +1803,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       justifyContent: 'center',
                       gap: 6,
                       border: '1px solid rgba(255,255,255,0.2)',
-                      boxShadow: '0 6px 18px rgba(124,58,237,0.34)',
+                      boxShadow: '0 6px 18px rgba(217,119,87,0.34)',
                     }}
                   >
                     후기를 남겨주세요
