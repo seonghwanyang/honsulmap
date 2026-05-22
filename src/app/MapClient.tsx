@@ -12,7 +12,7 @@ import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
 import NativeCard from '@/components/ads/NativeCard';
-import { SpotWithStories, Story, City, Region } from '@/lib/types';
+import { SpotWithStories, Story, Post, City, Region } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel, getFingerprint } from '@/lib/utils';
 import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
@@ -280,6 +280,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [justVisited, setJustVisited] = useState(false);
   const [visitSubmitting, setVisitSubmitting] = useState(false);
 
+  // Community posts tied to the currently-open spot. `null` = not yet
+  // fetched; `[]` = confirmed empty so we can render an empty state.
+  const [spotPosts, setSpotPosts] = useState<Post[] | null>(null);
+
   // Swipe-down-to-dismiss state for the spot detail panel
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -512,11 +516,34 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   // spot. Skips when the prefetcher has already cached them, or when the
   // markers payload tells us this spot has never had a story
   // (latest_story_at is null). The full count is returned alongside so
-  // Reset 다녀왔어요 state when the user opens a different spot's panel.
+  // Reset 다녀왔어요 + posts state when the user opens a different
+  // spot's panel.
   useEffect(() => {
     setVisitCount(null);
     setJustVisited(false);
     setVisitSubmitting(false);
+    setSpotPosts(null);
+  }, [selectedSpot?.id]);
+
+  // Fetch the community posts tied to the current spot. Capped at the
+  // first 5 — the panel just shows a preview, full thread lives in
+  // /community. Silent on failure: empty array stays as null and the
+  // UI just doesn't render the section.
+  useEffect(() => {
+    if (!selectedSpot) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/posts?spot_id=${selectedSpot.id}&limit=5`);
+        if (!res.ok) return;
+        const data = (await res.json()) as Post[];
+        if (cancelled) return;
+        setSpotPosts(Array.isArray(data) ? data : []);
+      } catch {
+        // Best-effort — section just stays hidden on failure.
+      }
+    })();
+    return () => { cancelled = true; };
   }, [selectedSpot?.id]);
 
   // we know whether to show "이전 스토리 더 보기".
@@ -1004,7 +1031,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     // core inside 45px outer).
     const markerContent =
       '<div style="position:relative;width:25px;height:25px;">' +
-        '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
+        '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
         '<div style="position:absolute;inset:-14px;border-radius:50%;background:rgba(234,87,62,0.28);animation:gps-pulse 2s ease-out infinite;"></div>' +
       '</div>';
 
@@ -1577,6 +1604,67 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       {storyLoadingMore ? '불러오는 중…' : '이전 스토리 더 보기'}
                     </button>
                   )}
+                </div>
+              )}
+
+              {/* Community posts tied to this spot. Shown inline so the
+                  user doesn't have to leave the panel to see what
+                  others wrote about this place. Capped at 5 — full
+                  thread lives at /community. */}
+              {spotPosts && spotPosts.length > 0 && (
+                <div className="px-4 pt-5 pb-4" style={{ borderTop: '1px solid #f3f4f6' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold" style={{ color: '#111827' }}>
+                      가게 후기 {spotPosts.length}
+                    </span>
+                    <Link
+                      href="/community"
+                      className="text-xs font-medium"
+                      style={{ color: '#6b7280', textDecoration: 'none' }}
+                    >
+                      전체 보기 →
+                    </Link>
+                  </div>
+                  <ul className="flex flex-col gap-2">
+                    {spotPosts.map((post) => (
+                      <li key={post.id}>
+                        <Link
+                          href={`/post/${post.id}`}
+                          style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
+                        >
+                          <div
+                            className="px-3 py-2.5"
+                            style={{
+                              background: '#f9fafb',
+                              border: '1px solid #f3f4f6',
+                              borderRadius: 10,
+                            }}
+                          >
+                            <p className="text-[13px] font-semibold truncate" style={{ color: '#111827' }}>
+                              {post.title}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1 text-[11px]" style={{ color: '#9ca3af' }}>
+                              <span className="truncate" style={{ maxWidth: 80 }}>{post.nickname}</span>
+                              <span>·</span>
+                              <span suppressHydrationWarning>{relativeTime(post.created_at)}</span>
+                              {post.comment_count > 0 && (
+                                <>
+                                  <span>·</span>
+                                  <span>댓글 {post.comment_count}</span>
+                                </>
+                              )}
+                              {post.like_count > 0 && (
+                                <>
+                                  <span>·</span>
+                                  <span>♥ {post.like_count}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
