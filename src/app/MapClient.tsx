@@ -816,7 +816,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     // distinguishable at a glance even when the glyph is too small to
     // read (low zoom).
     const activeBg = (spot: SpotWithStories) =>
-      spot.category === 'guesthouse' ? '#60A5FA' : '#111827';
+      spot.category === 'guesthouse' ? '#F97316' : '#111827';
 
     // Returns the inner SVG glyph string for a spot based on category + vibe_tags
     const spotIcon = (spot: SpotWithStories, iconSz: number, strokeColor: string): string => {
