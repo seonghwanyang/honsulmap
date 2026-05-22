@@ -1483,22 +1483,16 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
                     style={{ background: '#f3f4f6', color: '#111827', borderRadius: '8px', textDecoration: 'none' }}
                   >
-                    {/* Instagram brand mark — official gradient on the
-                        rounded square, white camera inside. */}
-                    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-                      <defs>
-                        <linearGradient id="ig-grad" x1="0" y1="0" x2="1" y2="1">
-                          <stop offset="0%" stopColor="#FEDA77" />
-                          <stop offset="25%" stopColor="#F58529" />
-                          <stop offset="55%" stopColor="#DD2A7B" />
-                          <stop offset="80%" stopColor="#8134AF" />
-                          <stop offset="100%" stopColor="#515BD4" />
-                        </linearGradient>
-                      </defs>
-                      <rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig-grad)" />
-                      <circle cx="12" cy="12" r="4" fill="none" stroke="#fff" strokeWidth="2" />
-                      <circle cx="17.5" cy="6.5" r="1.2" fill="#fff" />
-                    </svg>
+                    {/* Official Instagram glyph (public-domain SVG saved
+                        to /public/icons/instagram.svg). */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/icons/instagram.svg"
+                      alt=""
+                      width={14}
+                      height={14}
+                      style={{ display: 'inline-block' }}
+                    />
                     인스타
                   </a>
                 )}
@@ -1792,7 +1786,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     href={`/write?spot=${selectedSpot.slug}&category=review`}
                     style={{
                       pointerEvents: 'auto',
-                      background: '#ea573e',
+                      // Brand purple — matches the story dot, signals
+                      // "your content here". Passes WCAG AA at 5.2:1
+                      // unlike the previous vermillion (~3.4:1).
+                      background: '#7C3AED',
                       color: '#fff',
                       borderRadius: 999,
                       height: 46,
@@ -1806,7 +1803,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       justifyContent: 'center',
                       gap: 6,
                       border: '1px solid rgba(255,255,255,0.2)',
-                      boxShadow: '0 6px 18px rgba(234,87,62,0.32)',
+                      boxShadow: '0 6px 18px rgba(124,58,237,0.34)',
                     }}
                   >
                     후기를 남겨주세요
