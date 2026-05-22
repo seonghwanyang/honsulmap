@@ -283,6 +283,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   // Community posts tied to the currently-open spot. `null` = not yet
   // fetched; `[]` = confirmed empty so we can render an empty state.
   const [spotPosts, setSpotPosts] = useState<Post[] | null>(null);
+  // Tap-to-jump target so the 후기 badge in the action row can scroll
+  // the panel down to the posts section even when it's buried below
+  // the snap-stories.
+  const postsSectionRef = useRef<HTMLDivElement>(null);
 
   // Swipe-down-to-dismiss state for the spot detail panel
   const [dragY, setDragY] = useState(0);
@@ -1486,6 +1490,24 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 >
                   네이버지도
                 </a>
+                {/* 후기 jump-link — visible whenever this spot has posts.
+                    Tapping smooth-scrolls the panel down to the posts
+                    section (which lives below the snap-stories). */}
+                {spotPosts && spotPosts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      postsSectionRef.current?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      })
+                    }
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
+                    style={{ background: '#f3f4f6', color: '#7c3aed', borderRadius: '8px', border: 'none' }}
+                  >
+                    후기 {spotPosts.length}
+                  </button>
+                )}
               </div>
 
               {/* Compact info bar — only renders when at least one fact is set */}
@@ -1612,7 +1634,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   others wrote about this place. Capped at 5 — full
                   thread lives at /community. */}
               {spotPosts && spotPosts.length > 0 && (
-                <div className="px-4 pt-5 pb-4" style={{ borderTop: '1px solid #f3f4f6' }}>
+                <div ref={postsSectionRef} className="px-4 pt-5 pb-4" style={{ borderTop: '1px solid #f3f4f6' }}>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-semibold" style={{ color: '#111827' }}>
                       가게 후기 {spotPosts.length}
@@ -1729,13 +1751,16 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       color: '#fff',
                       borderRadius: 999,
                       height: 46,
+                      width: 240,
                       padding: '0 22px',
                       fontSize: 13,
                       fontWeight: 600,
                       textDecoration: 'none',
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: 6,
+                      border: '1px solid rgba(255,255,255,0.2)',
                       boxShadow: '0 6px 18px rgba(234,87,62,0.32)',
                     }}
                   >
@@ -1755,16 +1780,20 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     background: visitSubmitting ? '#374151' : '#111827',
                     color: '#fff',
                     borderRadius: 999,
-                    // Match the bottom-nav pill outer height so the
-                    // two pills feel like a coordinated stack.
+                    // Match the bottom-nav pill outer height + width
+                    // so the two pills feel like a coordinated stack.
                     height: 46,
+                    width: 240,
                     padding: '0 22px',
                     fontSize: 13,
                     fontWeight: 600,
-                    border: 'none',
+                    // Hairline white border so the button stays visible
+                    // when the panel slides over a dark IG video.
+                    border: '1px solid rgba(255,255,255,0.2)',
                     cursor: visitSubmitting ? 'default' : 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: 6,
                     boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
                   }}
