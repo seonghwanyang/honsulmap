@@ -1483,10 +1483,21 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
                     style={{ background: '#f3f4f6', color: '#111827', borderRadius: '8px', textDecoration: 'none' }}
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <rect x="2" y="2" width="20" height="20" rx="5" />
-                      <circle cx="12" cy="12" r="4" />
-                      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+                    {/* Instagram brand mark — official gradient on the
+                        rounded square, white camera inside. */}
+                    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                      <defs>
+                        <linearGradient id="ig-grad" x1="0" y1="0" x2="1" y2="1">
+                          <stop offset="0%" stopColor="#FEDA77" />
+                          <stop offset="25%" stopColor="#F58529" />
+                          <stop offset="55%" stopColor="#DD2A7B" />
+                          <stop offset="80%" stopColor="#8134AF" />
+                          <stop offset="100%" stopColor="#515BD4" />
+                        </linearGradient>
+                      </defs>
+                      <rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig-grad)" />
+                      <circle cx="12" cy="12" r="4" fill="none" stroke="#fff" strokeWidth="2" />
+                      <circle cx="17.5" cy="6.5" r="1.2" fill="#fff" />
                     </svg>
                     인스타
                   </a>
