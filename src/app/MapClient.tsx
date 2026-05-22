@@ -1581,22 +1581,25 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               )}
             </div>
 
-            {/* "다녀왔어요" floating button. Bottom-right of the panel,
-                above the story scroll. After tap, the button is
-                replaced by a small visit-count chip plus a primary
-                "후기를 남겨주세요" CTA that deep-links into /write
-                with the spot + review category pre-selected. */}
+            {/* "다녀왔어요" pill — fixed to the viewport so it sits
+                directly above the global 맵/피드/커뮤 bottom nav.
+                Same outer height as that nav pill (46px) so the two
+                feel like a stacked pair. After tap, the button swaps
+                for a count chip + primary "후기를 남겨주세요" CTA
+                (also centered). */}
             <div
               style={{
-                position: 'absolute',
-                right: 16,
-                // Respect iOS gesture bar / Android nav bar — fall back
-                // to 20px on browsers that don't support env().
-                bottom: 'max(20px, calc(env(safe-area-inset-bottom) + 8px))',
-                zIndex: 30,
+                position: 'fixed',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                // Bottom nav sits at bottom-5 (20px) and is ~46px tall.
+                // 12px gap on top of that → ~78px. Add safe-area-inset
+                // so iPhone gesture bars don't crowd it.
+                bottom: 'calc(78px + env(safe-area-inset-bottom))',
+                zIndex: 40,
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'flex-end',
+                alignItems: 'center',
                 gap: 8,
                 pointerEvents: 'none',
               }}
@@ -1606,7 +1609,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'flex-end',
+                    alignItems: 'center',
                     gap: 8,
                     animation: 'visit-pop 220ms cubic-bezier(0.4,0,0.2,1)',
                   }}
@@ -1637,7 +1640,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       background: '#ea573e',
                       color: '#fff',
                       borderRadius: 999,
-                      padding: '10px 14px',
+                      height: 46,
+                      padding: '0 22px',
                       fontSize: 13,
                       fontWeight: 600,
                       textDecoration: 'none',
@@ -1663,7 +1667,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     background: visitSubmitting ? '#374151' : '#111827',
                     color: '#fff',
                     borderRadius: 999,
-                    padding: '10px 14px',
+                    // Match the bottom-nav pill outer height so the
+                    // two pills feel like a coordinated stack.
+                    height: 46,
+                    padding: '0 22px',
                     fontSize: 13,
                     fontWeight: 600,
                     border: 'none',
