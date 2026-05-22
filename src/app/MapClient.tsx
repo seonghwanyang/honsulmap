@@ -1451,13 +1451,20 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 </button>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons — uniform gray pill + black text. Each
+                  carries its brand mark so the row reads as "what is
+                  this link" by icon, not by color. */}
               <div className="flex gap-2 mt-3">
                 <Link
                   href={`/spot/${selectedSpot.slug}`}
                   className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
-                  style={{ background: '#111827', color: '#fff', borderRadius: '8px', textDecoration: 'none' }}
+                  style={{ background: '#f3f4f6', color: '#111827', borderRadius: '8px', textDecoration: 'none' }}
                 >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 3h6v6" />
+                    <path d="M10 14 21 3" />
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  </svg>
                   상세보기
                 </Link>
                 {instagramUrl && (
@@ -1474,8 +1481,13 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       });
                     }}
                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
-                    style={{ background: '#f3f4f6', color: '#374151', borderRadius: '8px', textDecoration: 'none' }}
+                    style={{ background: '#f3f4f6', color: '#111827', borderRadius: '8px', textDecoration: 'none' }}
                   >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <rect x="2" y="2" width="20" height="20" rx="5" />
+                      <circle cx="12" cy="12" r="4" />
+                      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+                    </svg>
                     인스타
                   </a>
                 )}
@@ -1486,8 +1498,27 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
-                  style={{ background: '#f3f4f6', color: '#16a34a', borderRadius: '8px', textDecoration: 'none' }}
+                  style={{ background: '#f3f4f6', color: '#111827', borderRadius: '8px', textDecoration: 'none' }}
                 >
+                  {/* Naver brand mark — green-on-white "N" square */}
+                  <span
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: 3,
+                      background: '#03c75a',
+                      color: '#fff',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      lineHeight: '14px',
+                      textAlign: 'center',
+                      fontFamily: 'system-ui, sans-serif',
+                      flexShrink: 0,
+                    }}
+                    aria-hidden="true"
+                  >
+                    N
+                  </span>
                   네이버지도
                 </a>
                 {/* 후기 jump-link — visible whenever this spot has posts.
@@ -1503,8 +1534,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                       })
                     }
                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
-                    style={{ background: '#f3f4f6', color: '#7c3aed', borderRadius: '8px', border: 'none' }}
+                    style={{ background: '#f3f4f6', color: '#111827', borderRadius: '8px', border: 'none' }}
                   >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
                     후기 {spotPosts.length}
                   </button>
                 )}
