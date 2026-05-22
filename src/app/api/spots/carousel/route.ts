@@ -46,7 +46,7 @@ export async function GET() {
 
   const { data: spots, error: spotsError } = await supabase
     .from('spots')
-    .select('id, slug, name, naver_photos')
+    .select('id, slug, name, region, naver_photos')
     .in('id', orderedSpotIds);
 
   if (spotsError) {
@@ -64,6 +64,7 @@ export async function GET() {
       return {
         slug: spot.slug,
         name: spot.name,
+        region: spot.region,
         naver_photo: naverPhoto ?? storyThumbBySpot.get(id) ?? null,
         latest_story_at: latestBySpot.get(id) ?? null,
       };

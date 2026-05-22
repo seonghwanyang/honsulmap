@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { relativeTime } from '@/lib/utils';
+import { relativeTime, getRegionLabel } from '@/lib/utils';
+import type { Region } from '@/lib/types';
 
 interface HotSpot {
   slug: string;
   name: string;
+  region: Region | null;
   naver_photo: string | null;
   latest_story_at: string | null;
 }
@@ -149,6 +151,7 @@ export default function HotSpotCarousel() {
                   {spot.latest_story_at && (
                     <span className="text-[10px] truncate w-full text-left" style={{ color: '#6b7280' }}>
                       {relativeTime(spot.latest_story_at)}
+                      {spot.region ? ` (${getRegionLabel(spot.region)})` : ''}
                     </span>
                   )}
                 </span>
