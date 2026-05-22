@@ -65,13 +65,19 @@ export function getCategoryLabel(category: string): string {
 /**
  * 지역 한글 라벨
  */
+import { REGIONS } from './types';
+
+// Cache: { gangnam → '강남구', mapo → '마포구', ... } — built once from
+// the single source of truth in types.ts so adding a new city's regions
+// only requires editing REGIONS, not patching this map.
+const REGION_LABELS: Record<string, string> = REGIONS.reduce(
+  (acc, r) => {
+    acc[r.value] = r.label;
+    return acc;
+  },
+  {} as Record<string, string>,
+);
+
 export function getRegionLabel(region: string): string {
-  const labels: Record<string, string> = {
-    jeju: '제주시',
-    aewol: '애월',
-    seogwipo: '서귀포',
-    east: '동쪽',
-    west: '서쪽',
-  };
-  return labels[region] || region;
+  return REGION_LABELS[region] || region;
 }
