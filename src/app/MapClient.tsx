@@ -8,11 +8,12 @@ import LocationPicker from '@/components/LocationPicker';
 import CategoryFilter, { CategoryFilterValue } from '@/components/CategoryFilter';
 import SpotRequestModal from '@/components/SpotRequestModal';
 import WelcomeModal from '@/components/WelcomeModal';
+import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
 import NativeCard from '@/components/ads/NativeCard';
-import { SpotWithStories, Story, City, Region } from '@/lib/types';
-import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
+import { SpotWithStories, Story, Post, City, Region } from '@/lib/types';
+import { relativeTime, getCategoryLabel, getRegionLabel, getFingerprint } from '@/lib/utils';
 import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
 
@@ -272,6 +273,21 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [storyLoading, setStoryLoading] = useState(false);
   const [storyLoadingMore, setStoryLoadingMore] = useState(false);
 
+  // "다녀왔어요" state for the currently-selected spot. `justVisited`
+  // flips on tap and triggers the inline "후기를 남겨주세요" prompt.
+  // Both reset whenever the user opens a different spot's panel.
+  const [visitCount, setVisitCount] = useState<number | null>(null);
+  const [justVisited, setJustVisited] = useState(false);
+  const [visitSubmitting, setVisitSubmitting] = useState(false);
+
+  // Community posts tied to the currently-open spot. `null` = not yet
+  // fetched; `[]` = confirmed empty so we can render an empty state.
+  const [spotPosts, setSpotPosts] = useState<Post[] | null>(null);
+  // Tap-to-jump target so the 후기 badge in the action row can scroll
+  // the panel down to the posts section even when it's buried below
+  // the snap-stories.
+  const postsSectionRef = useRef<HTMLDivElement>(null);
+
   // Swipe-down-to-dismiss state for the spot detail panel
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -504,6 +520,36 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   // spot. Skips when the prefetcher has already cached them, or when the
   // markers payload tells us this spot has never had a story
   // (latest_story_at is null). The full count is returned alongside so
+  // Reset 다녀왔어요 + posts state when the user opens a different
+  // spot's panel.
+  useEffect(() => {
+    setVisitCount(null);
+    setJustVisited(false);
+    setVisitSubmitting(false);
+    setSpotPosts(null);
+  }, [selectedSpot?.id]);
+
+  // Fetch the community posts tied to the current spot. Capped at the
+  // first 5 — the panel just shows a preview, full thread lives in
+  // /community. Silent on failure: empty array stays as null and the
+  // UI just doesn't render the section.
+  useEffect(() => {
+    if (!selectedSpot) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/posts?spot_id=${selectedSpot.id}&limit=5`);
+        if (!res.ok) return;
+        const data = (await res.json()) as Post[];
+        if (cancelled) return;
+        setSpotPosts(Array.isArray(data) ? data : []);
+      } catch {
+        // Best-effort — section just stays hidden on failure.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedSpot?.id]);
+
   // we know whether to show "이전 스토리 더 보기".
   useEffect(() => {
     if (!selectedSpot) {
@@ -564,6 +610,38 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   }, [selectedSpot?.id]);
 
   // Fetch the next batch of older stories on user request ("더 보기").
+  // Records a "다녀왔어요" tap for the currently-open spot and flips
+  // `justVisited` so the inline 후기 prompt appears. The /visit endpoint
+  // does no dedup, so re-tapping always increments — UI just hides the
+  // button once visited to prevent accidental double-tap inflation.
+  const handleVisit = useCallback(async () => {
+    if (!selectedSpot) return;
+    if (visitSubmitting || justVisited) return;
+    // Snapshot the spot we're acting on so a panel swap (or close) mid-
+    // flight doesn't leak the response into another spot's UI.
+    const targetSpotId = selectedSpot.id;
+    const targetSlug = selectedSpot.slug;
+    setVisitSubmitting(true);
+    try {
+      const res = await fetch(`/api/spots/${targetSlug}/visit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fingerprint: getFingerprint() }),
+      });
+      if (!res.ok) throw new Error('visit_failed');
+      const payload = (await res.json()) as { ok: boolean; count: number };
+      if (panelSpotIdRef.current !== targetSpotId) return; // user moved on
+      setVisitCount(payload.count);
+      setJustVisited(true);
+    } catch (err) {
+      console.error('visit error:', err);
+    } finally {
+      if (panelSpotIdRef.current === targetSpotId) {
+        setVisitSubmitting(false);
+      }
+    }
+  }, [selectedSpot, visitSubmitting, justVisited]);
+
   const loadMoreStories = useCallback(async () => {
     if (!selectedSpot) return;
     if (storyLoadingMore) return;
@@ -670,6 +748,21 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     const id = setInterval(refresh, 5 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
+
+  // Deep-link to a spot via ?spot=<slug> (used by HotSpotCarousel and
+  // /write redirects). Opens that spot's panel once the markers list is
+  // loaded, then strips the param so closing the panel doesn't re-open
+  // it on rerender.
+  useEffect(() => {
+    const slug = searchParams.get('spot');
+    if (!slug || spots.length === 0) return;
+    const spot = spots.find((s) => s.slug === slug);
+    if (spot) openSpotPanel(spot, 'map');
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete('spot');
+    const qs = next.toString();
+    router.replace(qs ? `/?${qs}` : '/', { scroll: false });
+  }, [searchParams, spots, router, openSpotPanel]);
 
   // Initialize map via onReady callback (called by Script component)
   const initMap = useCallback(() => {
@@ -942,7 +1035,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     // core inside 45px outer).
     const markerContent =
       '<div style="position:relative;width:25px;height:25px;">' +
-        '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
+        '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
         '<div style="position:absolute;inset:-14px;border-radius:50%;background:rgba(234,87,62,0.28);animation:gps-pulse 2s ease-out infinite;"></div>' +
       '</div>';
 
@@ -1090,48 +1183,50 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         </div>
       </header>
 
-      {/* Region Filter + Category Filter + Spot Request Banner (same bg so they feel unified) */}
-      <div className="absolute z-20 left-0 right-0 top-14 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0]">
-        <LocationPicker
-          city={city === 'all' ? null : city}
-          region={region === 'all' ? null : (region as Region)}
-          onChange={handleLocationChange}
-        />
-        {/* <CategoryFilter selected={category} onChange={handleCategoryChange} /> */}
-        <div className="hidden sm:block px-4 pb-3">
-          <SpotRequestButton variant="banner" />
+      {/* Sticky overlay stack above the map. The filter chips keep
+          their own white band (chips need a solid surface), but the
+          rest — request banner, search box, hot strip — float over the
+          map as individual cards so the map is visible between them. */}
+      <div className="absolute z-20 left-0 right-0 top-14">
+        <div className="bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0] flex items-start">
+          <div className="flex-1 min-w-0">
+            <LocationPicker
+              city={city === 'all' ? null : city}
+              region={region === 'all' ? null : (region as Region)}
+              onChange={handleLocationChange}
+            />
+          </div>
+          <div className="flex-shrink-0 pr-3" style={{ paddingTop: 9 }}>
+            <SpotRequestButton variant="compact" />
+          </div>
         </div>
+        {!selectedSpot && !requestOpen && (
+          <div className="px-3 pt-2 pb-1">
+            <SpotSearchBox
+              spots={regionFilteredSpots}
+              onPick={(spot) => {
+                // Pan/zoom first so the user sees where the spot actually is
+                // on the map. After a short beat, slide the detail panel up
+                // so they can read the stories in context. The 700ms delay
+                // is intentional — it lets the camera move register before
+                // the panel covers the pin.
+                if (mapInstanceRef.current && window.naver?.maps) {
+                  mapInstanceRef.current.morph(
+                    new window.naver.maps.LatLng(spot.lat, spot.lng),
+                    16,
+                  );
+                }
+                setSelectedSpot(null);
+                setSheetOpen(false);
+                setTimeout(() => {
+                  openSpotPanel(spot, 'search');
+                }, 700);
+              }}
+            />
+          </div>
+        )}
+        <HotSpotCarousel />
       </div>
-
-      {/* Spot Search (floats below the banner block with a gap so it
-          doesn't hug the boundary line). Hidden once a spot's detail
-          sheet is on screen so the search bar doesn't sit on top of the
-          spot name and quick-action chips, and also hidden while the
-          spot-request modal is open since the modal's body sits at the
-          same vertical offset and the search would peek through. */}
-      {!selectedSpot && !requestOpen && (
-        <SpotSearchBox
-          spots={regionFilteredSpots}
-          onPick={(spot) => {
-            // Pan/zoom first so the user sees where the spot actually is
-            // on the map. After a short beat, slide the detail panel up
-            // so they can read the stories in context. The 700ms delay
-            // is intentional — it lets the camera move register before
-            // the panel covers the pin.
-            if (mapInstanceRef.current && window.naver?.maps) {
-              mapInstanceRef.current.morph(
-                new window.naver.maps.LatLng(spot.lat, spot.lng),
-                16,
-              );
-            }
-            setSelectedSpot(null);
-            setSheetOpen(false);
-            setTimeout(() => {
-              openSpotPanel(spot, 'search');
-            }, 700);
-          }}
-        />
-      )}
 
 
       {/* Naver Maps Script */}
@@ -1395,6 +1490,24 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 >
                   네이버지도
                 </a>
+                {/* 후기 jump-link — visible whenever this spot has posts.
+                    Tapping smooth-scrolls the panel down to the posts
+                    section (which lives below the snap-stories). */}
+                {spotPosts && spotPosts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      postsSectionRef.current?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      })
+                    }
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
+                    style={{ background: '#f3f4f6', color: '#7c3aed', borderRadius: '8px', border: 'none' }}
+                  >
+                    후기 {spotPosts.length}
+                  </button>
+                )}
               </div>
 
               {/* Compact info bar — only renders when at least one fact is set */}
@@ -1514,6 +1627,182 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     </button>
                   )}
                 </div>
+              )}
+
+              {/* Community posts tied to this spot. Shown inline so the
+                  user doesn't have to leave the panel to see what
+                  others wrote about this place. Capped at 5 — full
+                  thread lives at /community. */}
+              {spotPosts && spotPosts.length > 0 && (
+                <div ref={postsSectionRef} className="px-4 pt-5 pb-4" style={{ borderTop: '1px solid #f3f4f6' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold" style={{ color: '#111827' }}>
+                      가게 후기 {spotPosts.length}
+                    </span>
+                    <Link
+                      href="/community"
+                      className="text-xs font-medium"
+                      style={{ color: '#6b7280', textDecoration: 'none' }}
+                    >
+                      전체 보기 →
+                    </Link>
+                  </div>
+                  <ul className="flex flex-col gap-2">
+                    {spotPosts.map((post) => (
+                      <li key={post.id}>
+                        <Link
+                          href={`/post/${post.id}`}
+                          style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
+                        >
+                          <div
+                            className="px-3 py-2.5"
+                            style={{
+                              background: '#f9fafb',
+                              border: '1px solid #f3f4f6',
+                              borderRadius: 10,
+                            }}
+                          >
+                            <p className="text-[13px] font-semibold truncate" style={{ color: '#111827' }}>
+                              {post.title}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1 text-[11px]" style={{ color: '#9ca3af' }}>
+                              <span className="truncate" style={{ maxWidth: 80 }}>{post.nickname}</span>
+                              <span>·</span>
+                              <span suppressHydrationWarning>{relativeTime(post.created_at)}</span>
+                              {post.comment_count > 0 && (
+                                <>
+                                  <span>·</span>
+                                  <span>댓글 {post.comment_count}</span>
+                                </>
+                              )}
+                              {post.like_count > 0 && (
+                                <>
+                                  <span>·</span>
+                                  <span>♥ {post.like_count}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* "다녀왔어요" pill — fixed to the viewport so it sits
+                directly above the global 맵/피드/커뮤 bottom nav.
+                Same outer height as that nav pill (46px) so the two
+                feel like a stacked pair. After tap, the button swaps
+                for a count chip + primary "후기를 남겨주세요" CTA
+                (also centered). */}
+            <div
+              style={{
+                position: 'fixed',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                // Bottom nav sits at bottom-5 (20px) and is ~46px tall.
+                // 12px gap on top of that → ~78px. Add safe-area-inset
+                // so iPhone gesture bars don't crowd it.
+                bottom: 'calc(78px + env(safe-area-inset-bottom))',
+                zIndex: 40,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+                pointerEvents: 'none',
+              }}
+            >
+              {justVisited ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
+                    animation: 'visit-pop 220ms cubic-bezier(0.4,0,0.2,1)',
+                  }}
+                >
+                  <span
+                    style={{
+                      pointerEvents: 'auto',
+                      background: '#111827',
+                      color: '#fff',
+                      borderRadius: 999,
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    {visitCount != null ? `${visitCount}명 다녀감` : '다녀왔어요'}
+                  </span>
+                  <Link
+                    href={`/write?spot=${selectedSpot.slug}&category=review`}
+                    style={{
+                      pointerEvents: 'auto',
+                      background: '#ea573e',
+                      color: '#fff',
+                      borderRadius: 999,
+                      height: 46,
+                      width: 240,
+                      padding: '0 22px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      boxShadow: '0 6px 18px rgba(234,87,62,0.32)',
+                    }}
+                  >
+                    후기를 남겨주세요
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </Link>
+                  <style>{'@keyframes visit-pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}'}</style>
+                </div>
+              ) : (
+                <button
+                  onClick={handleVisit}
+                  disabled={visitSubmitting}
+                  style={{
+                    pointerEvents: 'auto',
+                    background: visitSubmitting ? '#374151' : '#111827',
+                    color: '#fff',
+                    borderRadius: 999,
+                    // Match the bottom-nav pill outer height + width
+                    // so the two pills feel like a coordinated stack.
+                    height: 46,
+                    width: 240,
+                    padding: '0 22px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    // Hairline white border so the button stays visible
+                    // when the panel slides over a dark IG video.
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    cursor: visitSubmitting ? 'default' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  {visitSubmitting ? '기록 중…' : '다녀왔어요'}
+                </button>
               )}
             </div>
           </>

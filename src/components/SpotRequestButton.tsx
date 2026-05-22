@@ -4,11 +4,45 @@ import { useState } from 'react';
 import SpotRequestModal from './SpotRequestModal';
 
 interface Props {
-  variant?: 'floating' | 'banner';
+  variant?: 'floating' | 'banner' | 'compact';
 }
 
 export default function SpotRequestButton({ variant = 'floating' }: Props) {
   const [open, setOpen] = useState(false);
+
+  if (variant === 'compact') {
+    // Narrow pill meant to sit at the right edge of the LocationPicker
+    // chip row — same height (30px) and font scale as the filter chips
+    // so it visually belongs to that row, with a + icon to read as CTA
+    // rather than a filter option.
+    return (
+      <>
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="가게 제안하기"
+          className="flex-shrink-0 flex items-center gap-1"
+          style={{
+            height: 30,
+            padding: '0 12px',
+            background: '#fff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 999,
+            fontSize: 12,
+            fontWeight: 500,
+            color: '#374151',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          가게제안하기
+        </button>
+        <SpotRequestModal open={open} onClose={() => setOpen(false)} />
+      </>
+    );
+  }
 
   if (variant === 'banner') {
     return (
