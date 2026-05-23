@@ -141,6 +141,33 @@ export default function HotSpotCarousel() {
     el.scrollBy({ left: Math.min(220, el.clientWidth * 0.7), behavior: 'smooth' });
   };
 
+  // Pause state for the auto-scroll: true while the pointer is over
+  // the strip (desktop hover) or held down on it (mobile touch).
+  const [paused, setPaused] = useState(false);
+
+  // Auto-scroll loop. Drives scrollLeft via rAF instead of a CSS
+  // marquee so finger-swipe and the rAF loop share the same scroll
+  // axis — no fight between them, no DOM-doubling weirdness on
+  // overflow-x-auto. Loops by snapping scrollLeft back when we cross
+  // the halfway point of a doubled list.
+  useEffect(() => {
+    if (paused) return;
+    if (!spots || spots.length <= 3) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    let raf = 0;
+    const tick = () => {
+      const node = scrollRef.current;
+      if (!node) return;
+      node.scrollLeft += 0.5;
+      const half = node.scrollWidth / 2;
+      if (node.scrollLeft >= half) node.scrollLeft -= half;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [paused, spots]);
+
   // Loading: keep the band's height so the LocationPicker below doesn't
   // jump up when data resolves.
   if (spots === null) {
@@ -262,21 +289,30 @@ export default function HotSpotCarousel() {
           )}
         </button>
 
-        {/* Cards — manual horizontal scroll; native swipe on touch. */}
+        {/* Cards — auto-scroll + finger swipe + ▶ button all driving the
+            same scrollLeft. Hover/touch pauses the auto-scroll so users
+            can read or tap a chip. */}
         <div
           ref={scrollRef}
           className="flex-1 min-w-0 overflow-x-auto hide-scrollbar"
-          style={{ scrollBehavior: 'smooth' }}
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onPointerDown={() => setPaused(true)}
+          onPointerUp={() => setPaused(false)}
+          onPointerCancel={() => setPaused(false)}
         >
           {spots.length === 0 ? (
             <span className="text-[11px]" style={{ color: '#9ca3af' }}>
               아직 올라온 스토리가 없어요
             </span>
           ) : (
+            // Double the list when there's enough to loop so the
+            // rAF wrap (scrollLeft -= half) lands on identical content
+            // — no visible jump.
             <div className="flex gap-2">
-              {spots.map((spot) => (
+              {(spots.length > 3 ? [...spots, ...spots] : spots).map((spot, i) => (
                 <button
-                  key={spot.slug}
+                  key={`${spot.slug}-${i}`}
                   onClick={() => router.push(`/?spot=${spot.slug}`)}
                   aria-label={`${spot.name} 상세보기`}
                   className="flex items-center gap-2 flex-shrink-0"
