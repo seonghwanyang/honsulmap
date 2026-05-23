@@ -146,20 +146,22 @@ export default function HotSpotCarousel() {
   const [paused, setPaused] = useState(false);
 
   // Auto-scroll loop. Drives scrollLeft via rAF instead of a CSS
-  // marquee so finger-swipe and the rAF loop share the same scroll
-  // axis — no fight between them, no DOM-doubling weirdness on
-  // overflow-x-auto. Loops by snapping scrollLeft back when we cross
-  // the halfway point of a doubled list.
+  // marquee so finger-swipe and the rAF loop share the same axis. The
+  // loop only runs when the content actually overflows the strip; if
+  // every chip already fits there's nowhere to scroll to.
   useEffect(() => {
     if (paused) return;
-    if (!spots || spots.length <= 3) return;
+    if (!spots || spots.length === 0) return;
     const el = scrollRef.current;
     if (!el) return;
+    if (el.scrollWidth <= el.clientWidth + 1) return; // nothing to scroll
     let raf = 0;
     const tick = () => {
       const node = scrollRef.current;
       if (!node) return;
-      node.scrollLeft += 0.5;
+      // ~1.2px / frame ≈ 70px/sec — slow enough to read, fast enough
+      // to register as motion.
+      node.scrollLeft += 1.2;
       const half = node.scrollWidth / 2;
       if (node.scrollLeft >= half) node.scrollLeft -= half;
       raf = requestAnimationFrame(tick);
@@ -295,8 +297,9 @@ export default function HotSpotCarousel() {
         <div
           ref={scrollRef}
           className="flex-1 min-w-0 overflow-x-auto hide-scrollbar"
-          onMouseEnter={() => setPaused(true)}
-          onMouseLeave={() => setPaused(false)}
+          // Pause only on touch/drag — no mouseenter pause, otherwise a
+          // user whose cursor happens to be over the strip never sees
+          // the auto-scroll at all.
           onPointerDown={() => setPaused(true)}
           onPointerUp={() => setPaused(false)}
           onPointerCancel={() => setPaused(false)}
@@ -310,7 +313,7 @@ export default function HotSpotCarousel() {
             // rAF wrap (scrollLeft -= half) lands on identical content
             // — no visible jump.
             <div className="flex gap-2">
-              {(spots.length > 3 ? [...spots, ...spots] : spots).map((spot, i) => (
+              {(spots.length >= 2 ? [...spots, ...spots] : spots).map((spot, i) => (
                 <button
                   key={`${spot.slug}-${i}`}
                   onClick={() => router.push(`/?spot=${spot.slug}`)}
