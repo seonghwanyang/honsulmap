@@ -1,20 +1,39 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { getFingerprint } from '@/lib/utils';
 import { track } from '@/lib/analytics';
+import { REGIONS as ALL_REGIONS, type Region } from '@/lib/types';
 
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
-const REGIONS = [
-  { value: 'jeju', label: '제주시' },
-  { value: 'aewol', label: '애월' },
-  { value: 'seogwipo', label: '서귀포' },
-  { value: 'east', label: '동부(구좌·성산)' },
-  { value: 'west', label: '서부(한림·한경)' },
+// Richer labels for the two Jeju "compass" regions — the global label
+// is just '동쪽/서쪽' which is too sparse for the request form.
+const REGION_LABEL_OVERRIDES: Partial<Record<Region, string>> = {
+  east: '동부(구좌·성산)',
+  west: '서부(한림·한경)',
+};
+
+// Group by city so 30 chips don't read as one wall.
+const REGION_GROUPS: { city: '제주' | '서울'; regions: { value: Region; label: string }[] }[] = [
+  {
+    city: '제주',
+    regions: ALL_REGIONS.filter((r) => r.city === 'jeju' && r.value !== 'all').map((r) => ({
+      value: r.value as Region,
+      label: REGION_LABEL_OVERRIDES[r.value as Region] ?? r.label,
+    })),
+  },
+  {
+    city: '서울',
+    regions: ALL_REGIONS.filter((r) => r.city === 'seoul' && r.value !== 'all').map((r) => ({
+      value: r.value as Region,
+      label: r.label,
+    })),
+  },
 ];
 
 const CATEGORIES = [
@@ -32,6 +51,9 @@ export default function SpotRequestModal({ open, onClose }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  // SSR-safe portal flag: avoid touching document.body until after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!open) {
@@ -48,7 +70,7 @@ export default function SpotRequestModal({ open, onClose }: Props) {
     }
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   async function submit() {
     if (submitting) return;
@@ -83,7 +105,7 @@ export default function SpotRequestModal({ open, onClose }: Props) {
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-3"
       style={{ background: 'rgba(0,0,0,0.5)' }}
@@ -153,29 +175,41 @@ export default function SpotRequestModal({ open, onClose }: Props) {
               />
             </Field>
             <Field label="지역 *">
-              <div className="flex flex-wrap gap-1.5">
-                {REGIONS.map((r) => {
-                  const active = region === r.value;
-                  return (
-                    <button
-                      key={r.value}
-                      type="button"
-                      onClick={() => setRegion(r.value)}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 999,
-                        fontSize: 12,
-                        fontWeight: active ? 600 : 400,
-                        background: active ? '#111827' : '#ffffff',
-                        color: active ? '#ffffff' : '#6b7280',
-                        border: '1px solid',
-                        borderColor: active ? '#111827' : '#e5e7eb',
-                      }}
+              <div className="flex flex-col gap-2">
+                {REGION_GROUPS.map((group) => (
+                  <div key={group.city}>
+                    <div
+                      className="mb-1 text-[11px] font-medium"
+                      style={{ color: '#9ca3af' }}
                     >
-                      {r.label}
-                    </button>
-                  );
-                })}
+                      {group.city}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.regions.map((r) => {
+                        const active = region === r.value;
+                        return (
+                          <button
+                            key={r.value}
+                            type="button"
+                            onClick={() => setRegion(r.value)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 999,
+                              fontSize: 12,
+                              fontWeight: active ? 600 : 400,
+                              background: active ? '#111827' : '#ffffff',
+                              color: active ? '#ffffff' : '#6b7280',
+                              border: '1px solid',
+                              borderColor: active ? '#111827' : '#e5e7eb',
+                            }}
+                          >
+                            {r.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </Field>
             <Field label="종류">
@@ -251,7 +285,8 @@ export default function SpotRequestModal({ open, onClose }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
