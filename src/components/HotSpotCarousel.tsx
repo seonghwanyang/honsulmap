@@ -60,7 +60,13 @@ export default function HotSpotCarousel() {
       if (e.key === CITY_STORAGE_KEY) setCity(readCity());
     };
     const onCustom = (e: Event) => {
-      const v = (e as CustomEvent).detail;
+      // Two payload shapes — bare string (legacy) and { city, source }
+      // (current). Accept both so older callers keep working.
+      const raw = (e as CustomEvent).detail;
+      const v: unknown =
+        raw && typeof raw === 'object' && 'city' in raw
+          ? (raw as { city: unknown }).city
+          : raw;
       if (v === 'jeju' || v === 'seoul' || v === 'all') setCity(v);
     };
     window.addEventListener('storage', onStorage);
@@ -116,6 +122,14 @@ export default function HotSpotCarousel() {
     } catch {
       // ignore — selection still applies for this session.
     }
+    // Let MapClient know the user explicitly picked this city so it
+    // can pan the map. Source-tagged so a GPS-inferred event doesn't
+    // double-pan over the user's actual position.
+    window.dispatchEvent(
+      new CustomEvent('honsulmap:carousel-city', {
+        detail: { city: next, source: 'user' },
+      }),
+    );
   };
 
   // Scroll the cards container right by roughly one card width when
