@@ -473,8 +473,29 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // reload" (map re-init, story state lost, ads re-run) after a few
       // interactions because each push stacked a fresh RSC fetch.
       router.replace(`/?${params.toString()}`, { scroll: false });
+
+      // Pan the camera so the chosen region/city is centered. Zoom is
+      // left untouched on purpose — the user finds auto-zoom too
+      // aggressive ("줌인 너무 하면 안 좋더라").
+      const target = (() => {
+        if (r) {
+          const matching = spots.filter((s) => s.region === r);
+          if (matching.length > 0) {
+            const lat = matching.reduce((sum, s) => sum + s.lat, 0) / matching.length;
+            const lng = matching.reduce((sum, s) => sum + s.lng, 0) / matching.length;
+            return { lat, lng };
+          }
+        }
+        if (c) return { lat: CITY_CENTER[c].lat, lng: CITY_CENTER[c].lng };
+        return null;
+      })();
+      if (target && mapInstanceRef.current && window.naver?.maps) {
+        mapInstanceRef.current.panTo(
+          new window.naver.maps.LatLng(target.lat, target.lng),
+        );
+      }
     },
-    [router, searchParams],
+    [router, searchParams, spots],
   );
 
   const handleCategoryChange = useCallback(
@@ -1019,6 +1040,29 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     const latlng = new window.naver.maps.LatLng(lat, lng);
     mapInstanceRef.current.morph(latlng, 15);
 
+    // Infer city from coords so the 실시간 근황 carousel can pre-pick
+    // the user's city without them tapping the dropdown. Jeju is
+    // ~33°N, Seoul ~37.5°N — anything else stays as the user's last
+    // saved choice so we never silently flip "전체" back to a city.
+    let inferred: 'jeju' | 'seoul' | null = null;
+    if (lat >= 33 && lat <= 34 && lng >= 126 && lng <= 127.2) inferred = 'jeju';
+    else if (lat >= 37.4 && lat <= 37.8 && lng >= 126.7 && lng <= 127.3) inferred = 'seoul';
+    if (inferred) {
+      try {
+        localStorage.setItem('honsulmap_carousel_city', inferred);
+      } catch {
+        // Private mode / disabled — non-fatal, carousel keeps its
+        // current city.
+      }
+      window.dispatchEvent(
+        new CustomEvent('honsulmap:carousel-city', {
+          // source='gps' so the MapClient listener can skip re-panning
+          // (we already morph'd the camera to the user's exact coords).
+          detail: { city: inferred, source: 'gps' },
+        }),
+      );
+    }
+
     if (!document.getElementById('gps-pulse-style')) {
       const style = document.createElement('style');
       style.id = 'gps-pulse-style';
@@ -1132,6 +1176,26 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       pendingGpsRef.current = null;
     }
   }, [mapReady, applyGpsCoords]);
+
+  // When the user picks a city in the 실시간 근황 dropdown, pan the
+  // map to that city's center (zoom unchanged — explicit user policy).
+  // Source-tagged so we don't double-handle the GPS-inferred event,
+  // which already centered the camera on the user's exact coords.
+  useEffect(() => {
+    const onCarouselCity = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail || detail.source !== 'user') return;
+      const c = detail.city;
+      if ((c === 'jeju' || c === 'seoul') && mapInstanceRef.current && window.naver?.maps) {
+        const center = CITY_CENTER[c as City];
+        mapInstanceRef.current.panTo(
+          new window.naver.maps.LatLng(center.lat, center.lng),
+        );
+      }
+    };
+    window.addEventListener('honsulmap:carousel-city', onCarouselCity);
+    return () => window.removeEventListener('honsulmap:carousel-city', onCarouselCity);
+  }, []);
 
   const handleSelectFromCircle = (spot: SpotWithStories) => {
     setSelectedSpot(spot);
