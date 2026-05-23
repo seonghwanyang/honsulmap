@@ -581,6 +581,17 @@ export default function SpotPage() {
             )}
           </div>
         )}
+
+        {/* Admin memo — matches MapClient panel placement so both
+            surfaces present the same spot info hierarchy. */}
+        {spot.memo && (
+          <p
+            className="mt-2 text-[12px] leading-snug"
+            style={{ color: '#4b5563' }}
+          >
+            {spot.memo}
+          </p>
+        )}
       </div>
 
       {/* Like button + Mood vote */}
