@@ -1019,6 +1019,25 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     const latlng = new window.naver.maps.LatLng(lat, lng);
     mapInstanceRef.current.morph(latlng, 15);
 
+    // Infer city from coords so the 실시간 근황 carousel can pre-pick
+    // the user's city without them tapping the dropdown. Jeju is
+    // ~33°N, Seoul ~37.5°N — anything else stays as the user's last
+    // saved choice so we never silently flip "전체" back to a city.
+    let inferred: 'jeju' | 'seoul' | null = null;
+    if (lat >= 33 && lat <= 34 && lng >= 126 && lng <= 127.2) inferred = 'jeju';
+    else if (lat >= 37.4 && lat <= 37.8 && lng >= 126.7 && lng <= 127.3) inferred = 'seoul';
+    if (inferred) {
+      try {
+        localStorage.setItem('honsulmap_carousel_city', inferred);
+      } catch {
+        // Private mode / disabled — non-fatal, carousel keeps its
+        // current city.
+      }
+      window.dispatchEvent(
+        new CustomEvent('honsulmap:carousel-city', { detail: inferred }),
+      );
+    }
+
     if (!document.getElementById('gps-pulse-style')) {
       const style = document.createElement('style');
       style.id = 'gps-pulse-style';

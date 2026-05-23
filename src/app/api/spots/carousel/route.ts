@@ -1,22 +1,32 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 // Spots that posted a fresh IG story in the last 24h. Returns one row
 // per spot (most recent story only), ordered by recency. Drives the
-// "지금 핫" carousel above the map.
-export async function GET() {
+// "실시간 근황" carousel above the map.
+//
+// Accepts ?city=<jeju|seoul> to scope the strip to one city — the
+// carousel exposes this as a dropdown so users in 서울 don't see only
+// 제주 spots and vice versa.
+export async function GET(request: NextRequest) {
+  const city = request.nextUrl.searchParams.get('city');
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   // Over-fetch recent stories — Supabase JS doesn't expose DISTINCT ON,
   // so we dedupe by spot_id in JS keeping the first (most recent) hit.
   // We also keep the latest story's thumbnail_url so spots missing
-  // naver_photos can still show a photo (the IG story thumb).
-  const { data: stories, error: storiesError } = await supabase
+  // naver_photos can still show a photo (the IG story thumb). When a
+  // city is requested we filter via an inner join on spots.city.
+  let storiesQ = supabase
     .from('stories')
-    .select('spot_id, posted_at, thumbnail_url, media_url, media_type')
+    .select('spot_id, posted_at, thumbnail_url, media_url, media_type, spot:spots!inner(city)')
     .gte('posted_at', since)
     .order('posted_at', { ascending: false })
     .limit(200);
+  if (city && city !== 'all') {
+    storiesQ = storiesQ.eq('spot.city', city);
+  }
+  const { data: stories, error: storiesError } = await storiesQ;
 
   if (storiesError) {
     return NextResponse.json({ error: storiesError.message }, { status: 500 });
