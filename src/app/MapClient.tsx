@@ -1650,6 +1650,19 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   )}
                 </div>
               )}
+
+              {/* Admin memo — short editorial note about the spot
+                  (e.g. "애월에서 제일 늦게까지 하는 혼술바"). Renders
+                  full-width below the info bar so a long sentence wraps
+                  cleanly instead of squeezing into the inline pill row. */}
+              {selectedSpot.memo && (
+                <p
+                  className="mt-2 text-[12px] leading-snug"
+                  style={{ color: '#4b5563' }}
+                >
+                  {selectedSpot.memo}
+                </p>
+              )}
             </div>
 
             {/* Stories Vertical Scroll — snap so each story takes one
