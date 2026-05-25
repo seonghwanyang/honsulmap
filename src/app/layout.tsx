@@ -3,8 +3,6 @@ import { GoogleAnalytics } from '@next/third-parties/google';
 import './globals.css';
 import BottomNav from '@/components/BottomNav';
 import Footer from '@/components/Footer';
-import SideBanner from '@/components/ads/SideBanner';
-import BottomStickyBar from '@/components/ads/BottomStickyBar';
 import ClarityScript from '@/components/analytics/ClarityScript';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -129,23 +127,13 @@ export default function RootLayout({
 
   return (
     <html lang="ko">
-      <head>
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6267939291849854"
-          crossOrigin="anonymous"
-        />
-      </head>
       <body className="max-w-screen-md mx-auto bg-white">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <SideBanner position="left" />
-        <SideBanner position="right" />
         <main>{children}</main>
         <Footer />
-        <BottomStickyBar />
         <BottomNav />
         <ClarityScript />
       </body>

@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import NativeHorizontal from '@/components/ads/NativeHorizontal';
-import NativeCard from '@/components/ads/NativeCard';
 import ReportModal from '@/components/ReportModal';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
@@ -630,13 +628,10 @@ export default function SpotPage() {
           <>
             {(() => {
               const items: React.ReactNode[] = [];
-              activeStories.forEach((story: Story, idx: number) => {
+              activeStories.forEach((story: Story) => {
                 items.push(
                   <SpotPageStory key={story.id} story={story} spot={spot} />,
                 );
-                if (idx < activeStories.length - 1) {
-                  items.push(<NativeCard key={`ad-${idx}`} />);
-                }
               });
               return items;
             })()}
@@ -773,11 +768,6 @@ export default function SpotPage() {
           </p>
         </div>
       )}
-
-      {/* Ad Banner — horizontal native between body and comments */}
-      <div className="px-4 mt-4">
-        <NativeHorizontal />
-      </div>
 
       {/* Comment Section */}
       <div style={{ borderTop: '1px solid #f3f4f6', marginTop: '16px' }}>
