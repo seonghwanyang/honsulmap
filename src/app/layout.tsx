@@ -94,6 +94,7 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
   },
   verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
     other: {
       'naver-site-verification': 'fba5778d00734f53c694a6ecbee6631974fe7ee1',
     },
