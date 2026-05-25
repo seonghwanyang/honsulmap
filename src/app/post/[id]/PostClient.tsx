@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import NativeHorizontal from '@/components/ads/NativeHorizontal';
 import ReportModal from '@/components/ReportModal';
 import { Post } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getFingerprint } from '@/lib/utils';
@@ -499,11 +498,6 @@ export default function PostPage() {
         >
           신고
         </button>
-      </div>
-
-      {/* Ad Banner — horizontal native between body and comments */}
-      <div className="px-4">
-        <NativeHorizontal />
       </div>
 
       {/* Comment Section */}

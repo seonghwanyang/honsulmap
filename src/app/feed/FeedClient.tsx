@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import LocationPicker from '@/components/LocationPicker';
-import NativeCard from '@/components/ads/NativeCard';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import { City, Region, StoryWithSpot } from '@/lib/types';
 import { relativeTime, getRegionLabel } from '@/lib/utils';
@@ -167,19 +166,12 @@ export default function FeedClient({ initialStories, city, region }: FeedClientP
   }, [loadingMore, hasMore, city, region, stories]);
 
   const items: React.ReactNode[] = [];
-  stories.forEach((story, idx) => {
+  stories.forEach((story) => {
     items.push(
       <div key={story.id} className="feed-item">
         <StoryCard story={story} />
       </div>,
     );
-    if ((idx + 1) % 6 === 0 && idx < stories.length - 1) {
-      items.push(
-        <div key={`ad-${idx}`} className="feed-item">
-          <NativeCard />
-        </div>,
-      );
-    }
   });
 
   return (

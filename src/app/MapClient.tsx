@@ -11,7 +11,6 @@ import WelcomeModal from '@/components/WelcomeModal';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
-import NativeCard from '@/components/ads/NativeCard';
 import { SpotWithStories, Story, Post, City, Region } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel, getFingerprint } from '@/lib/utils';
 import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
@@ -1716,12 +1715,6 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                           priority={idx === 0}
                         />,
                       );
-                      // Native ad between stories — sits at its own
-                      // natural height; snap still pulls the user to the
-                      // next story card.
-                      if (idx < activeStories.length - 1) {
-                        items.push(<NativeCard key={`ad-${idx}`} />);
-                      }
                     });
                     return items;
                   })()}
