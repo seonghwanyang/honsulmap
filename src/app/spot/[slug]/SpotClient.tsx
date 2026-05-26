@@ -821,29 +821,6 @@ export default function SpotPage() {
         </section>
       )}
 
-      {/* Common visit-etiquette footer — same paragraph on every spot
-          page. Adds ~150 words sitewide without per-spot work. */}
-      <section
-        aria-label="혼술바 방문 안내"
-        className="px-4 mt-6 mb-2 text-[12px] leading-relaxed"
-        style={{ color: '#4b5563' }}
-      >
-        <h2 className="font-bold text-[13px] mb-2" style={{ color: '#111827' }}>
-          혼술바 방문 안내
-        </h2>
-        <p>
-          혼자 방문하시는 분들은 카운터 자리를 우선 추천합니다. 4인 테이블은 가능하면 그룹 손님을 위해 비워 두시면 좋습니다.
-          이어폰 외부 출력이나 큰 통화는 자제하고, 영상은 헤드폰을 사용해 다른 손님의 분위기를 방해하지 않도록 해주세요.
-          많은 가게가 영업 종료 30분 전을 라스트 오더(L.O)로 두므로 늦은 시간 방문 시 미리 확인을 권장합니다.
-          한국은 별도 팁 문화가 없으므로 계산서 금액 그대로 결제하시면 됩니다.
-        </p>
-        <p className="mt-2">
-          가게 정보(영업시간·메뉴·전화번호)는 네이버 플레이스 데이터를 주기적으로 동기화하지만,
-          가게 사정에 따라 실시간으로 다를 수 있습니다. 잘못된 정보나 부적절한 콘텐츠를 발견하시면
-          신고 기능을 통해 알려주시면 검토 후 빠르게 반영합니다.
-        </p>
-      </section>
-
       {/* Comment Section */}
       <div style={{ borderTop: '1px solid #f3f4f6', marginTop: '16px' }}>
         <CommentSection spotId={spot.id} />
