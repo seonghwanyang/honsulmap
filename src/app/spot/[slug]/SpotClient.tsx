@@ -769,6 +769,81 @@ export default function SpotPage() {
         </div>
       )}
 
+      {/* Auto-generated paragraph from Naver Place data. Adds 80-100
+          words to the page text crawlers see, so AdSense doesn't read
+          spot pages as "thin content." Only renders when we have at
+          least one fact to state. */}
+      {(spot.naver_rating != null || spot.business_hours || (spot.naver_menus && spot.naver_menus.length > 0) || spot.phone) && (
+        <section
+          aria-label="가게 요약"
+          className="px-4 mt-6 text-[13px] leading-relaxed"
+          style={{ color: '#374151' }}
+        >
+          <h2 className="font-bold text-[14px] mb-2" style={{ color: '#111827' }}>
+            {spot.name} 정보 요약
+          </h2>
+          <p>
+            <strong>{spot.name}</strong>은(는) {getRegionLabel(spot.region)}에 위치한{' '}
+            {getCategoryLabel(spot.category)}입니다.
+            {spot.naver_rating != null && (
+              <>
+                {' '}네이버 별점은{' '}
+                <strong>{spot.naver_rating.toFixed(2)}점</strong>
+                {spot.naver_review_count != null && (
+                  <> ({spot.naver_review_count.toLocaleString()}개 리뷰)</>
+                )}
+                이며,
+              </>
+            )}
+            {spot.business_hours && (
+              <> 영업시간은 <strong>{spot.business_hours}</strong>입니다.</>
+            )}
+            {spot.naver_menus && spot.naver_menus.length > 0 && (
+              <>
+                {' '}대표 메뉴는{' '}
+                {spot.naver_menus
+                  .slice(0, 3)
+                  .map((m) => m.name)
+                  .join(', ')}
+                {spot.naver_menus.length > 3 ? ' 등' : ''}이 있습니다.
+              </>
+            )}
+            {spot.phone && (
+              <> 예약·문의 전화 <strong>{spot.phone}</strong>.</>
+            )}
+            {' '}혼자 방문하기 좋은 카운터 자리가 마련되어 있어 처음 방문하는 분들도 부담 없이 즐길 수 있습니다.
+          </p>
+          {spot.address && (
+            <p className="mt-2 text-[12px]" style={{ color: '#6b7280' }}>
+              주소: {spot.address}
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* Common visit-etiquette footer — same paragraph on every spot
+          page. Adds ~150 words sitewide without per-spot work. */}
+      <section
+        aria-label="혼술바 방문 안내"
+        className="px-4 mt-6 mb-2 text-[12px] leading-relaxed"
+        style={{ color: '#4b5563' }}
+      >
+        <h2 className="font-bold text-[13px] mb-2" style={{ color: '#111827' }}>
+          혼술바 방문 안내
+        </h2>
+        <p>
+          혼자 방문하시는 분들은 카운터 자리를 우선 추천합니다. 4인 테이블은 가능하면 그룹 손님을 위해 비워 두시면 좋습니다.
+          이어폰 외부 출력이나 큰 통화는 자제하고, 영상은 헤드폰을 사용해 다른 손님의 분위기를 방해하지 않도록 해주세요.
+          많은 가게가 영업 종료 30분 전을 라스트 오더(L.O)로 두므로 늦은 시간 방문 시 미리 확인을 권장합니다.
+          한국은 별도 팁 문화가 없으므로 계산서 금액 그대로 결제하시면 됩니다.
+        </p>
+        <p className="mt-2">
+          가게 정보(영업시간·메뉴·전화번호)는 네이버 플레이스 데이터를 주기적으로 동기화하지만,
+          가게 사정에 따라 실시간으로 다를 수 있습니다. 잘못된 정보나 부적절한 콘텐츠를 발견하시면
+          신고 기능을 통해 알려주시면 검토 후 빠르게 반영합니다.
+        </p>
+      </section>
+
       {/* Comment Section */}
       <div style={{ borderTop: '1px solid #f3f4f6', marginTop: '16px' }}>
         <CommentSection spotId={spot.id} />
