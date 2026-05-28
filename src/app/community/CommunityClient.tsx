@@ -20,7 +20,7 @@ function PostItem({ post }: { post: Post }) {
   const style = categoryBadgeStyle[post.category] || categoryBadgeStyle.free;
   return (
     <Link
-      href={`/post/${post.id}?from=community_list`}
+      href={`/post/${post.slug || post.id}?from=community_list`}
       onClick={() => {
         track('community_post_entered', {
           post_id: post.id,

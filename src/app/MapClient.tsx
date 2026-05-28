@@ -1760,7 +1760,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     {spotPosts.map((post) => (
                       <li key={post.id}>
                         <Link
-                          href={`/post/${post.id}`}
+                          href={`/post/${post.slug || post.id}`}
                           style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
                         >
                           <div

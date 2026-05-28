@@ -2,16 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const key = decodeURIComponent(id);
+  const column = UUID_RE.test(key) ? 'id' : 'slug';
 
   const { data, error } = await supabase
     .from('posts')
     .select(`
       id,
+      slug,
       spot_id,
       category,
       title,
@@ -38,7 +43,7 @@ export async function GET(
         created_at
       )
     `)
-    .eq('id', id)
+    .eq(column, key)
     .single();
 
   if (error || !data) {

@@ -14,7 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const [{ data: spots }, { data: posts }] = await Promise.all([
     supabase.from('spots').select('slug, created_at').order('created_at', { ascending: false }),
-    supabase.from('posts').select('id, created_at').order('created_at', { ascending: false }).limit(500),
+    supabase.from('posts').select('id, slug, created_at').order('created_at', { ascending: false }).limit(500),
   ]);
 
   const spotRoutes: MetadataRoute.Sitemap = (spots || []).map((s) => ({
@@ -25,7 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const postRoutes: MetadataRoute.Sitemap = (posts || []).map((p) => ({
-    url: `${SITE_URL}/post/${p.id}`,
+    url: `${SITE_URL}/post/${p.slug || p.id}`,
     lastModified: p.created_at ? new Date(p.created_at) : now,
     changeFrequency: 'weekly',
     priority: 0.5,

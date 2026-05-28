@@ -26,7 +26,7 @@ async function getPosts(category: PostCategory | 'all'): Promise<Post[]> {
   let query = supabase
     .from('posts')
     .select(`
-      id, spot_id, category, title, content, nickname, image_urls,
+      id, slug, spot_id, category, title, content, nickname, image_urls,
       like_count, comment_count, created_at,
       spot:spots (
         id, name, slug, region, category, address, lat, lng,

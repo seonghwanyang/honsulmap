@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 import type { PostCreateRequest } from '@/lib/types';
+import { generatePostSlug } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest) {
     .from('posts')
     .select(`
       id,
+      slug,
       spot_id,
       category,
       title,
@@ -93,12 +95,27 @@ export async function POST(request: NextRequest) {
     ? `📍 ${spotNameRaw}\n\n${content.trim()}`
     : content.trim();
 
+  // Generate a unique slug from the title. Dedup loop appends -2/-3/...
+  // — bounded to ~30 attempts since collisions on a fresh post are rare.
+  const baseSlug = generatePostSlug(title.trim());
+  let slug = baseSlug;
+  for (let n = 2; n < 30; n += 1) {
+    const { data: existing } = await supabase
+      .from('posts')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+    if (!existing) break;
+    slug = `${baseSlug}-${n}`;
+  }
+
   const { data, error } = await supabase
     .from('posts')
     .insert([
       {
         category,
         title: title.trim(),
+        slug,
         content: finalContent,
         nickname: nickname.trim(),
         password_hash,
@@ -108,6 +125,7 @@ export async function POST(request: NextRequest) {
     ])
     .select(`
       id,
+      slug,
       spot_id,
       category,
       title,

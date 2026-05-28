@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import PostClient from './PostClient';
 
@@ -11,8 +12,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   free: '자유',
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface PostRow {
   id: string;
+  slug: string | null;
   category: string;
   title: string;
   content: string;
@@ -21,11 +25,12 @@ interface PostRow {
   spot?: { name: string } | null;
 }
 
-async function getPost(id: string): Promise<PostRow | null> {
+async function getPostBySlugOrId(key: string): Promise<PostRow | null> {
+  const column = UUID_RE.test(key) ? 'id' : 'slug';
   const { data } = await supabase
     .from('posts')
-    .select('id, category, title, content, nickname, created_at, spot:spots(name)')
-    .eq('id', id)
+    .select('id, slug, category, title, content, nickname, created_at, spot:spots(name)')
+    .eq(column, key)
     .maybeSingle();
   return (data as unknown as PostRow) || null;
 }
@@ -33,10 +38,11 @@ async function getPost(id: string): Promise<PostRow | null> {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const post = await getPost(id);
+  const { slug } = await params;
+  const key = decodeURIComponent(slug);
+  const post = await getPostBySlugOrId(key);
   if (!post) {
     return {
       title: '게시글',
@@ -44,6 +50,7 @@ export async function generateMetadata({
     };
   }
 
+  const canonicalKey = post.slug || post.id;
   const cat = CATEGORY_LABELS[post.category] || '자유';
   const title = `${post.title} · ${cat}`;
   const description = (post.content || '')
@@ -54,12 +61,12 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: `/post/${id}` },
+    alternates: { canonical: `/post/${canonicalKey}` },
     openGraph: {
       type: 'article',
       title,
       description,
-      url: `${SITE_URL}/post/${id}`,
+      url: `${SITE_URL}/post/${canonicalKey}`,
     },
     twitter: {
       card: 'summary',
@@ -72,20 +79,30 @@ export async function generateMetadata({
 export default async function PostPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = await params;
-  const post = await getPost(id);
+  const { slug } = await params;
+  const key = decodeURIComponent(slug);
+  const post = await getPostBySlugOrId(key);
 
+  // Legacy UUID URL → 308 redirect to the canonical slug URL so any
+  // previously indexed UUID links carry their SEO value over to the
+  // new slug. Skip if the post has no slug yet (pre-backfill window).
+  if (post && UUID_RE.test(key) && post.slug) {
+    redirect(`/post/${post.slug}`);
+  }
+
+  const canonicalKey = post?.slug || post?.id;
   const jsonLd = post
     ? {
         '@context': 'https://schema.org',
-        '@type': 'DiscussionForumPosting',
+        '@type': 'BlogPosting',
         headline: post.title,
         articleBody: post.content,
         datePublished: post.created_at,
         author: { '@type': 'Person', name: post.nickname },
-        url: `${SITE_URL}/post/${id}`,
+        url: `${SITE_URL}/post/${canonicalKey}`,
+        mainEntityOfPage: `${SITE_URL}/post/${canonicalKey}`,
       }
     : null;
 
