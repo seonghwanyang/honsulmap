@@ -37,21 +37,40 @@ async function probe(url: string, headers: Record<string, string> = HEADERS) {
   const apolloMatch = homeHtml.match(/window\.__APOLLO_STATE__\s*=\s*(\{[\s\S]*?\});/);
   if (apolloMatch) {
     const json = JSON.parse(apolloMatch[1]);
-    console.log('APOLLO_STATE keys count:', Object.keys(json).length);
-
-    // Find the PlaceDetailBase — main object
-    const baseKey = `PlaceDetailBase:${PLACE_ID}`;
-    if (json[baseKey]) {
-      console.log(`\n=== ${baseKey} ===`);
-      const base = json[baseKey];
-      console.log(JSON.stringify(base, null, 2).slice(0, 3000));
+    // Group keys by typename prefix to enumerate available data shapes
+    const byType: Record<string, number> = {};
+    for (const k of Object.keys(json)) {
+      const t = k.split(':')[0];
+      byType[t] = (byType[t] || 0) + 1;
+    }
+    console.log('=== Available APOLLO types & counts ===');
+    for (const [t, n] of Object.entries(byType).sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${t}: ${n}`);
     }
 
-    // Menus
-    const menus = Object.entries(json).filter(([k]) => k.startsWith('Menu:' + PLACE_ID));
-    console.log(`\n=== ${menus.length} menus ===`);
-    for (const [k, v] of menus.slice(0, 5)) {
-      console.log(k, '→', JSON.stringify(v));
+    // PlaceDetailBase full dump (what fields the main object has)
+    const baseKey = `PlaceDetailBase:${PLACE_ID}`;
+    if (json[baseKey]) {
+      const base = json[baseKey] as Record<string, unknown>;
+      console.log('\n=== PlaceDetailBase fields (key → type) ===');
+      for (const [k, v] of Object.entries(base)) {
+        const tag =
+          v == null ? 'null'
+            : Array.isArray(v) ? `array(${v.length})`
+            : typeof v === 'object' ? 'object'
+            : typeof v;
+        console.log(`  ${k}: ${tag}`);
+      }
+    }
+
+    // Sample one of each non-trivial type
+    const SAMPLES = ['Menu', 'Photo', 'BusinessHour', 'OpeningHour', 'Convenience', 'Review', 'RestaurantSeatItems', 'PlaceDescription', 'Banner', 'Highlight'];
+    for (const t of SAMPLES) {
+      const e = Object.entries(json).find(([k]) => k.startsWith(t + ':'));
+      if (e) {
+        console.log(`\n=== Sample ${t} ===`);
+        console.log(JSON.stringify(e[1], null, 2).slice(0, 800));
+      }
     }
   } else {
     console.log('APOLLO_STATE not found, trying ROOT_QUERY...');
