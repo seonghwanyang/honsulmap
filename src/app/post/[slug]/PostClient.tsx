@@ -291,22 +291,22 @@ function CommentSection({ postId }: { postId: string }) {
 
 export default function PostPage() {
   const params = useParams();
-  const id = params.id as string;
+  const slug = params.slug as string;
 
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
 
-  usePageDwell('post', id);
-  useScrollDepth('post', id);
+  usePageDwell('post', slug);
+  useScrollDepth('post', slug);
 
   useEffect(() => {
     const fetchPost = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/posts/${id}`);
+        const res = await fetch(`/api/posts/${encodeURIComponent(slug)}`);
         if (!res.ok) throw new Error(`게시글을 불러오지 못했습니다 (${res.status})`);
         setPost(await res.json());
       } catch (err) {
@@ -315,8 +315,8 @@ export default function PostPage() {
         setLoading(false);
       }
     };
-    if (id) fetchPost();
-  }, [id]);
+    if (slug) fetchPost();
+  }, [slug]);
 
   const handleShare = async () => {
     try {

@@ -48,6 +48,24 @@ export function createSlug(name: string): string {
 }
 
 /**
+ * Post title → URL slug. Strips emoji/punctuation, collapses whitespace
+ * to hyphens, caps at 60 chars. Returns a non-empty string for any input
+ * that contains at least one Hangul/word char; otherwise returns 'post'
+ * so the caller can rely on a usable seed for the dedup step.
+ */
+export function generatePostSlug(title: string): string {
+  const base = title
+    .toLowerCase()
+    .replace(/[^\w가-힣\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/g, '');
+  return base || 'post';
+}
+
+/**
  * 카테고리 한글 라벨
  */
 export function getCategoryLabel(category: string): string {

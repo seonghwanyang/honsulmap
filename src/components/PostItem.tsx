@@ -19,7 +19,7 @@ export default function PostItem({ post }: PostItemProps) {
 
   return (
     <Link
-      href={`/post/${post.id}`}
+      href={`/post/${post.slug || post.id}`}
       className="flex items-start gap-3 px-4 py-3 border-b"
       style={{ borderColor: '#F0F0F0', background: '#ffffff' }}
     >

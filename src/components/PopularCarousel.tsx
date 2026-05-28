@@ -51,7 +51,7 @@ export default function PopularCarousel() {
         {posts.map((post) => (
           <Link
             key={post.id}
-            href={`/post/${post.id}`}
+            href={`/post/${post.slug || post.id}`}
             className="flex-shrink-0 p-3 flex flex-col justify-between"
             style={{
               width: '160px',

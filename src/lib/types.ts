@@ -71,6 +71,7 @@ export interface Story {
 
 export interface Post {
   id: string;
+  slug: string | null;
   spot_id: string | null;
   category: PostCategory;
   title: string;

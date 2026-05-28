@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase';
 import { Post, PostCategory } from '@/lib/types';
 import CommunityClient from './CommunityClient';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
+
 // Cache the first page of posts for 30s so the landing query doesn't
 // re-run for every visitor. Subsequent infinite-scroll loads hit
 // /api/posts directly which is also cached below.
@@ -26,7 +28,7 @@ async function getPosts(category: PostCategory | 'all'): Promise<Post[]> {
   let query = supabase
     .from('posts')
     .select(`
-      id, spot_id, category, title, content, nickname, image_urls,
+      id, slug, spot_id, category, title, content, nickname, image_urls,
       like_count, comment_count, created_at,
       spot:spots (
         id, name, slug, region, category, address, lat, lng,
@@ -48,5 +50,29 @@ export default async function CommunityPage({
   const params = await searchParams;
   const category = (params.category || 'all') as PostCategory | 'all';
   const posts = await getPosts(category);
-  return <CommunityClient initialPosts={posts} category={category} />;
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: '제주·서울 혼술 커뮤니티',
+    description:
+      '제주·서울 혼술바·게스트하우스 실시간 현황·후기·꿀팁을 나누는 커뮤니티 페이지.',
+    url: `${SITE_URL}/community`,
+    inLanguage: 'ko-KR',
+    isPartOf: {
+      '@type': 'WebSite',
+      name: '혼술맵',
+      url: SITE_URL,
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <CommunityClient initialPosts={posts} category={category} />
+    </>
+  );
 }

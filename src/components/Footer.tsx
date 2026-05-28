@@ -15,26 +15,24 @@ export default function Footer() {
     >
       <div style={{ color: '#6b7280', fontWeight: 600, marginBottom: 2 }}>혼술맵</div>
       <div>
-        문의·건의·기능 제안:{' '}
-        <a
-          href="mailto:yangseonghwan119@gmail.com"
-          style={{ color: '#374151', textDecoration: 'underline' }}
-        >
-          yangseonghwan119@gmail.com
-        </a>
-      </div>
-      <div>
-        업장 문의·스토리 삭제:{' '}
+        문의·제휴·업장 문의:{' '}
         <a
           href="mailto:contact@higgsi.com"
           style={{ color: '#374151', textDecoration: 'underline' }}
         >
           contact@higgsi.com
         </a>
+        {' · 인스타 '}
+        <strong style={{ color: '#374151' }}>@honsulmap</strong>
+        {' DM'}
       </div>
       <div className="mt-1">
         <Link href="/about" style={{ color: '#6b7280', textDecoration: 'underline' }}>
           소개
+        </Link>
+        {' · '}
+        <Link href="/faq" style={{ color: '#6b7280', textDecoration: 'underline' }}>
+          FAQ
         </Link>
         {' · '}
         <Link href="/terms" style={{ color: '#6b7280', textDecoration: 'underline' }}>
