@@ -1,22 +1,43 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
+
 export const metadata: Metadata = {
   title: '혼술맵 소개',
   description:
-    '혼술맵은 제주도 혼술바·게스트하우스의 인스타그램 스토리를 지도 한 곳에 모아, 지금 어디가 활기찬지 한눈에 보여주는 서비스입니다.',
+    '혼술맵은 제주·서울 혼술바·게스트하우스의 인스타그램 스토리를 지도 한 곳에 모아, 지금 어디가 활기찬지 한눈에 보여주는 서비스입니다.',
   alternates: { canonical: '/about' },
   openGraph: {
     title: '혼술맵 소개',
     description:
-      '제주 혼술바·게스트하우스의 실시간 분위기를 지도 위에서 확인하세요. 혼자 가도 어색하지 않은 공간들을 모았습니다.',
+      '제주·서울 혼술바·게스트하우스의 실시간 분위기를 지도 위에서. 혼자 가도 어색하지 않은 공간들을 모았습니다.',
     url: '/about',
   },
 };
 
 export default function AboutPage() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    name: '혼술맵 소개',
+    url: `${SITE_URL}/about`,
+    inLanguage: 'ko-KR',
+    mainEntity: {
+      '@type': 'Organization',
+      name: '혼술맵',
+      url: SITE_URL,
+      logo: `${SITE_URL}/icon.png`,
+      sameAs: ['https://www.instagram.com/honsulmap'],
+    },
+  };
+
   return (
     <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <header
         className="sticky top-0 z-20 flex items-center gap-3 px-4"
         style={{
@@ -46,7 +67,7 @@ export default function AboutPage() {
           혼술맵 소개
         </h1>
         <p className="text-xs mb-8" style={{ color: '#9ca3af' }}>
-          제주 혼술바·게스트하우스의 실시간 분위기 지도
+          제주·서울 혼술바·게스트하우스의 실시간 분위기 지도
         </p>
 
         <Section title="혼술바라는 공간">
@@ -65,6 +86,20 @@ export default function AboutPage() {
           </p>
         </Section>
 
+        <Section title="왜 만들었나요">
+          <p className="mb-3">
+            제주에서 혼술바를 가려고 인스타로 분위기를 확인하던 중, 매번 가게마다
+            팔로우를 걸고 스토리를 하나씩 넘겨봐야 한다는 번거로움이 시작이었습니다.
+            가고 싶은 곳이 동쪽 끝과 서쪽 끝에 흩어져 있으면, 그날 어디가 활기찬지
+            <strong style={{ color: '#111827' }}> 한 번에 비교할 방법이 없었습니다</strong>.
+          </p>
+          <p>
+            그래서 직접 만들었습니다. 가게 인스타 스토리를 지도 위에 얹어, 마커
+            하나를 누르면 그 매장의 최신 분위기를 바로 볼 수 있게요. 가게마다
+            팔로우할 필요 없이, 지도 한 장이면 됩니다.
+          </p>
+        </Section>
+
         <Section title="혼술맵이 하는 일">
           <p className="mb-3">
             많은 혼술바와 게스트하우스가 인스타그램 스토리로 매장의 실시간
@@ -78,7 +113,7 @@ export default function AboutPage() {
             제주처럼 가게가 곳곳에 흩어진 동네에서는 더 번거롭습니다.
           </p>
           <p>
-            혼술맵은 제주 전역의 혼술바·게스트하우스 공개 스토리를 지도 한 곳에
+            혼술맵은 제주·서울 전역의 혼술바·게스트하우스 공개 스토리를 지도 한 곳에
             모았습니다. <strong style={{ color: '#111827' }}>지금 어디가 활기찬지, 어디가 한산한지 지도에서 한눈에</strong>{' '}
             확인할 수 있고, 마음에 드는 곳을 골라 바로 길찾기로 이어집니다.
           </p>
@@ -99,30 +134,22 @@ export default function AboutPage() {
         </Section>
 
         <Section title="운영 정보">
-          <p className="mb-2">본 사이트는 개인이 운영합니다.</p>
-          <ul className="list-disc list-inside space-y-1 mb-3">
-            <li>운영자: <strong style={{ color: '#111827' }}>honsulmap</strong></li>
-            <li>
-              일반 문의·건의·기능 제안:{' '}
-              <a
-                href="mailto:yangseonghwan119@gmail.com"
-                style={{ color: '#111827', textDecoration: 'underline' }}
-              >
-                yangseonghwan119@gmail.com
-              </a>
-            </li>
-            <li>
-              업장 문의·스토리 삭제 요청:{' '}
-              <a
-                href="mailto:contact@higgsi.com"
-                style={{ color: '#111827', textDecoration: 'underline' }}
-              >
-                contact@higgsi.com
-              </a>
-            </li>
-          </ul>
-          <p className="text-xs" style={{ color: '#9ca3af' }}>
-            서비스 이용과 관련된 약관은{' '}
+          <p className="mb-2">
+            혼술맵은 개인이 운영합니다. 가게 등록은 무료이고, 협찬이나 광고로
+            가게가 노출되지 않습니다.
+          </p>
+          <p className="mb-2">
+            문의·제휴·기능 제안·업장 정보 수정·스토리 삭제 요청은 모두
+            <strong style={{ color: '#111827' }}> contact@higgsi.com</strong> 으로 메일을 보내주시거나,
+            혼술맵 인스타 <strong style={{ color: '#111827' }}>@honsulmap</strong> 으로
+            DM 주시면 확인 후 빠르게 답장 드립니다.
+          </p>
+          <p className="text-xs mt-3" style={{ color: '#9ca3af' }}>
+            자주 묻는 질문은{' '}
+            <Link href="/faq" style={{ color: '#374151', textDecoration: 'underline' }}>
+              FAQ
+            </Link>
+            를, 서비스 이용 약관은{' '}
             <Link href="/terms" style={{ color: '#374151', textDecoration: 'underline' }}>
               이용약관
             </Link>

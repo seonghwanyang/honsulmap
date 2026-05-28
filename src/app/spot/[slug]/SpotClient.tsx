@@ -821,6 +821,31 @@ export default function SpotPage() {
         </section>
       )}
 
+      {/* Category-specific vibe footer. Static prose by category — adds
+          word count for SEO and helps first-time visitors understand the
+          space before booking. Tone: social/사교 (per Jeju 혼술바 culture
+          research), no detail-laden etiquette rules. */}
+      <section
+        aria-label="공간 안내"
+        className="px-4 mt-5 mb-1 text-[13px] leading-relaxed"
+        style={{ color: '#4b5563' }}
+      >
+        {spot.category === 'guesthouse' ? (
+          <p>
+            게스트하우스는 여행자들이 모이는 공간입니다. 파티가 있는 곳은
+            DJ·라이브·게임 같은 프로그램이 있고, 조용한 곳은 거실에서 작은
+            모임이 자연스럽게 만들어집니다. 어느 쪽이든 함께 머무는 다른
+            게스트들에게 가벼운 인사로 시작하면 좋습니다.
+          </p>
+        ) : (
+          <p>
+            혼술바는 옆자리와 자연스럽게 대화가 이어지는 공간입니다. 사장님이
+            손님 분위기를 보고 자리를 안내해주고, 술 한 잔과 함께 짧은 대화가
+            시작됩니다. 가볍게 한 잔, 또는 사장님 추천을 따라 마셔보세요.
+          </p>
+        )}
+      </section>
+
       {/* Comment Section */}
       <div style={{ borderTop: '1px solid #f3f4f6', marginTop: '16px' }}>
         <CommentSection spotId={spot.id} />
