@@ -7,26 +7,17 @@ interface Props {
   onReportSpot: () => void;
 }
 
-// localStorage key + 24h grace period. Reading on mount only (not SSR),
-// so the modal flashes in briefly on first visit — acceptable since the
-// map underneath takes ~500ms to render anyway.
-const DISMISS_KEY = 'honsulmap_welcome_dismissed_at';
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+// Onboarding modal — first visit only, then permanent dismiss. Closes
+// from any path (backdrop, CTA, explicit button) all persist. Users
+// who want to see the intro again can hit /about from the footer.
+const SEEN_KEY = 'honsulmap_welcome_seen';
 
 export default function WelcomeModal({ onFindNearby, onReportSpot }: Props) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(DISMISS_KEY);
-      if (!raw) {
-        setOpen(true);
-        return;
-      }
-      const at = Number(raw);
-      if (!Number.isFinite(at) || Date.now() - at > ONE_DAY_MS) {
-        setOpen(true);
-      }
+      if (!localStorage.getItem(SEEN_KEY)) setOpen(true);
     } catch {
       setOpen(true);
     }
@@ -34,14 +25,13 @@ export default function WelcomeModal({ onFindNearby, onReportSpot }: Props) {
 
   if (!open) return null;
 
-  const close = () => setOpen(false);
-  const dontShowToday = () => {
+  const close = () => {
     try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now()));
+      localStorage.setItem(SEEN_KEY, '1');
     } catch {
       // localStorage blocked (private mode etc.) — still close.
     }
-    close();
+    setOpen(false);
   };
 
   return (
@@ -116,16 +106,8 @@ export default function WelcomeModal({ onFindNearby, onReportSpot }: Props) {
           </button>
         </div>
 
-        <button
-          onClick={dontShowToday}
-          className="w-full py-2 mt-3 text-xs font-medium"
-          style={{ color: '#9ca3af' }}
-        >
-          오늘 하루 보지 않기
-        </button>
-
         <p
-          className="text-xs text-center mt-3"
+          className="text-xs text-center mt-4"
           style={{ color: '#9ca3af', lineHeight: 1.5 }}
         >
           인스타 스토리 + 사용자 제보 기반 · 방문 전 확인을 권장해요
