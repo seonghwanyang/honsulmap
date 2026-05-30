@@ -2,6 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { REGIONS } from '@/lib/types';
+
+// All region codes (prefixed, e.g. 'busan_suyeong') from the source of
+// truth — the admin <Sel> shows the raw code, which is fine for editing.
+const REGION_VALUES = REGIONS.filter((r) => r.value !== 'all').map((r) => r.value);
 
 interface AdminSpot {
   id: string;
@@ -283,7 +288,7 @@ function SpotEditDrawer({
               <Sel
                 value={form.region}
                 onChange={(v) => setForm({ ...form, region: v })}
-                options={['jeju', 'aewol', 'seogwipo', 'east', 'west']}
+                options={REGION_VALUES}
               />
             </F>
             <F label="종류">

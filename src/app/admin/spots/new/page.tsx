@@ -3,6 +3,15 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createSlug } from '@/lib/utils';
+import { REGIONS, CITIES } from '@/lib/types';
+
+// Flat [value, label] options across every city, e.g. ['busan_suyeong',
+// '부산 수영구'] — derived from the REGIONS source of truth so the admin
+// form stays in sync as new cities/regions are added.
+const CITY_LABEL = Object.fromEntries(CITIES.map((c) => [c.value, c.label]));
+const REGION_OPTIONS: [string, string][] = REGIONS
+  .filter((r) => r.value !== 'all' && r.city)
+  .map((r) => [r.value, `${CITY_LABEL[r.city as string]} ${r.label}`]);
 
 interface SpotRequest {
   id: string;
@@ -22,7 +31,7 @@ function NewSpotInner() {
   const [form, setForm] = useState({
     name: '',
     slug: '',
-    region: 'jeju',
+    region: 'jeju_jeju',
     category: 'bar',
     address: '',
     lat: '',
@@ -159,13 +168,7 @@ function NewSpotInner() {
             <Select
               value={form.region}
               onChange={(v) => setForm({ ...form, region: v })}
-              options={[
-                ['jeju', '제주시'],
-                ['aewol', '애월'],
-                ['seogwipo', '서귀포'],
-                ['east', '동부'],
-                ['west', '서부'],
-              ]}
+              options={REGION_OPTIONS}
             />
           </Row>
           <Row label="종류 *">

@@ -14,9 +14,9 @@ import { supabase } from '@/lib/supabase';
 import { getRegionLabel, getCategoryLabel } from '@/lib/utils';
 import type { City, Spot } from '@/lib/types';
 
-// KR-49 is the Jeju Special Self-Governing Province subdivision code
-// in ISO 3166-2.
+// ISO 3166-2 KR subdivision codes: KR-49 = Jeju, KR-26 = Busan.
 const JEJU_REGION_CODE = '49';
+const BUSAN_REGION_CODE = '26';
 
 // Revalidate the SSR spot list once per hour — keeps Googlebot fed
 // without hammering Supabase on every request.
@@ -27,6 +27,7 @@ async function detectInitialCity(): Promise<City> {
   const country = h.get('x-vercel-ip-country') ?? '';
   const region = h.get('x-vercel-ip-country-region') ?? '';
   if (country === 'KR' && region === JEJU_REGION_CODE) return 'jeju';
+  if (country === 'KR' && region === BUSAN_REGION_CODE) return 'busan';
   return 'seoul';
 }
 

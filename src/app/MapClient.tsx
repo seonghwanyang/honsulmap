@@ -234,6 +234,14 @@ function MapSheetStory({
 const CITY_CENTER: Record<City, { lat: number; lng: number; zoom: number }> = {
   jeju: { lat: 33.3617, lng: 126.5292, zoom: 10 },
   seoul: { lat: 37.5505, lng: 126.9779, zoom: 11 },
+  busan: { lat: 35.1796, lng: 129.0756, zoom: 11 },
+  incheon: { lat: 37.4563, lng: 126.7052, zoom: 11 },
+  daejeon: { lat: 36.3504, lng: 127.3845, zoom: 11 },
+  gwangju: { lat: 35.1595, lng: 126.8526, zoom: 11 },
+  daegu: { lat: 35.8714, lng: 128.6014, zoom: 11 },
+  gyeonggi: { lat: 37.2636, lng: 127.0286, zoom: 10 },
+  chungbuk: { lat: 36.6424, lng: 127.4890, zoom: 11 },
+  jeonbuk: { lat: 35.8242, lng: 127.1480, zoom: 11 },
 };
 
 function MapPageInner({ initialCity }: { initialCity: City }) {
@@ -1043,9 +1051,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     // the user's city without them tapping the dropdown. Jeju is
     // ~33°N, Seoul ~37.5°N — anything else stays as the user's last
     // saved choice so we never silently flip "전체" back to a city.
-    let inferred: 'jeju' | 'seoul' | null = null;
+    let inferred: 'jeju' | 'seoul' | 'busan' | null = null;
     if (lat >= 33 && lat <= 34 && lng >= 126 && lng <= 127.2) inferred = 'jeju';
     else if (lat >= 37.4 && lat <= 37.8 && lng >= 126.7 && lng <= 127.3) inferred = 'seoul';
+    else if (lat >= 35.0 && lat <= 35.4 && lng >= 128.8 && lng <= 129.35) inferred = 'busan';
     if (inferred) {
       try {
         localStorage.setItem('honsulmap_carousel_city', inferred);
@@ -1185,7 +1194,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       const detail = (e as CustomEvent).detail;
       if (!detail || detail.source !== 'user') return;
       const c = detail.city;
-      if ((c === 'jeju' || c === 'seoul') && mapInstanceRef.current && window.naver?.maps) {
+      if ((c === 'jeju' || c === 'seoul' || c === 'busan') && mapInstanceRef.current && window.naver?.maps) {
         const center = CITY_CENTER[c as City];
         mapInstanceRef.current.panTo(
           new window.naver.maps.LatLng(center.lat, center.lng),

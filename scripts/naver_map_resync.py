@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
-REGION_MAP = {"jeju": "제주시", "aewol": "애월", "seogwipo": "서귀포", "east": "제주", "west": "제주"}
+REGION_MAP = {"jeju_jeju": "제주시", "jeju_aewol": "애월", "jeju_seogwipo": "서귀포", "jeju_east": "제주", "jeju_west": "제주"}
 
 def pick_best(places, name: str):
     """제주 범위 + 이름 유사도 기반"""
