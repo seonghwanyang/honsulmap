@@ -4,19 +4,20 @@ export type SpotCategory = 'bar' | 'guesthouse';
 export type City =
   | 'jeju' | 'seoul' | 'busan' | 'incheon' | 'daejeon'
   | 'gwangju' | 'daegu' | 'gyeonggi' | 'chungbuk' | 'jeonbuk';
-// Every region code carries a `city_` prefix so the shared `region`
-// column stays globally unique — 구 names like 중구/서구 repeat across
-// cities. (Jeju/Seoul were retrofitted from bare codes in the
-// 2026-05-31 migration.)
+// New cities (Busan onward) carry a `city_` prefix so 구 names like
+// 중구/서구 stay globally unique on the shared `region` column. Jeju and
+// Seoul keep their legacy bare codes for now — they get retrofitted to
+// jeju_*/seoul_* in a later (off-peak) migration. See the 2026-06-01
+// prefix-retrofit migration.
 export type Region =
-  // Jeju (5)
-  | 'jeju_jeju' | 'jeju_aewol' | 'jeju_seogwipo' | 'jeju_east' | 'jeju_west'
-  // Seoul (25 구)
-  | 'seoul_gangnam' | 'seoul_gangdong' | 'seoul_gangbuk' | 'seoul_gangseo' | 'seoul_gwanak'
-  | 'seoul_gwangjin' | 'seoul_guro' | 'seoul_geumcheon' | 'seoul_nowon' | 'seoul_dobong'
-  | 'seoul_dongdaemun' | 'seoul_dongjak' | 'seoul_mapo' | 'seoul_seodaemun' | 'seoul_seocho'
-  | 'seoul_seongdong' | 'seoul_seongbuk' | 'seoul_songpa' | 'seoul_yangcheon' | 'seoul_yeongdeungpo'
-  | 'seoul_yongsan' | 'seoul_eunpyeong' | 'seoul_jongno' | 'seoul_jung' | 'seoul_jungnang'
+  // Jeju (5, legacy bare — retrofit pending)
+  | 'jeju' | 'aewol' | 'seogwipo' | 'east' | 'west'
+  // Seoul (25 구, legacy bare — retrofit pending)
+  | 'gangnam' | 'gangdong' | 'gangbuk' | 'gangseo' | 'gwanak'
+  | 'gwangjin' | 'guro' | 'geumcheon' | 'nowon' | 'dobong'
+  | 'dongdaemun' | 'dongjak' | 'mapo' | 'seodaemun' | 'seocho'
+  | 'seongdong' | 'seongbuk' | 'songpa' | 'yangcheon' | 'yeongdeungpo'
+  | 'yongsan' | 'eunpyeong' | 'jongno' | 'jung' | 'jungnang'
   // Busan (16 구·군)
   | 'busan_jung' | 'busan_seo' | 'busan_dong' | 'busan_yeongdo'
   | 'busan_busanjin' | 'busan_dongnae' | 'busan_nam' | 'busan_buk'
@@ -177,38 +178,38 @@ export interface CommentCreateRequest {
 
 export const REGIONS: { value: Region | 'all'; label: string; city?: City }[] = [
   { value: 'all', label: '전체' },
-  // Jeju
-  { value: 'jeju_jeju', label: '제주시', city: 'jeju' },
-  { value: 'jeju_aewol', label: '애월', city: 'jeju' },
-  { value: 'jeju_seogwipo', label: '서귀포', city: 'jeju' },
-  { value: 'jeju_east', label: '동쪽', city: 'jeju' },
-  { value: 'jeju_west', label: '서쪽', city: 'jeju' },
-  // Seoul (25 구, 가나다순)
-  { value: 'seoul_gangnam', label: '강남구', city: 'seoul' },
-  { value: 'seoul_gangdong', label: '강동구', city: 'seoul' },
-  { value: 'seoul_gangbuk', label: '강북구', city: 'seoul' },
-  { value: 'seoul_gangseo', label: '강서구', city: 'seoul' },
-  { value: 'seoul_gwanak', label: '관악구', city: 'seoul' },
-  { value: 'seoul_gwangjin', label: '광진구', city: 'seoul' },
-  { value: 'seoul_guro', label: '구로구', city: 'seoul' },
-  { value: 'seoul_geumcheon', label: '금천구', city: 'seoul' },
-  { value: 'seoul_nowon', label: '노원구', city: 'seoul' },
-  { value: 'seoul_dobong', label: '도봉구', city: 'seoul' },
-  { value: 'seoul_dongdaemun', label: '동대문구', city: 'seoul' },
-  { value: 'seoul_dongjak', label: '동작구', city: 'seoul' },
-  { value: 'seoul_mapo', label: '마포구', city: 'seoul' },
-  { value: 'seoul_seodaemun', label: '서대문구', city: 'seoul' },
-  { value: 'seoul_seocho', label: '서초구', city: 'seoul' },
-  { value: 'seoul_seongdong', label: '성동구', city: 'seoul' },
-  { value: 'seoul_seongbuk', label: '성북구', city: 'seoul' },
-  { value: 'seoul_songpa', label: '송파구', city: 'seoul' },
-  { value: 'seoul_yangcheon', label: '양천구', city: 'seoul' },
-  { value: 'seoul_yeongdeungpo', label: '영등포구', city: 'seoul' },
-  { value: 'seoul_yongsan', label: '용산구', city: 'seoul' },
-  { value: 'seoul_eunpyeong', label: '은평구', city: 'seoul' },
-  { value: 'seoul_jongno', label: '종로구', city: 'seoul' },
-  { value: 'seoul_jung', label: '중구', city: 'seoul' },
-  { value: 'seoul_jungnang', label: '중랑구', city: 'seoul' },
+  // Jeju (legacy bare codes — retrofit pending)
+  { value: 'jeju', label: '제주시', city: 'jeju' },
+  { value: 'aewol', label: '애월', city: 'jeju' },
+  { value: 'seogwipo', label: '서귀포', city: 'jeju' },
+  { value: 'east', label: '동쪽', city: 'jeju' },
+  { value: 'west', label: '서쪽', city: 'jeju' },
+  // Seoul (25 구, 가나다순 — legacy bare codes, retrofit pending)
+  { value: 'gangnam', label: '강남구', city: 'seoul' },
+  { value: 'gangdong', label: '강동구', city: 'seoul' },
+  { value: 'gangbuk', label: '강북구', city: 'seoul' },
+  { value: 'gangseo', label: '강서구', city: 'seoul' },
+  { value: 'gwanak', label: '관악구', city: 'seoul' },
+  { value: 'gwangjin', label: '광진구', city: 'seoul' },
+  { value: 'guro', label: '구로구', city: 'seoul' },
+  { value: 'geumcheon', label: '금천구', city: 'seoul' },
+  { value: 'nowon', label: '노원구', city: 'seoul' },
+  { value: 'dobong', label: '도봉구', city: 'seoul' },
+  { value: 'dongdaemun', label: '동대문구', city: 'seoul' },
+  { value: 'dongjak', label: '동작구', city: 'seoul' },
+  { value: 'mapo', label: '마포구', city: 'seoul' },
+  { value: 'seodaemun', label: '서대문구', city: 'seoul' },
+  { value: 'seocho', label: '서초구', city: 'seoul' },
+  { value: 'seongdong', label: '성동구', city: 'seoul' },
+  { value: 'seongbuk', label: '성북구', city: 'seoul' },
+  { value: 'songpa', label: '송파구', city: 'seoul' },
+  { value: 'yangcheon', label: '양천구', city: 'seoul' },
+  { value: 'yeongdeungpo', label: '영등포구', city: 'seoul' },
+  { value: 'yongsan', label: '용산구', city: 'seoul' },
+  { value: 'eunpyeong', label: '은평구', city: 'seoul' },
+  { value: 'jongno', label: '종로구', city: 'seoul' },
+  { value: 'jung', label: '중구', city: 'seoul' },
+  { value: 'jungnang', label: '중랑구', city: 'seoul' },
   // Busan (16 구·군, 가나다순)
   { value: 'busan_gangseo', label: '강서구', city: 'busan' },
   { value: 'busan_geumjeong', label: '금정구', city: 'busan' },
@@ -264,14 +265,14 @@ export const CITIES: { value: City; label: string }[] = [
 // union and the spots/spot_requests CHECK constraints in the 2026-05-31
 // migration.
 export const VALID_REGIONS = [
-  // Jeju (5)
-  'jeju_jeju', 'jeju_aewol', 'jeju_seogwipo', 'jeju_east', 'jeju_west',
-  // Seoul (25 구)
-  'seoul_gangnam', 'seoul_gangdong', 'seoul_gangbuk', 'seoul_gangseo', 'seoul_gwanak',
-  'seoul_gwangjin', 'seoul_guro', 'seoul_geumcheon', 'seoul_nowon', 'seoul_dobong',
-  'seoul_dongdaemun', 'seoul_dongjak', 'seoul_mapo', 'seoul_seodaemun', 'seoul_seocho',
-  'seoul_seongdong', 'seoul_seongbuk', 'seoul_songpa', 'seoul_yangcheon', 'seoul_yeongdeungpo',
-  'seoul_yongsan', 'seoul_eunpyeong', 'seoul_jongno', 'seoul_jung', 'seoul_jungnang',
+  // Jeju (5, legacy bare — retrofit pending)
+  'jeju', 'aewol', 'seogwipo', 'east', 'west',
+  // Seoul (25 구, legacy bare — retrofit pending)
+  'gangnam', 'gangdong', 'gangbuk', 'gangseo', 'gwanak',
+  'gwangjin', 'guro', 'geumcheon', 'nowon', 'dobong',
+  'dongdaemun', 'dongjak', 'mapo', 'seodaemun', 'seocho',
+  'seongdong', 'seongbuk', 'songpa', 'yangcheon', 'yeongdeungpo',
+  'yongsan', 'eunpyeong', 'jongno', 'jung', 'jungnang',
   // Busan (16 구·군)
   'busan_jung', 'busan_seo', 'busan_dong', 'busan_yeongdo',
   'busan_busanjin', 'busan_dongnae', 'busan_nam', 'busan_buk',

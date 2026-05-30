@@ -22,18 +22,18 @@ SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 # 서울 구 → 검색 쿼리 보조어 (가게명에 더해서 검색하면 매칭 정확도 ↑).
-# region 코드는 2026-05-31 마이그레이션 이후 seoul_ prefix.
+# region 코드는 prefix-retrofit 전까지 bare (gangnam 등).
 REGION_HINT = {
-    "seoul_gangnam":      "강남",
-    "seoul_songpa":       "잠실",
-    "seoul_mapo":         "홍대",
-    "seoul_yongsan":      "이태원",
-    "seoul_seongdong":    "성수",
-    "seoul_jongno":       "종로",
-    "seoul_yeongdeungpo": "영등포",
-    "seoul_gwanak":       "관악",
-    "seoul_gwangjin":     "건대",
-    "seoul_dongjak":      "사당",
+    "gangnam":      "강남",
+    "songpa":       "잠실",
+    "mapo":         "홍대",
+    "yongsan":      "이태원",
+    "seongdong":    "성수",
+    "jongno":       "종로",
+    "yeongdeungpo": "영등포",
+    "gwanak":       "관악",
+    "gwangjin":     "건대",
+    "dongjak":      "사당",
 }
 
 # Seoul lat/lng bounds (생활권 + 인접 신도시 약간 여유)

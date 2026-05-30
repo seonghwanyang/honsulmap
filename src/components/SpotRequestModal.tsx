@@ -14,8 +14,8 @@ interface Props {
 // Richer labels for the two Jeju "compass" regions — the global label
 // is just '동쪽/서쪽' which is too sparse for the request form.
 const REGION_LABEL_OVERRIDES: Partial<Record<Region, string>> = {
-  jeju_east: '동부(구좌·성산)',
-  jeju_west: '서부(한림·한경)',
+  east: '동부(구좌·성산)',
+  west: '서부(한림·한경)',
 };
 
 // Group by city (derived from CITIES) so the chips don't read as one
