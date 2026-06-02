@@ -9,13 +9,13 @@ import FeedClient from './FeedClient';
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: '제주·서울 혼술바 실시간 피드',
+  title: '전국 혼술바 실시간 피드',
   description:
-    '제주·서울 혼술바와 게스트하우스의 인스타 스토리를 실시간으로. 홍대·강남·이태원·애월·서귀포 등 지금 핫한 술집이 어디인지 피드로 확인.',
+    '전국 혼술바·게스트하우스의 인스타 스토리를 실시간으로. 홍대·강남·광안리·서면·애월·서귀포 등 지금 핫한 술집이 어디인지 피드로 확인.',
   alternates: { canonical: '/feed' },
   openGraph: {
-    title: '제주·서울 혼술바 실시간 피드 | 혼술맵',
-    description: '제주·서울 혼술바·게스트하우스의 인스타 스토리 실시간 피드. 오늘 가장 핫한 술집.',
+    title: '전국 혼술바 실시간 피드 | 혼술맵',
+    description: '전국 혼술바·게스트하우스의 인스타 스토리 실시간 피드. 오늘 가장 핫한 술집.',
     url: '/feed',
   },
 };

@@ -69,7 +69,7 @@ export default function TermsPage() {
         <Section title="제3조 (서비스의 내용)">
           <p className="mb-2">서비스는 아래 기능을 제공합니다.</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>제주 혼술바·게스트하우스 위치 및 공개 인스타그램 스토리의 지도 표시</li>
+            <li>전국 혼술바·게스트하우스 위치 및 공개 인스타그램 스토리의 지도 표시</li>
             <li>사용자 간 후기·실시간 현황·정보 공유를 위한 커뮤니티 게시판</li>
             <li>업장에 대한 좋아요·분위기 투표 등 간단한 피드백 기능</li>
             <li>기타 운영자가 정하는 부가 기능</li>

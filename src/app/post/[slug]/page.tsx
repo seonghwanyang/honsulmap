@@ -56,7 +56,7 @@ export async function generateMetadata({
   const description = (post.content || '')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 180) || `제주 혼술맵 ${cat} 게시글`;
+    .slice(0, 180) || `혼술맵 ${cat} 게시글`;
 
   return {
     title,

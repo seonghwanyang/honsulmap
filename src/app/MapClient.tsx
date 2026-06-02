@@ -1289,7 +1289,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             혼술맵
           </span>
           <span className="leading-tight text-[11px] tracking-[0.1px] text-[#888888]">
-            제주 혼술바 실시간
+            전국 혼술바 실시간
           </span>
         </div>
       </header>

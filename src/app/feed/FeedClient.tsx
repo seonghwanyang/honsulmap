@@ -179,7 +179,7 @@ export default function FeedClient({ initialStories, city, region }: FeedClientP
       <header className="sticky top-0 z-20 flex items-center px-4 h-14 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
         <div className="flex flex-col justify-center gap-px">
           <span className="font-bold leading-tight text-[17px] tracking-[-0.3px] text-[#111827]">피드</span>
-          <span className="leading-tight text-[11px] tracking-[0.1px] text-[#888888]">제주 혼술바 스토리</span>
+          <span className="leading-tight text-[11px] tracking-[0.1px] text-[#888888]">전국 혼술바 스토리</span>
         </div>
       </header>
 
