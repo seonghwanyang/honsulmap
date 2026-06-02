@@ -11,13 +11,13 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
 export const revalidate = 30;
 
 export const metadata: Metadata = {
-  title: '제주 혼술 커뮤니티',
+  title: '전국 혼술 커뮤니티',
   description:
-    '제주도 혼술바·게스트하우스 실시간 현황과 후기, 꿀팁을 나누는 커뮤니티. 제주 여행 혼술·게하 파티 정보 공유.',
+    '전국 혼술바·게스트하우스 실시간 현황과 후기, 꿀팁을 나누는 커뮤니티. 혼술·게하 파티 정보 공유.',
   alternates: { canonical: '/community' },
   openGraph: {
-    title: '제주 혼술 커뮤니티 | 혼술맵',
-    description: '제주 혼술바 실시간 현황, 후기, 여행 꿀팁을 나누는 자유 커뮤니티.',
+    title: '전국 혼술 커뮤니티 | 혼술맵',
+    description: '전국 혼술바 실시간 현황, 후기, 꿀팁을 나누는 자유 커뮤니티.',
     url: '/community',
   },
 };
@@ -54,9 +54,9 @@ export default async function CommunityPage({
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: '제주·서울 혼술 커뮤니티',
+    name: '전국 혼술 커뮤니티',
     description:
-      '제주·서울 혼술바·게스트하우스 실시간 현황·후기·꿀팁을 나누는 커뮤니티 페이지.',
+      '전국 혼술바·게스트하우스 실시간 현황·후기·꿀팁을 나누는 커뮤니티 페이지.',
     url: `${SITE_URL}/community`,
     inLanguage: 'ko-KR',
     isPartOf: {

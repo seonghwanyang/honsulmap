@@ -6,12 +6,12 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
 export const metadata: Metadata = {
   title: '혼술맵 소개',
   description:
-    '혼술맵은 제주·서울 혼술바·게스트하우스의 인스타그램 스토리를 지도 한 곳에 모아, 지금 어디가 활기찬지 한눈에 보여주는 서비스입니다.',
+    '혼술맵은 전국 혼술바·게스트하우스의 인스타그램 스토리를 지도 한 곳에 모아, 지금 어디가 활기찬지 한눈에 보여주는 서비스입니다.',
   alternates: { canonical: '/about' },
   openGraph: {
     title: '혼술맵 소개',
     description:
-      '제주·서울 혼술바·게스트하우스의 실시간 분위기를 지도 위에서. 혼자 가도 어색하지 않은 공간들을 모았습니다.',
+      '전국 혼술바·게스트하우스의 실시간 분위기를 지도 위에서. 혼자 가도 어색하지 않은 공간들을 모았습니다.',
     url: '/about',
   },
 };
@@ -67,7 +67,7 @@ export default function AboutPage() {
           혼술맵 소개
         </h1>
         <p className="text-xs mb-8" style={{ color: '#9ca3af' }}>
-          제주·서울 혼술바·게스트하우스의 실시간 분위기 지도
+          전국 혼술바·게스트하우스의 실시간 분위기 지도
         </p>
 
         <Section title="혼술바라는 공간">
@@ -110,10 +110,10 @@ export default function AboutPage() {
           <p className="mb-3">
             문제는 그 정보가 <strong style={{ color: '#111827' }}>각 매장의 인스타 계정에 흩어져 있다는 점</strong>입니다.
             가고 싶은 곳을 일일이 팔로우하고, 스토리를 하나씩 넘겨봐야 합니다.
-            제주처럼 가게가 곳곳에 흩어진 동네에서는 더 번거롭습니다.
+            가게가 여기저기 흩어져 있으면 더 번거롭습니다.
           </p>
           <p>
-            혼술맵은 제주·서울 전역의 혼술바·게스트하우스 공개 스토리를 지도 한 곳에
+            혼술맵은 전국의 혼술바·게스트하우스 공개 스토리를 지도 한 곳에
             모았습니다. <strong style={{ color: '#111827' }}>지금 어디가 활기찬지, 어디가 한산한지 지도에서 한눈에</strong>{' '}
             확인할 수 있고, 마음에 드는 곳을 골라 바로 길찾기로 이어집니다.
           </p>

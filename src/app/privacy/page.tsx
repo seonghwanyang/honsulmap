@@ -38,7 +38,7 @@ export default function PrivacyPage() {
 
         <Section title="1. 서비스 소개">
           <p>
-            <strong style={{ color: '#111827' }}>혼술맵</strong>은 제주도 혼술바 및
+            <strong style={{ color: '#111827' }}>혼술맵</strong>은 전국 혼술바 및
             게스트하우스의 인스타그램 스토리를 모아보고, 실시간 현황을 공유하는
             서비스입니다. 본 방침은 혼술맵(이하 &quot;서비스&quot;)이 수집하는 개인정보와
             그 처리 방법, 그리고 서비스가 다루는 데이터의 관리 방식을 안내합니다.
@@ -90,7 +90,7 @@ export default function PrivacyPage() {
 
         <Section title="5. 인스타그램 스토리 수집 및 관리">
           <p className="mb-2">
-            서비스는 제주도 혼술바·게스트하우스 등 업장의{' '}
+            서비스는 전국 혼술바·게스트하우스 등 업장의{' '}
             <strong style={{ color: '#111827' }}>공개 인스타그램 프로필</strong>에 게시된
             스토리만 수집하여 표시합니다. 비공개 계정, 개인 사용자 계정의 스토리는 수집
             대상이 아닙니다.

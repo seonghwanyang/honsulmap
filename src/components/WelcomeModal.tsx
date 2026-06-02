@@ -60,7 +60,7 @@ export default function WelcomeModal({ onFindNearby, onReportSpot }: Props) {
         </div>
 
         <p className="text-center text-sm mb-6" style={{ color: '#6b7280' }}>
-          제주·서울 혼술바·게스트하우스 실시간 지도
+          전국 혼술바·파티·게스트하우스 실시간 현황 지도
         </p>
 
         {/* Feature bullets */}
