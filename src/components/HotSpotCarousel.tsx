@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { relativeTime, getRegionLabel } from '@/lib/utils';
-import type { Region } from '@/lib/types';
+import { CITIES, type Region, type City } from '@/lib/types';
 
 interface HotSpot {
   slug: string;
@@ -13,13 +13,17 @@ interface HotSpot {
   latest_story_at: string | null;
 }
 
-type CityFilter = 'all' | 'jeju' | 'seoul';
-const CITY_LABELS: Record<CityFilter, string> = {
-  all: '전체',
-  jeju: '제주',
-  seoul: '서울',
-};
-const CITY_OPTIONS: CityFilter[] = ['all', 'jeju', 'seoul'];
+type CityFilter = 'all' | City;
+// Cities show up automatically as they're added to the CITIES vocab.
+const CITY_OPTIONS: CityFilter[] = ['all', ...CITIES.map((c) => c.value)];
+const CITY_LABELS = Object.fromEntries([
+  ['all', '전체'],
+  ...CITIES.map((c) => [c.value, c.label] as const),
+]) as Record<CityFilter, string>;
+
+function isCityFilter(v: unknown): v is CityFilter {
+  return v === 'all' || CITIES.some((c) => c.value === v);
+}
 
 // localStorage key shared with handleGps so granting location permission
 // pre-selects the user's city for this carousel (we never silently
@@ -30,7 +34,7 @@ function readCity(): CityFilter {
   if (typeof window === 'undefined') return 'all';
   try {
     const raw = localStorage.getItem(CITY_STORAGE_KEY);
-    if (raw === 'jeju' || raw === 'seoul' || raw === 'all') return raw;
+    if (isCityFilter(raw)) return raw;
   } catch {
     // ignore
   }
@@ -67,7 +71,7 @@ export default function HotSpotCarousel() {
         raw && typeof raw === 'object' && 'city' in raw
           ? (raw as { city: unknown }).city
           : raw;
-      if (v === 'jeju' || v === 'seoul' || v === 'all') setCity(v);
+      if (isCityFilter(v)) setCity(v);
     };
     window.addEventListener('storage', onStorage);
     window.addEventListener('honsulmap:carousel-city', onCustom);
@@ -259,6 +263,8 @@ export default function HotSpotCarousel() {
                 padding: 4,
                 zIndex: 50,
                 minWidth: 120,
+                maxHeight: '50vh',
+                overflowY: 'auto',
               }}
             >
               {CITY_OPTIONS.map((opt) => {

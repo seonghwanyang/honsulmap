@@ -256,6 +256,21 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const region = searchParams.get('region') || 'all';
   const category = (searchParams.get('category') || 'all') as CategoryFilterValue;
 
+  // Home city for the region picker's pre-expanded 세부지역 row. Sourced
+  // from GPS (accurate) — set by applyGpsCoords and persisted across visits
+  // via the carousel-city localStorage key. NOT from IP geo, which is too
+  // coarse in KR (all ISPs route through Seoul DCs). null until we have a
+  // real GPS signal, in which case the picker simply shows the 도시 list.
+  const [homeCity, setHomeCity] = useState<City | null>(null);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('honsulmap_carousel_city');
+      if (saved && saved in CITY_CENTER) setHomeCity(saved as City);
+    } catch {
+      // private mode / disabled — picker just shows the 도시 list
+    }
+  }, []);
+
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<NaverMap | null>(null);
   const overlaysRef = useRef<NaverMarker[]>([]);
@@ -501,6 +516,21 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           new window.naver.maps.LatLng(target.lat, target.lng),
         );
       }
+
+      // Keep the 실시간 근황 carousel's city in lockstep with the filter
+      // chips. source:'filter' (not 'user') so the carousel-city pan
+      // listener doesn't double-pan over the move we just did above.
+      const carouselCity = c ?? 'all';
+      try {
+        localStorage.setItem('honsulmap_carousel_city', carouselCity);
+      } catch {
+        // ignore — the carousel still syncs via the event
+      }
+      window.dispatchEvent(
+        new CustomEvent('honsulmap:carousel-city', {
+          detail: { city: carouselCity, source: 'filter' },
+        }),
+      );
     },
     [router, searchParams, spots],
   );
@@ -1051,11 +1081,20 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     // the user's city without them tapping the dropdown. Jeju is
     // ~33°N, Seoul ~37.5°N — anything else stays as the user's last
     // saved choice so we never silently flip "전체" back to a city.
-    let inferred: 'jeju' | 'seoul' | 'busan' | null = null;
+    // Well-separated bounding boxes only. Seoul-cluster cities (인천·경기)
+    // overlap Seoul too much to box reliably, so they stay null → the
+    // picker just shows the 도시 list rather than pre-expanding the wrong 구.
+    let inferred: City | null = null;
     if (lat >= 33 && lat <= 34 && lng >= 126 && lng <= 127.2) inferred = 'jeju';
-    else if (lat >= 37.4 && lat <= 37.8 && lng >= 126.7 && lng <= 127.3) inferred = 'seoul';
     else if (lat >= 35.0 && lat <= 35.4 && lng >= 128.8 && lng <= 129.35) inferred = 'busan';
+    else if (lat >= 37.4 && lat <= 37.8 && lng >= 126.7 && lng <= 127.3) inferred = 'seoul';
+    else if (lat >= 36.2 && lat <= 36.5 && lng >= 127.3 && lng <= 127.55) inferred = 'daejeon';
+    else if (lat >= 35.78 && lat <= 35.95 && lng >= 128.45 && lng <= 128.72) inferred = 'daegu';
+    else if (lat >= 35.08 && lat <= 35.25 && lng >= 126.78 && lng <= 126.98) inferred = 'gwangju';
+    else if (lat >= 36.5 && lat <= 36.72 && lng >= 127.38 && lng <= 127.56) inferred = 'chungbuk';
+    else if (lat >= 35.78 && lat <= 35.95 && lng >= 127.05 && lng <= 127.22) inferred = 'jeonbuk';
     if (inferred) {
+      setHomeCity(inferred);
       try {
         localStorage.setItem('honsulmap_carousel_city', inferred);
       } catch {
@@ -1194,7 +1233,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       const detail = (e as CustomEvent).detail;
       if (!detail || detail.source !== 'user') return;
       const c = detail.city;
-      if ((c === 'jeju' || c === 'seoul' || c === 'busan') && mapInstanceRef.current && window.naver?.maps) {
+      if (c && c in CITY_CENTER && mapInstanceRef.current && window.naver?.maps) {
         const center = CITY_CENTER[c as City];
         mapInstanceRef.current.panTo(
           new window.naver.maps.LatLng(center.lat, center.lng),
@@ -1260,11 +1299,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           rest — request banner, search box, hot strip — float over the
           map as individual cards so the map is visible between them. */}
       <div className="absolute z-20 left-0 right-0 top-14">
-        <div className="bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0] flex items-start">
+        <div className="relative z-40 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0] flex items-start">
           <div className="flex-1 min-w-0">
             <LocationPicker
               city={city === 'all' ? null : city}
               region={region === 'all' ? null : (region as Region)}
+              homeCity={homeCity}
               onChange={handleLocationChange}
             />
           </div>
