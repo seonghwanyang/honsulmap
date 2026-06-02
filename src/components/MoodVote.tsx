@@ -22,23 +22,26 @@ export default function MoodVote({ spotId, initialUp, initialDown }: MoodVotePro
     const fingerprint = getFingerprint();
     if (!fingerprint) return;
 
-    const nextVote: VoteType = vote === type ? null : type;
-
     setLoading(true);
     try {
+      // Send the button that was pressed; the server decides toggle/switch/
+      // cancel from the prior vote and returns the authoritative counts, so
+      // the client just mirrors them (no optimistic drift).
       const res = await fetch(`/api/spots/${spotId}/mood`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vote: nextVote, fingerprint }),
+        body: JSON.stringify({ vote: type, fingerprint }),
       });
 
       if (res.ok) {
-        // Adjust counts optimistically
-        if (vote === 'up') setUpCount((c) => c - 1);
-        if (vote === 'down') setDownCount((c) => c - 1);
-        if (nextVote === 'up') setUpCount((c) => c + 1);
-        if (nextVote === 'down') setDownCount((c) => c + 1);
-        setVote(nextVote);
+        const data = (await res.json()) as {
+          mood_up: number;
+          mood_down: number;
+          vote: VoteType;
+        };
+        setUpCount(data.mood_up);
+        setDownCount(data.mood_down);
+        setVote(data.vote);
       }
     } catch {
       // silent fail
