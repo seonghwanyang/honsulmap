@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getFingerprint } from '@/lib/utils';
 import { track } from '@/lib/analytics';
-import { REGIONS as ALL_REGIONS, type Region } from '@/lib/types';
+import { REGIONS as ALL_REGIONS, CITIES, type Region } from '@/lib/types';
 
 interface Props {
   open: boolean;
@@ -18,23 +18,15 @@ const REGION_LABEL_OVERRIDES: Partial<Record<Region, string>> = {
   west: '서부(한림·한경)',
 };
 
-// Group by city so 30 chips don't read as one wall.
-const REGION_GROUPS: { city: '제주' | '서울'; regions: { value: Region; label: string }[] }[] = [
-  {
-    city: '제주',
-    regions: ALL_REGIONS.filter((r) => r.city === 'jeju' && r.value !== 'all').map((r) => ({
-      value: r.value as Region,
-      label: REGION_LABEL_OVERRIDES[r.value as Region] ?? r.label,
-    })),
-  },
-  {
-    city: '서울',
-    regions: ALL_REGIONS.filter((r) => r.city === 'seoul' && r.value !== 'all').map((r) => ({
-      value: r.value as Region,
-      label: r.label,
-    })),
-  },
-];
+// Group by city (derived from CITIES) so the chips don't read as one
+// wall and new cities show up automatically.
+const REGION_GROUPS = CITIES.map((c) => ({
+  city: c.label,
+  regions: ALL_REGIONS.filter((r) => r.city === c.value && r.value !== 'all').map((r) => ({
+    value: r.value as Region,
+    label: REGION_LABEL_OVERRIDES[r.value as Region] ?? r.label,
+  })),
+})).filter((g) => g.regions.length > 0);
 
 const CATEGORIES = [
   { value: 'bar', label: '혼술바' },

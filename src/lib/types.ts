@@ -1,16 +1,36 @@
 // ===== Database Types =====
 
 export type SpotCategory = 'bar' | 'guesthouse';
-export type City = 'jeju' | 'seoul';
+export type City =
+  | 'jeju' | 'seoul' | 'busan' | 'incheon' | 'daejeon'
+  | 'gwangju' | 'daegu' | 'gyeonggi' | 'chungbuk' | 'jeonbuk';
+// New cities (Busan onward) carry a `city_` prefix so 구 names like
+// 중구/서구 stay globally unique on the shared `region` column. Jeju and
+// Seoul keep their legacy bare codes for now — they get retrofitted to
+// jeju_*/seoul_* in a later (off-peak) migration. See the 2026-06-01
+// prefix-retrofit migration.
 export type Region =
-  // Jeju
+  // Jeju (5, legacy bare — retrofit pending)
   | 'jeju' | 'aewol' | 'seogwipo' | 'east' | 'west'
-  // Seoul (25 구)
+  // Seoul (25 구, legacy bare — retrofit pending)
   | 'gangnam' | 'gangdong' | 'gangbuk' | 'gangseo' | 'gwanak'
   | 'gwangjin' | 'guro' | 'geumcheon' | 'nowon' | 'dobong'
   | 'dongdaemun' | 'dongjak' | 'mapo' | 'seodaemun' | 'seocho'
   | 'seongdong' | 'seongbuk' | 'songpa' | 'yangcheon' | 'yeongdeungpo'
-  | 'yongsan' | 'eunpyeong' | 'jongno' | 'jung' | 'jungnang';
+  | 'yongsan' | 'eunpyeong' | 'jongno' | 'jung' | 'jungnang'
+  // Busan (16 구·군)
+  | 'busan_jung' | 'busan_seo' | 'busan_dong' | 'busan_yeongdo'
+  | 'busan_busanjin' | 'busan_dongnae' | 'busan_nam' | 'busan_buk'
+  | 'busan_haeundae' | 'busan_saha' | 'busan_geumjeong' | 'busan_gangseo'
+  | 'busan_yeonje' | 'busan_suyeong' | 'busan_sasang' | 'busan_gijang'
+  // Incheon / Daejeon / Gwangju / Daegu
+  | 'incheon_namdong' | 'incheon_bupyeong'
+  | 'daejeon_seo' | 'daejeon_yuseong'
+  | 'gwangju_seo' | 'gwangju_dong'
+  | 'daegu_jung'
+  // Gyeonggi (시 단위) / Chungbuk / Jeonbuk
+  | 'gyeonggi_suwon' | 'gyeonggi_ansan' | 'gyeonggi_anyang' | 'gyeonggi_bucheon'
+  | 'chungbuk_cheongju' | 'jeonbuk_jeonju';
 export type PostCategory = 'status' | 'review' | 'tip' | 'free';
 export type MediaType = 'image' | 'video';
 export type TargetType = 'spot' | 'post' | 'comment';
@@ -158,13 +178,13 @@ export interface CommentCreateRequest {
 
 export const REGIONS: { value: Region | 'all'; label: string; city?: City }[] = [
   { value: 'all', label: '전체' },
-  // Jeju
+  // Jeju (legacy bare codes — retrofit pending)
   { value: 'jeju', label: '제주시', city: 'jeju' },
   { value: 'aewol', label: '애월', city: 'jeju' },
   { value: 'seogwipo', label: '서귀포', city: 'jeju' },
   { value: 'east', label: '동쪽', city: 'jeju' },
   { value: 'west', label: '서쪽', city: 'jeju' },
-  // Seoul (25 구, 가나다순)
+  // Seoul (25 구, 가나다순 — legacy bare codes, retrofit pending)
   { value: 'gangnam', label: '강남구', city: 'seoul' },
   { value: 'gangdong', label: '강동구', city: 'seoul' },
   { value: 'gangbuk', label: '강북구', city: 'seoul' },
@@ -190,28 +210,88 @@ export const REGIONS: { value: Region | 'all'; label: string; city?: City }[] = 
   { value: 'jongno', label: '종로구', city: 'seoul' },
   { value: 'jung', label: '중구', city: 'seoul' },
   { value: 'jungnang', label: '중랑구', city: 'seoul' },
+  // Busan (16 구·군, 가나다순)
+  { value: 'busan_gangseo', label: '강서구', city: 'busan' },
+  { value: 'busan_geumjeong', label: '금정구', city: 'busan' },
+  { value: 'busan_gijang', label: '기장군', city: 'busan' },
+  { value: 'busan_nam', label: '남구', city: 'busan' },
+  { value: 'busan_dong', label: '동구', city: 'busan' },
+  { value: 'busan_dongnae', label: '동래구', city: 'busan' },
+  { value: 'busan_busanjin', label: '부산진구', city: 'busan' },
+  { value: 'busan_buk', label: '북구', city: 'busan' },
+  { value: 'busan_sasang', label: '사상구', city: 'busan' },
+  { value: 'busan_saha', label: '사하구', city: 'busan' },
+  { value: 'busan_seo', label: '서구', city: 'busan' },
+  { value: 'busan_suyeong', label: '수영구', city: 'busan' },
+  { value: 'busan_yeonje', label: '연제구', city: 'busan' },
+  { value: 'busan_yeongdo', label: '영도구', city: 'busan' },
+  { value: 'busan_jung', label: '중구', city: 'busan' },
+  { value: 'busan_haeundae', label: '해운대구', city: 'busan' },
+  // Incheon
+  { value: 'incheon_namdong', label: '남동구', city: 'incheon' },
+  { value: 'incheon_bupyeong', label: '부평구', city: 'incheon' },
+  // Daejeon
+  { value: 'daejeon_seo', label: '서구', city: 'daejeon' },
+  { value: 'daejeon_yuseong', label: '유성구', city: 'daejeon' },
+  // Gwangju
+  { value: 'gwangju_seo', label: '서구', city: 'gwangju' },
+  { value: 'gwangju_dong', label: '동구', city: 'gwangju' },
+  // Daegu
+  { value: 'daegu_jung', label: '중구', city: 'daegu' },
+  // Gyeonggi (시 단위)
+  { value: 'gyeonggi_suwon', label: '수원', city: 'gyeonggi' },
+  { value: 'gyeonggi_ansan', label: '안산', city: 'gyeonggi' },
+  { value: 'gyeonggi_anyang', label: '안양', city: 'gyeonggi' },
+  { value: 'gyeonggi_bucheon', label: '부천', city: 'gyeonggi' },
+  // Chungbuk / Jeonbuk
+  { value: 'chungbuk_cheongju', label: '청주', city: 'chungbuk' },
+  { value: 'jeonbuk_jeonju', label: '전주', city: 'jeonbuk' },
 ];
 
 export const CITIES: { value: City; label: string }[] = [
   { value: 'jeju', label: '제주' },
   { value: 'seoul', label: '서울' },
+  { value: 'busan', label: '부산' },
+  { value: 'incheon', label: '인천' },
+  { value: 'daejeon', label: '대전' },
+  { value: 'gwangju', label: '광주' },
+  { value: 'daegu', label: '대구' },
+  { value: 'gyeonggi', label: '경기' },
+  { value: 'chungbuk', label: '충북' },
+  { value: 'jeonbuk', label: '전북' },
 ];
 
 // Source of truth for API validation. Keep in lockstep with the Region
-// union and the spot_requests CHECK constraint in the 2026-05-15
+// union and the spots/spot_requests CHECK constraints in the 2026-05-31
 // migration.
 export const VALID_REGIONS = [
-  // Jeju
+  // Jeju (5, legacy bare — retrofit pending)
   'jeju', 'aewol', 'seogwipo', 'east', 'west',
-  // Seoul (25 구)
+  // Seoul (25 구, legacy bare — retrofit pending)
   'gangnam', 'gangdong', 'gangbuk', 'gangseo', 'gwanak',
   'gwangjin', 'guro', 'geumcheon', 'nowon', 'dobong',
   'dongdaemun', 'dongjak', 'mapo', 'seodaemun', 'seocho',
   'seongdong', 'seongbuk', 'songpa', 'yangcheon', 'yeongdeungpo',
   'yongsan', 'eunpyeong', 'jongno', 'jung', 'jungnang',
+  // Busan (16 구·군)
+  'busan_jung', 'busan_seo', 'busan_dong', 'busan_yeongdo',
+  'busan_busanjin', 'busan_dongnae', 'busan_nam', 'busan_buk',
+  'busan_haeundae', 'busan_saha', 'busan_geumjeong', 'busan_gangseo',
+  'busan_yeonje', 'busan_suyeong', 'busan_sasang', 'busan_gijang',
+  // Incheon / Daejeon / Gwangju / Daegu
+  'incheon_namdong', 'incheon_bupyeong',
+  'daejeon_seo', 'daejeon_yuseong',
+  'gwangju_seo', 'gwangju_dong',
+  'daegu_jung',
+  // Gyeonggi (시 단위) / Chungbuk / Jeonbuk
+  'gyeonggi_suwon', 'gyeonggi_ansan', 'gyeonggi_anyang', 'gyeonggi_bucheon',
+  'chungbuk_cheongju', 'jeonbuk_jeonju',
 ] as const satisfies readonly Region[];
 
-export const VALID_CITIES = ['jeju', 'seoul'] as const satisfies readonly City[];
+export const VALID_CITIES = [
+  'jeju', 'seoul', 'busan', 'incheon', 'daejeon',
+  'gwangju', 'daegu', 'gyeonggi', 'chungbuk', 'jeonbuk',
+] as const satisfies readonly City[];
 
 export const POST_CATEGORIES: { value: PostCategory | 'all'; label: string }[] = [
   { value: 'all', label: '전체' },

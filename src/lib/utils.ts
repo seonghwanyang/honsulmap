@@ -30,9 +30,27 @@ export function getFingerprint(): string {
   const stored = localStorage.getItem('honsul_fp');
   if (stored) return stored;
 
-  const fp = crypto.randomUUID();
+  const fp = randomUuid();
   localStorage.setItem('honsul_fp', fp);
   return fp;
+}
+
+// crypto.randomUUID() is secure-context-only — undefined on http:// LAN
+// IPs and older iOS Safari, which throws "randomUUID is not a function".
+// Fall back to getRandomValues (works in insecure contexts) and finally
+// Math.random. A fingerprint only needs to be stable + unique-ish, not
+// cryptographically strong.
+function randomUuid(): string {
+  const c = typeof crypto !== 'undefined' ? crypto : undefined;
+  if (c?.randomUUID) return c.randomUUID();
+  if (c?.getRandomValues) {
+    const b = c.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 0x0f) | 0x40; // version 4
+    b[8] = (b[8] & 0x3f) | 0x80; // variant 10xx
+    const h = Array.from(b, (x) => x.toString(16).padStart(2, '0'));
+    return `${h[0]}${h[1]}${h[2]}${h[3]}-${h[4]}${h[5]}-${h[6]}${h[7]}-${h[8]}${h[9]}-${h[10]}${h[11]}${h[12]}${h[13]}${h[14]}${h[15]}`;
+  }
+  return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
 /**

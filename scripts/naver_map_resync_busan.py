@@ -1,7 +1,7 @@
 """
-서울 spots만 골라서 map.naver.com 내부 API로 재수집.
-- naver_map_resync.py의 서울 버전. 좌표 범위 + 지역 쿼리만 다름.
-- city='seoul' AND naver_place_id IS NULL 인 행만 타겟.
+부산 spots만 골라서 map.naver.com 내부 API로 재수집.
+- naver_map_resync_seoul.py의 부산 버전. 좌표 범위 + 지역 쿼리만 다름.
+- city='busan' AND naver_place_id IS NULL 인 행만 타겟.
 - Playwright로 실제 브라우저 세션 사용, allSearch 응답 가로채서
   placeId + 좌표 + 도로명 주소 추출 후 DB 업데이트.
 """
@@ -21,28 +21,25 @@ log = logging.getLogger(__name__)
 SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
-# 서울 구 → 검색 쿼리 보조어 (가게명에 더해서 검색하면 매칭 정확도 ↑).
-# region 코드는 prefix-retrofit 전까지 bare (gangnam 등).
+# 부산 구 → 검색 쿼리 보조어 (가게명에 더해서 검색하면 매칭 정확도 ↑).
+# 우리가 데이터를 가진 구만 채우면 충분 — 나머지는 '부산' 폴백.
 REGION_HINT = {
-    "gangnam":      "강남",
-    "songpa":       "잠실",
-    "mapo":         "홍대",
-    "yongsan":      "이태원",
-    "seongdong":    "성수",
-    "jongno":       "종로",
-    "yeongdeungpo": "영등포",
-    "gwanak":       "관악",
-    "gwangjin":     "건대",
-    "dongjak":      "사당",
+    "busan_suyeong":  "광안리",
+    "busan_busanjin": "서면",
+    "busan_haeundae": "해운대",
+    "busan_jung":     "부산 중구",
+    "busan_nam":      "부산 남구",
+    "busan_dongnae":  "동래",
+    "busan_yeonje":   "연제",
 }
 
-# Seoul lat/lng bounds (생활권 + 인접 신도시 약간 여유)
-LAT_MIN, LAT_MAX = 37.40, 37.72
-LNG_MIN, LNG_MAX = 126.75, 127.20
+# Busan lat/lng bounds (생활권 + 기장군까지 여유)
+LAT_MIN, LAT_MAX = 35.00, 35.40
+LNG_MIN, LNG_MAX = 128.80, 129.35
 
 
 def pick_best(places, name: str):
-    """서울 좌표 범위 + 이름 유사도 기반"""
+    """부산 좌표 범위 + 이름 유사도 기반"""
     nm = name.replace(" ", "").lower()
     best = None
     for p in places:
@@ -96,13 +93,13 @@ def main():
     rows = (
         sb.table("spots")
         .select("id, name, region, lat, lng, address, naver_place_id, city")
-        .eq("city", "seoul")
+        .eq("city", "busan")
         .execute()
         .data
         or []
     )
     targets = [r for r in rows if not r.get("naver_place_id")]
-    log.info(f"서울 전체 {len(rows)}개, placeId 미수집 {len(targets)}개")
+    log.info(f"부산 전체 {len(rows)}개, placeId 미수집 {len(targets)}개")
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -124,9 +121,9 @@ def main():
         for i, r in enumerate(targets):
             name = r["name"]
             region = r.get("region", "")
-            hint = REGION_HINT.get(region, "서울")
-            # 검색 쿼리 우선순위: 가게명+지역힌트 → 가게명+서울 → 가게명 단독
-            queries = [f"{name} {hint}", f"{name} 서울", name]
+            hint = REGION_HINT.get(region, "부산")
+            # 검색 쿼리 우선순위: 가게명+지역힌트 → 가게명+부산 → 가게명 단독
+            queries = [f"{name} {hint}", f"{name} 부산", name]
 
             log.info(f"[{i+1}/{len(targets)}] {name} (region={region})")
 

@@ -2,6 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { REGIONS } from '@/lib/types';
+
+// All region codes (prefixed, e.g. 'busan_suyeong') from the source of
+// truth — the admin <Sel> shows the raw code, which is fine for editing.
+const REGION_VALUES = REGIONS.filter((r) => r.value !== 'all').map((r) => r.value);
 
 interface AdminSpot {
   id: string;
@@ -14,6 +19,8 @@ interface AdminSpot {
   lat: number;
   lng: number;
   created_at: string;
+  view_count: number;
+  visit_count: number;
 }
 
 export default function AdminSpotsPage() {
@@ -113,6 +120,8 @@ export default function AdminSpotsPage() {
                 <Th>지역</Th>
                 <Th>종류</Th>
                 <Th>IG</Th>
+                <Th align="right">조회수</Th>
+                <Th align="right">다녀왔어요</Th>
                 <Th align="right">액션</Th>
               </tr>
             </thead>
@@ -127,6 +136,8 @@ export default function AdminSpotsPage() {
                   <Td>{s.region}</Td>
                   <Td>{s.category === 'bar' ? '혼술바' : '게하'}</Td>
                   <Td mono>{s.instagram_id || '-'}</Td>
+                  <Td align="right">{s.view_count.toLocaleString()}</Td>
+                  <Td align="right">{s.visit_count.toLocaleString()}</Td>
                   <Td align="right">
                     <div className="flex items-center justify-end gap-2">
                       <button
@@ -283,7 +294,7 @@ function SpotEditDrawer({
               <Sel
                 value={form.region}
                 onChange={(v) => setForm({ ...form, region: v })}
-                options={['jeju', 'aewol', 'seogwipo', 'east', 'west']}
+                options={REGION_VALUES}
               />
             </F>
             <F label="종류">
