@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // Records one row in spot_visits per "다녀왔어요" tap and returns the
 // updated total so the client can show it. No dedup: every tap counts,
 // even from the same fingerprint.
+//
+// Service-role client: server-side event write, kept off the anon client
+// so it can't silently break if an RLS policy drifts (see view/route.ts —
+// the sibling spot_views write was exactly that bug).
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
+  const sb = supabaseAdmin();
 
   let fingerprint: string | undefined;
   try {
@@ -20,7 +25,7 @@ export async function POST(
     // Empty / malformed body is fine — fingerprint stays undefined.
   }
 
-  const { data: spot } = await supabase
+  const { data: spot } = await sb
     .from('spots')
     .select('id')
     .eq('slug', slug)
@@ -30,7 +35,7 @@ export async function POST(
     return NextResponse.json({ ok: false }, { status: 404 });
   }
 
-  const { error: insertError } = await supabase
+  const { error: insertError } = await sb
     .from('spot_visits')
     .insert({ spot_id: spot.id, fingerprint: fingerprint ?? null });
 
@@ -38,7 +43,7 @@ export async function POST(
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 
-  const { count } = await supabase
+  const { count } = await sb
     .from('spot_visits')
     .select('*', { count: 'exact', head: true })
     .eq('spot_id', spot.id);

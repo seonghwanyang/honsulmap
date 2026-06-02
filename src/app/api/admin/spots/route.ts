@@ -4,14 +4,38 @@ import { VALID_REGIONS } from '@/lib/types';
 
 const VALID_CATEGORIES = ['bar', 'guesthouse'] as const;
 
-// List all spots (no story join) for the admin table.
+// List all spots (no story join) for the admin table, each annotated with
+// 조회수 (spot_views) + 다녀왔어요 (spot_visits) counts.
 export async function GET() {
-  const { data, error } = await supabaseAdmin()
-    .from('spots')
-    .select('id, name, slug, region, category, address, lat, lng, instagram_id, created_at')
-    .order('created_at', { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+  const sb = supabaseAdmin();
+  const [spotsRes, viewsRes, visitsRes] = await Promise.all([
+    sb
+      .from('spots')
+      .select('id, name, slug, region, category, address, lat, lng, instagram_id, created_at')
+      .order('created_at', { ascending: false }),
+    sb.from('spot_views').select('spot_id'),
+    sb.from('spot_visits').select('spot_id'),
+  ]);
+  if (spotsRes.error)
+    return NextResponse.json({ error: spotsRes.error.message }, { status: 500 });
+
+  // Aggregate functions are disabled on this project (PGRST123), so tally
+  // the event-log rows into per-spot counts here. Fine at current scale;
+  // revisit with a DB view if either table grows past ~100k rows.
+  const tally = (rows: { spot_id: string }[] | null | undefined) => {
+    const m = new Map<string, number>();
+    for (const r of rows ?? []) m.set(r.spot_id, (m.get(r.spot_id) ?? 0) + 1);
+    return m;
+  };
+  const views = tally(viewsRes.data as { spot_id: string }[] | null);
+  const visits = tally(visitsRes.data as { spot_id: string }[] | null);
+
+  const data = (spotsRes.data ?? []).map((s) => ({
+    ...s,
+    view_count: views.get(s.id) ?? 0,
+    visit_count: visits.get(s.id) ?? 0,
+  }));
+  return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest) {

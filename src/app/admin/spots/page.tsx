@@ -19,6 +19,8 @@ interface AdminSpot {
   lat: number;
   lng: number;
   created_at: string;
+  view_count: number;
+  visit_count: number;
 }
 
 export default function AdminSpotsPage() {
@@ -118,6 +120,8 @@ export default function AdminSpotsPage() {
                 <Th>지역</Th>
                 <Th>종류</Th>
                 <Th>IG</Th>
+                <Th align="right">조회수</Th>
+                <Th align="right">다녀왔어요</Th>
                 <Th align="right">액션</Th>
               </tr>
             </thead>
@@ -132,6 +136,8 @@ export default function AdminSpotsPage() {
                   <Td>{s.region}</Td>
                   <Td>{s.category === 'bar' ? '혼술바' : '게하'}</Td>
                   <Td mono>{s.instagram_id || '-'}</Td>
+                  <Td align="right">{s.view_count.toLocaleString()}</Td>
+                  <Td align="right">{s.visit_count.toLocaleString()}</Td>
                   <Td align="right">
                     <div className="flex items-center justify-end gap-2">
                       <button
