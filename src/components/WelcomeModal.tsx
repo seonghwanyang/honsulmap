@@ -31,6 +31,14 @@ export default function WelcomeModal({ onFindNearby, onReportSpot }: Props) {
     } catch {
       // localStorage blocked (private mode etc.) — still close.
     }
+    // Tell the home-screen prompt the location/intro step is done and the
+    // un-blurred map is now showing, so it can nudge afterward (not on top
+    // of this modal).
+    try {
+      window.dispatchEvent(new CustomEvent('honsulmap:welcome-closed'));
+    } catch {
+      // ignore
+    }
     setOpen(false);
   };
 
