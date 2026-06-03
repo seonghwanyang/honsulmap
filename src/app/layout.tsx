@@ -4,6 +4,7 @@ import './globals.css';
 import BottomNav from '@/components/BottomNav';
 import Footer from '@/components/Footer';
 import ClarityScript from '@/components/analytics/ClarityScript';
+import AddToHomePrompt from '@/components/AddToHomePrompt';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
@@ -64,6 +65,17 @@ export const metadata: Metadata = {
   creator: '혼술맵',
   publisher: '혼술맵',
   category: '여행·라이프스타일',
+  appleWebApp: {
+    capable: true,
+    title: '혼술맵',
+    statusBarStyle: 'default',
+  },
+  // Legacy iOS (<16.4) reads the apple- prefixed tag for standalone
+  // launch; Next now emits only the modern mobile-web-app-capable, so add
+  // the old one too for full coverage.
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+  },
   robots: {
     index: true,
     follow: true,
@@ -152,6 +164,7 @@ export default function RootLayout({
         <main>{children}</main>
         <Footer />
         <BottomNav />
+        <AddToHomePrompt />
         <ClarityScript />
       </body>
       {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
