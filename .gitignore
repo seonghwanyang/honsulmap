@@ -81,3 +81,6 @@ worker_venv/
 .venv/
 .omc/
 .claude/scheduled_tasks.lock
+
+# Google OAuth client secret JSON — never commit (public repo)
+client_secret_*.json
