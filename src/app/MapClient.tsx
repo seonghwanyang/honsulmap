@@ -8,6 +8,10 @@ import LocationPicker from '@/components/LocationPicker';
 import CategoryFilter, { CategoryFilterValue } from '@/components/CategoryFilter';
 import SpotRequestModal from '@/components/SpotRequestModal';
 import WelcomeModal from '@/components/WelcomeModal';
+import LoginModal from '@/components/LoginModal';
+import { useUser } from '@/lib/useUser';
+import { guestMayOpenSpot, recordGuestSpotView, FREE_SPOT_VIEWS } from '@/lib/metering';
+import { createBrowserSupabase } from '@/lib/supabase/client';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
@@ -279,6 +283,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [spots, setSpots] = useState<SpotWithStories[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState<SpotWithStories | null>(null);
+  const { user } = useUser();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginReason, setLoginReason] = useState<string | undefined>(undefined);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
@@ -336,6 +343,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
 
   const openSpotPanel = useCallback(
     (spot: SpotWithStories, entry_source: EntrySource) => {
+      // Soft metered gate: guests get FREE_SPOT_VIEWS distinct spots, then a
+      // login nudge before a new one. Logged-in users skip this entirely.
+      if (!user && !guestMayOpenSpot(spot.slug)) {
+        setLoginReason(`오늘 가게 ${FREE_SPOT_VIEWS}곳을 봤어요 · 로그인하면 계속 둘러볼 수 있어요`);
+        setLoginOpen(true);
+        return;
+      }
+      if (!user) recordGuestSpotView(spot.slug);
       // If a panel is already open for a different spot, flush its dwell
       // before swapping in the next one (replacement-by-other-pin path).
       if (panelSpotIdRef.current && panelSpotIdRef.current !== spot.id) {
@@ -350,13 +365,18 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // open never blocks on this network call.
       fetch(`/api/spots/${spot.slug}/view`, { method: 'POST' }).catch(() => {});
     },
-    [flushPanelDwell],
+    [flushPanelDwell, user],
   );
 
   const closeSpotPanel = useCallback(() => {
     flushPanelDwell();
     setSelectedSpot(null);
   }, [flushPanelDwell]);
+
+  const handleLogout = useCallback(async () => {
+    const supabase = createBrowserSupabase();
+    await supabase.auth.signOut();
+  }, []);
 
   const handleDragStart = (e: React.TouchEvent) => {
     dragStartYRef.current = e.touches[0].clientY;
@@ -1292,6 +1312,32 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             전국 혼술바 실시간
           </span>
         </div>
+        <div className="ml-auto flex items-center">
+          {user ? (
+            <button
+              type="button"
+              onClick={() => { if (window.confirm('로그아웃할까요?')) handleLogout(); }}
+              title="로그아웃"
+              aria-label="로그아웃"
+              className="flex items-center justify-center"
+              style={{ width: 32, height: 32, borderRadius: 999, background: '#fff', color: '#6b7280', border: '1px solid #e5e7eb', cursor: 'pointer' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { setLoginReason(undefined); setLoginOpen(true); }}
+              style={{ fontSize: 13, fontWeight: 600, color: '#111827', padding: '6px 12px', borderRadius: 999, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}
+            >
+              로그인
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Sticky overlay stack above the map. The filter chips keep
@@ -1444,6 +1490,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       <WelcomeModal
         onFindNearby={handleGps}
         onReportSpot={() => setRequestOpen(true)}
+      />
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        reason={loginReason}
       />
 
       {/* Bottom Sheet: Spot List */}

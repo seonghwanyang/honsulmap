@@ -163,11 +163,15 @@ async function fetchPlace(placeId: string): Promise<PlaceData | null> {
 }
 
 (async () => {
-  const { data: spots, error } = await s
+  let query = s
     .from('spots')
     .select('id, name, naver_place_id, business_hours, phone, image_urls, naver_photos, naver_menus')
     .not('naver_place_id', 'is', null)
     .neq('naver_place_id', '');
+  // Optional targeted re-sync: SYNC_IDS=placeId1,placeId2 limits to those.
+  const onlyIds = process.env.SYNC_IDS?.split(',').map((x) => x.trim()).filter(Boolean);
+  if (onlyIds && onlyIds.length) query = query.in('naver_place_id', onlyIds);
+  const { data: spots, error } = await query;
   if (error) {
     console.error(error);
     return;
