@@ -1318,10 +1318,15 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               type="button"
               onClick={() => { if (window.confirm('로그아웃할까요?')) handleLogout(); }}
               title="로그아웃"
+              aria-label="로그아웃"
               className="flex items-center justify-center"
-              style={{ width: 30, height: 30, borderRadius: 999, background: '#111827', color: '#fff', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+              style={{ width: 32, height: 32, borderRadius: 999, background: '#fff', color: '#6b7280', border: '1px solid #e5e7eb', cursor: 'pointer' }}
             >
-              {(user.email?.[0] ?? '나').toUpperCase()}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
             </button>
           ) : (
             <button
