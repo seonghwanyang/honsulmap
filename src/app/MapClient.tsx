@@ -8,6 +8,10 @@ import LocationPicker from '@/components/LocationPicker';
 import CategoryFilter, { CategoryFilterValue } from '@/components/CategoryFilter';
 import SpotRequestModal from '@/components/SpotRequestModal';
 import WelcomeModal from '@/components/WelcomeModal';
+import LoginModal from '@/components/LoginModal';
+import { useUser } from '@/lib/useUser';
+import { guestMayOpenSpot, recordGuestSpotView, FREE_SPOT_VIEWS } from '@/lib/metering';
+import { createBrowserSupabase } from '@/lib/supabase/client';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
@@ -279,6 +283,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [spots, setSpots] = useState<SpotWithStories[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState<SpotWithStories | null>(null);
+  const { user } = useUser();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginReason, setLoginReason] = useState<string | undefined>(undefined);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
@@ -336,6 +343,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
 
   const openSpotPanel = useCallback(
     (spot: SpotWithStories, entry_source: EntrySource) => {
+      // Soft metered gate: guests get FREE_SPOT_VIEWS distinct spots, then a
+      // login nudge before a new one. Logged-in users skip this entirely.
+      if (!user && !guestMayOpenSpot(spot.slug)) {
+        setLoginReason(`오늘 가게 ${FREE_SPOT_VIEWS}곳을 봤어요 · 로그인하면 계속 둘러볼 수 있어요`);
+        setLoginOpen(true);
+        return;
+      }
+      if (!user) recordGuestSpotView(spot.slug);
       // If a panel is already open for a different spot, flush its dwell
       // before swapping in the next one (replacement-by-other-pin path).
       if (panelSpotIdRef.current && panelSpotIdRef.current !== spot.id) {
@@ -350,13 +365,18 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // open never blocks on this network call.
       fetch(`/api/spots/${spot.slug}/view`, { method: 'POST' }).catch(() => {});
     },
-    [flushPanelDwell],
+    [flushPanelDwell, user],
   );
 
   const closeSpotPanel = useCallback(() => {
     flushPanelDwell();
     setSelectedSpot(null);
   }, [flushPanelDwell]);
+
+  const handleLogout = useCallback(async () => {
+    const supabase = createBrowserSupabase();
+    await supabase.auth.signOut();
+  }, []);
 
   const handleDragStart = (e: React.TouchEvent) => {
     dragStartYRef.current = e.touches[0].clientY;
@@ -1292,6 +1312,27 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             전국 혼술바 실시간
           </span>
         </div>
+        <div className="ml-auto flex items-center">
+          {user ? (
+            <button
+              type="button"
+              onClick={() => { if (window.confirm('로그아웃할까요?')) handleLogout(); }}
+              title="로그아웃"
+              className="flex items-center justify-center"
+              style={{ width: 30, height: 30, borderRadius: 999, background: '#111827', color: '#fff', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+            >
+              {(user.email?.[0] ?? '나').toUpperCase()}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { setLoginReason(undefined); setLoginOpen(true); }}
+              style={{ fontSize: 13, fontWeight: 600, color: '#111827', padding: '6px 12px', borderRadius: 999, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}
+            >
+              로그인
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Sticky overlay stack above the map. The filter chips keep
@@ -1444,6 +1485,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       <WelcomeModal
         onFindNearby={handleGps}
         onReportSpot={() => setRequestOpen(true)}
+      />
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        reason={loginReason}
       />
 
       {/* Bottom Sheet: Spot List */}
