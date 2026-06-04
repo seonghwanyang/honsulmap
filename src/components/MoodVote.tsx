@@ -58,9 +58,9 @@ export default function MoodVote({ spotId, initialUp, initialDown }: MoodVotePro
         className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium transition-colors"
         style={{
           borderRadius: '999px',
-          background: vote === 'up' ? '#F59E0B' : '#2a2d33',
-          color: vote === 'up' ? '#ffffff' : '#888888',
-          border: vote === 'up' ? '1px solid #F59E0B' : '1px solid #3a3d43',
+          background: vote === 'up' ? '#A7F3D0' : '#2a2d33',
+          color: vote === 'up' ? '#065F46' : '#888888',
+          border: vote === 'up' ? '1px solid #6EE7B7' : '1px solid #3a3d43',
           cursor: loading ? 'not-allowed' : 'pointer',
         }}
       >
@@ -72,9 +72,9 @@ export default function MoodVote({ spotId, initialUp, initialDown }: MoodVotePro
         className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium transition-colors"
         style={{
           borderRadius: '999px',
-          background: vote === 'down' ? '#EF4444' : '#2a2d33',
-          color: vote === 'down' ? '#ffffff' : '#888888',
-          border: vote === 'down' ? '1px solid #EF4444' : '1px solid #3a3d43',
+          background: vote === 'down' ? '#FECDD3' : '#2a2d33',
+          color: vote === 'down' ? '#9F1239' : '#888888',
+          border: vote === 'down' ? '1px solid #FDA4AF' : '1px solid #3a3d43',
           cursor: loading ? 'not-allowed' : 'pointer',
         }}
       >
