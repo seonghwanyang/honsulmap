@@ -58,6 +58,8 @@ export default function AddToHomePrompt() {
     }
 
     const ua = navigator.userAgent || '';
+    // Mobile only — "홈 화면에 추가" doesn't apply on desktop browsers.
+    if (!/android|iphone|ipad|ipod|mobi/i.test(ua)) return;
     const isIOS = /iphone|ipad|ipod/i.test(ua);
     const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios/i.test(ua);
 
