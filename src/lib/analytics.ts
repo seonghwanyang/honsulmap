@@ -120,6 +120,8 @@ export type EventParams = {
   write_submitted: WriteSubmittedParams;
   feed_load_more: { region: string; loaded: number };
   gps_centered: { lat: number; lng: number };
+  pwa_installed: { platform?: string };
+  pwa_launch_standalone: { platform?: string };
 };
 
 export type EventName = keyof EventParams;

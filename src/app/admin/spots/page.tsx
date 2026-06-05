@@ -28,6 +28,7 @@ export default function AdminSpotsPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<AdminSpot | null>(null);
+  const [sortBy, setSortBy] = useState<'recent' | 'view' | 'visit'>('recent');
 
   async function reload() {
     setLoading(true);
@@ -58,6 +59,14 @@ export default function AdminSpotsPage() {
       s.slug.toLowerCase().includes(q) ||
       (s.instagram_id ?? '').toLowerCase().includes(q)
     );
+  });
+
+  // Click 조회수 / 다녀왔어요 header to sort most→least; 'recent' keeps the
+  // API order (created_at desc).
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'view') return b.view_count - a.view_count;
+    if (sortBy === 'visit') return b.visit_count - a.visit_count;
+    return 0;
   });
 
   return (
@@ -120,13 +129,25 @@ export default function AdminSpotsPage() {
                 <Th>지역</Th>
                 <Th>종류</Th>
                 <Th>IG</Th>
-                <Th align="right">조회수</Th>
-                <Th align="right">다녀왔어요</Th>
+                <Th
+                  align="right"
+                  onClick={() => setSortBy(sortBy === 'view' ? 'recent' : 'view')}
+                  active={sortBy === 'view'}
+                >
+                  조회수
+                </Th>
+                <Th
+                  align="right"
+                  onClick={() => setSortBy(sortBy === 'visit' ? 'recent' : 'visit')}
+                  active={sortBy === 'visit'}
+                >
+                  다녀왔어요
+                </Th>
                 <Th align="right">액션</Th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s, i) => (
+              {sorted.map((s, i) => (
                 <tr
                   key={s.id}
                   style={{ borderTop: i > 0 ? '1px solid #f3f4f6' : 'none' }}
@@ -187,18 +208,33 @@ export default function AdminSpotsPage() {
   );
 }
 
-function Th({ children, align }: { children: React.ReactNode; align?: 'right' }) {
+function Th({
+  children,
+  align,
+  onClick,
+  active,
+}: {
+  children: React.ReactNode;
+  align?: 'right';
+  onClick?: () => void;
+  active?: boolean;
+}) {
   return (
     <th
       className="px-3 py-2"
+      onClick={onClick}
       style={{
         textAlign: align || 'left',
         fontWeight: 600,
-        color: '#6b7280',
+        color: active ? '#111827' : '#6b7280',
         fontSize: 11,
+        cursor: onClick ? 'pointer' : undefined,
+        userSelect: 'none',
+        whiteSpace: 'nowrap',
       }}
     >
       {children}
+      {active ? ' ▼' : ''}
     </th>
   );
 }

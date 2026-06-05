@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import ReportModal from '@/components/ReportModal';
+import SharedLikeButton from '@/components/LikeButton';
 import { Post } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getFingerprint } from '@/lib/utils';
 import { usePageDwell } from '@/lib/hooks/usePageDwell';
@@ -39,14 +40,18 @@ function LikeButton({
 
   const handleLike = async () => {
     try {
-      const res = await fetch('/api/likes', {
+      // Per-type routes (service-role, persist the count). The old generic
+      // /api/likes endpoint never existed → post likes 404'd silently.
+      const path =
+        targetType === 'post'
+          ? `/api/posts/${targetId}/like`
+          : targetType === 'comment'
+            ? `/api/comments/${targetId}/like`
+            : `/api/spots/${targetId}/like`;
+      const res = await fetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          target_type: targetType,
-          target_id: targetId,
-          fingerprint: getFingerprint(),
-        }),
+        body: JSON.stringify({ fingerprint: getFingerprint() }),
       });
       if (res.ok) {
         setLiked((v) => !v);
@@ -243,6 +248,9 @@ function CommentSection({ postId }: { postId: string }) {
             <p className="text-sm" style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>
               {c.content}
             </p>
+            <div className="mt-1">
+              <SharedLikeButton targetType="comment" targetId={c.id} initialCount={c.like_count} />
+            </div>
 
             {c.replies && c.replies.length > 0 && (
               <div
@@ -269,6 +277,9 @@ function CommentSection({ postId }: { postId: string }) {
                     <p className="text-sm" style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>
                       {r.content}
                     </p>
+                    <div className="mt-1">
+                      <SharedLikeButton targetType="comment" targetId={r.id} initialCount={r.like_count} />
+                    </div>
                   </div>
                 ))}
               </div>
