@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { track } from '@/lib/analytics';
 
 const DISMISS_KEY = 'honsulmap_a2hs_dismissed';
 const INSTALLED_KEY = 'honsulmap_pwa_installed';
@@ -58,6 +59,8 @@ export default function AddToHomePrompt() {
     }
 
     const ua = navigator.userAgent || '';
+    // Mobile only — "홈 화면에 추가" doesn't apply on desktop browsers.
+    if (!/android|iphone|ipad|ipod|mobi/i.test(ua)) return;
     const isIOS = /iphone|ipad|ipod/i.test(ua);
     const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios/i.test(ua);
 
@@ -97,6 +100,7 @@ export default function AddToHomePrompt() {
       } catch {
         // ignore
       }
+      track('pwa_installed', { platform: isIOS ? 'ios' : 'android' });
       setVisible(false);
     };
     const onWelcomeClosed = () => {
@@ -127,6 +131,20 @@ export default function AddToHomePrompt() {
       if (revealTimer) clearTimeout(revealTimer);
     };
   }, [pathname]);
+
+  // Install tracking, independent of the nudge UI: if the app is running
+  // standalone (opened from the home screen), count it once per page load.
+  // Fires on any route, unlike the nudge effect which is map-only.
+  useEffect(() => {
+    if (!isStandalone()) return;
+    const ua = navigator.userAgent || '';
+    const platform = /iphone|ipad|ipod/i.test(ua)
+      ? 'ios'
+      : /android/i.test(ua)
+        ? 'android'
+        : 'desktop';
+    track('pwa_launch_standalone', { platform });
+  }, []);
 
   const dismiss = () => {
     setVisible(false);

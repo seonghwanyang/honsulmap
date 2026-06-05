@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import ReportModal from '@/components/ReportModal';
+import SharedLikeButton from '@/components/LikeButton';
 import { Post } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getFingerprint } from '@/lib/utils';
 import { usePageDwell } from '@/lib/hooks/usePageDwell';
@@ -36,37 +37,50 @@ function LikeButton({
 }) {
   const [liked, setLiked] = useState(false);
   const [count, setCount] = useState(initialCount);
+  const [loading, setLoading] = useState(false);
 
   const handleLike = async () => {
+    if (loading) return; // guard: no concurrent toggles → no duplicate likes
+    setLoading(true);
     try {
-      const res = await fetch('/api/likes', {
+      // Per-type routes (service-role, persist the count). The old generic
+      // /api/likes endpoint never existed → post likes 404'd silently.
+      const path =
+        targetType === 'post'
+          ? `/api/posts/${targetId}/like`
+          : targetType === 'comment'
+            ? `/api/comments/${targetId}/like`
+            : `/api/spots/${targetId}/like`;
+      const res = await fetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          target_type: targetType,
-          target_id: targetId,
-          fingerprint: getFingerprint(),
-        }),
+        body: JSON.stringify({ fingerprint: getFingerprint() }),
       });
       if (res.ok) {
-        setLiked((v) => !v);
-        setCount((c) => (liked ? c - 1 : c + 1));
+        // Mirror the server's authoritative state — no optimistic drift.
+        const data = (await res.json()) as { liked: boolean; count: number };
+        setLiked(data.liked);
+        setCount(data.count);
       }
     } catch (err) {
       console.error('Like error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <button
       onClick={handleLike}
+      disabled={loading}
       className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium"
       style={{
         background: liked ? '#111827' : '#f8f9fa',
         color: liked ? '#ffffff' : '#6b7280',
         borderRadius: '8px',
         border: liked ? '1.5px solid #111827' : '1.5px solid #e5e7eb',
-        cursor: 'pointer',
+        cursor: loading ? 'not-allowed' : 'pointer',
+        opacity: loading ? 0.6 : 1,
       }}
     >
       <span>{liked ? '♥' : '♡'}</span>
@@ -93,6 +107,13 @@ function CommentSection({ postId }: { postId: string }) {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  // Reply form keeps its own state so the top "new comment" form stays
+  // usable at the same time as an open reply box.
+  const [replyNickname, setReplyNickname] = useState('');
+  const [replyPassword, setReplyPassword] = useState('');
+  const [replyContent, setReplyContent] = useState('');
+  const [replySubmitting, setReplySubmitting] = useState(false);
+  const [replyError, setReplyError] = useState('');
   const [reportId, setReportId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -117,36 +138,144 @@ function CommentSection({ postId }: { postId: string }) {
     }
     setSubmitting(true);
     try {
-      const body: Record<string, string> = { post_id: postId, nickname, password, content };
-      if (replyTo) body.parent_id = replyTo;
       const res = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ post_id: postId, nickname, password, content }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `댓글 등록 실패 (${res.status})`);
       }
       const newComment = await res.json();
-      if (replyTo) {
-        setComments((prev) =>
-          prev.map((c) =>
-            c.id === replyTo
-              ? { ...c, replies: [...(c.replies || []), newComment] }
-              : c,
-          ),
-        );
-      } else {
-        setComments((prev) => [{ ...newComment, replies: [] }, ...prev]);
-      }
+      setComments((prev) => [{ ...newComment, replies: [] }, ...prev]);
       setContent('');
-      setReplyTo(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleReplySubmit = async (e: React.FormEvent, parentId: string) => {
+    e.preventDefault();
+    if (!replyNickname.trim() || !replyPassword.trim() || !replyContent.trim()) return;
+    setReplyError('');
+    if (replyPassword.length < 4) {
+      setReplyError('비밀번호는 4자 이상이어야 합니다.');
+      return;
+    }
+    setReplySubmitting(true);
+    try {
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: postId,
+          parent_id: parentId,
+          nickname: replyNickname,
+          password: replyPassword,
+          content: replyContent,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `답글 등록 실패 (${res.status})`);
+      }
+      const newReply = await res.json();
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === parentId ? { ...c, replies: [...(c.replies || []), newReply] } : c,
+        ),
+      );
+      setReplyContent('');
+      setReplyPassword('');
+      setReplyNickname('');
+      setReplyTo(null);
+    } catch (err) {
+      setReplyError(err instanceof Error ? err.message : '오류가 발생했습니다');
+    } finally {
+      setReplySubmitting(false);
+    }
+  };
+
+  // Form JSX, used twice with independent state: the top form for a new
+  // top-level comment (isReply=false), and an inline form under a comment
+  // when replying (isReply=true) so both can be open at once.
+  const renderForm = (isReply: boolean, parentId?: string) => {
+    const nick = isReply ? replyNickname : nickname;
+    const setNick = isReply ? setReplyNickname : setNickname;
+    const pw = isReply ? replyPassword : password;
+    const setPw = isReply ? setReplyPassword : setPassword;
+    const text = isReply ? replyContent : content;
+    const setText = isReply ? setReplyContent : setContent;
+    const busy = isReply ? replySubmitting : submitting;
+    const err = isReply ? replyError : error;
+    const disabled = busy || !nick.trim() || !pw.trim() || !text.trim();
+    return (
+      <form
+        onSubmit={(e) => (isReply ? handleReplySubmit(e, parentId!) : handleSubmit(e))}
+        className="flex flex-col gap-2"
+      >
+        <div className="flex gap-2">
+          <input
+            placeholder="닉네임"
+            value={nick}
+            onChange={(e) => setNick(e.target.value)}
+            className="flex-1 px-3 py-2 text-sm"
+            style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+          />
+          <input
+            type="password"
+            placeholder="비밀번호"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            className="flex-1 px-3 py-2 text-sm"
+            style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+          />
+        </div>
+        <textarea
+          placeholder={isReply ? '답글을 남겨주세요' : '댓글을 남겨주세요'}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={3}
+          className="w-full px-3 py-2 text-sm resize-none"
+          style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+        />
+        <p className="text-xs" style={{ color: '#9ca3af' }}>
+          비밀번호는 4자 이상 · 댓글 수정·삭제할 때 쓰여요
+        </p>
+        {err && <p className="text-xs" style={{ color: '#ef4444' }}>{err}</p>}
+        <div className="flex items-center justify-end gap-3">
+          {isReply && (
+            <button
+              type="button"
+              onClick={() => {
+                setReplyTo(null);
+                setReplyError('');
+              }}
+              className="text-xs"
+              style={{ color: '#6b7280' }}
+            >
+              취소
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={disabled}
+            className="px-4 py-2 text-sm font-medium"
+            style={{
+              background: '#111827',
+              color: '#ffffff',
+              borderRadius: '8px',
+              opacity: disabled ? 0.4 : 1,
+            }}
+          >
+            {busy ? '등록 중...' : isReply ? '답글 등록' : '등록'}
+          </button>
+        </div>
+      </form>
+    );
   };
 
   return (
@@ -155,65 +284,7 @@ function CommentSection({ postId }: { postId: string }) {
         댓글 {comments.length > 0 && `(${comments.length})`}
       </p>
 
-      <form onSubmit={handleSubmit} className="mb-4 flex flex-col gap-2">
-        {replyTo && (
-          <div
-            className="flex items-center justify-between px-3 py-1.5 text-xs"
-            style={{ background: '#f3f4f6', borderRadius: '6px', color: '#374151' }}
-          >
-            <span>답글 작성 중</span>
-            <button
-              type="button"
-              onClick={() => setReplyTo(null)}
-              style={{ color: '#6b7280' }}
-            >
-              취소
-            </button>
-          </div>
-        )}
-        <div className="flex gap-2">
-          <input
-            placeholder="닉네임"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            className="flex-1 px-3 py-2 text-sm"
-            style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-          />
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="flex-1 px-3 py-2 text-sm"
-            style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-          />
-        </div>
-        <textarea
-          placeholder="댓글을 남겨주세요"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={3}
-          className="w-full px-3 py-2 text-sm resize-none"
-          style={{ background: '#f9fafb', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-        />
-        <p className="text-xs" style={{ color: '#9ca3af' }}>
-          비밀번호는 4자 이상 · 댓글 수정·삭제할 때 쓰여요
-        </p>
-        {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting || !nickname.trim() || !password.trim() || !content.trim()}
-          className="self-end px-4 py-2 text-sm font-medium"
-          style={{
-            background: '#111827',
-            color: '#ffffff',
-            borderRadius: '8px',
-            opacity: submitting || !nickname.trim() || !password.trim() || !content.trim() ? 0.4 : 1,
-          }}
-        >
-          {submitting ? '등록 중...' : '등록'}
-        </button>
-      </form>
+      <div className="mb-4">{renderForm(false)}</div>
 
       <div className="divide-y" style={{ borderColor: '#f3f4f6' }}>
         {comments.map((c) => (
@@ -226,9 +297,9 @@ function CommentSection({ postId }: { postId: string }) {
                 {relativeTime(c.created_at)}
               </span>
               <button
-                onClick={() => setReplyTo(c.id)}
+                onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}
                 className="ml-auto text-xs"
-                style={{ color: '#6b7280' }}
+                style={{ color: replyTo === c.id ? '#111827' : '#6b7280', fontWeight: replyTo === c.id ? 600 : 400 }}
               >
                 답글
               </button>
@@ -243,6 +314,15 @@ function CommentSection({ postId }: { postId: string }) {
             <p className="text-sm" style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>
               {c.content}
             </p>
+            <div className="mt-1">
+              <SharedLikeButton targetType="comment" targetId={c.id} initialCount={c.like_count} />
+            </div>
+
+            {replyTo === c.id && (
+              <div className="mt-2 pl-3 border-l-2" style={{ borderColor: '#e5e7eb' }}>
+                {renderForm(true, c.id)}
+              </div>
+            )}
 
             {c.replies && c.replies.length > 0 && (
               <div
@@ -269,6 +349,9 @@ function CommentSection({ postId }: { postId: string }) {
                     <p className="text-sm" style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>
                       {r.content}
                     </p>
+                    <div className="mt-1">
+                      <SharedLikeButton targetType="comment" targetId={r.id} initialCount={r.like_count} />
+                    </div>
                   </div>
                 ))}
               </div>
