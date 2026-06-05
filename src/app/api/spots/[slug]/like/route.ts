@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-// Service-role: the like row inserts fine via anon, but the spots.like_count
-// UPDATE is RLS-denied for anon, so the count never persisted (looked broken
-// on reload). Server route → service role updates the count too.
+// Spot like toggle. Authoritative count (delete-all on unlike → self-heals
+// duplicates, insert-one on like, recount from the table). Service-role so
+// the spots.like_count UPDATE isn't RLS-denied.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
@@ -11,18 +11,12 @@ export async function POST(
   const { slug } = await params;
   const body = await request.json().catch(() => ({}));
   const { fingerprint } = body as { fingerprint?: string };
-
   if (!fingerprint) {
     return NextResponse.json({ error: 'fingerprint가 필요합니다.' }, { status: 400 });
   }
 
   const sb = supabaseAdmin();
-
-  const { data: spot } = await sb
-    .from('spots')
-    .select('id, like_count')
-    .eq('slug', slug)
-    .single();
+  const { data: spot } = await sb.from('spots').select('id').eq('slug', slug).single();
   if (!spot) {
     return NextResponse.json({ error: '가게를 찾을 수 없습니다.' }, { status: 404 });
   }
@@ -32,27 +26,32 @@ export async function POST(
     .select('id')
     .eq('target_type', 'spot')
     .eq('target_id', spot.id)
-    .eq('fingerprint', fingerprint)
-    .maybeSingle();
+    .eq('fingerprint', fingerprint);
+  const has = (existing?.length ?? 0) > 0;
 
-  if (existing) {
-    await sb.from('likes').delete().eq('id', existing.id);
+  if (has) {
     await sb
-      .from('spots')
-      .update({ like_count: Math.max(0, (spot.like_count ?? 1) - 1) })
-      .eq('id', spot.id);
-    return NextResponse.json({ liked: false });
+      .from('likes')
+      .delete()
+      .eq('target_type', 'spot')
+      .eq('target_id', spot.id)
+      .eq('fingerprint', fingerprint);
+  } else {
+    const { error } = await sb
+      .from('likes')
+      .insert([{ target_type: 'spot', target_id: spot.id, fingerprint }]);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   }
 
-  const { error: insertError } = await sb
+  const { count } = await sb
     .from('likes')
-    .insert([{ target_type: 'spot', target_id: spot.id, fingerprint }]);
-  if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 500 });
-  }
-  await sb
-    .from('spots')
-    .update({ like_count: (spot.like_count ?? 0) + 1 })
-    .eq('id', spot.id);
-  return NextResponse.json({ liked: true });
+    .select('id', { count: 'exact', head: true })
+    .eq('target_type', 'spot')
+    .eq('target_id', spot.id);
+  const total = count ?? 0;
+  await sb.from('spots').update({ like_count: total }).eq('id', spot.id);
+
+  return NextResponse.json({ liked: !has, count: total });
 }

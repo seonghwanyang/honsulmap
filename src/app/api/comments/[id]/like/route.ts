@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-// Service-role: the like row inserts via anon, but the comments.like_count
-// UPDATE is RLS-denied for anon → the count never persisted.
+// Comment like toggle. Same authoritative pattern as posts: delete-all on
+// unlike (self-heals duplicates), insert-one on like, recount from the
+// table. Service-role so the comments.like_count UPDATE isn't RLS-denied.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -20,33 +21,32 @@ export async function POST(
     .select('id')
     .eq('target_type', 'comment')
     .eq('target_id', id)
-    .eq('fingerprint', fingerprint)
-    .maybeSingle();
+    .eq('fingerprint', fingerprint);
+  const has = (existing?.length ?? 0) > 0;
 
-  if (existing) {
-    await sb.from('likes').delete().eq('id', existing.id);
-    const { data: c } = await sb.from('comments').select('like_count').eq('id', id).single();
-    if (c) {
-      await sb
-        .from('comments')
-        .update({ like_count: Math.max(0, (c.like_count ?? 1) - 1) })
-        .eq('id', id);
-    }
-    return NextResponse.json({ liked: false });
-  }
-
-  const { error: insertError } = await sb
-    .from('likes')
-    .insert([{ target_type: 'comment', target_id: id, fingerprint }]);
-  if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 500 });
-  }
-  const { data: c } = await sb.from('comments').select('like_count').eq('id', id).single();
-  if (c) {
+  if (has) {
     await sb
-      .from('comments')
-      .update({ like_count: (c.like_count ?? 0) + 1 })
-      .eq('id', id);
+      .from('likes')
+      .delete()
+      .eq('target_type', 'comment')
+      .eq('target_id', id)
+      .eq('fingerprint', fingerprint);
+  } else {
+    const { error } = await sb
+      .from('likes')
+      .insert([{ target_type: 'comment', target_id: id, fingerprint }]);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   }
-  return NextResponse.json({ liked: true });
+
+  const { count } = await sb
+    .from('likes')
+    .select('id', { count: 'exact', head: true })
+    .eq('target_type', 'comment')
+    .eq('target_id', id);
+  const total = count ?? 0;
+  await sb.from('comments').update({ like_count: total }).eq('id', id);
+
+  return NextResponse.json({ liked: !has, count: total });
 }

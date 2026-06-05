@@ -34,14 +34,10 @@ export default function LikeButton({ targetType, targetId, initialCount }: LikeB
         body: JSON.stringify({ fingerprint }),
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.toggled === false) {
-          // already liked - server rejected duplicate
-          return;
-        }
-        const next = !liked;
-        setLiked(next);
-        setCount((c) => (next ? c + 1 : c - 1));
+        // Mirror the server's authoritative state — no optimistic drift.
+        const data = (await res.json()) as { liked: boolean; count: number };
+        setLiked(data.liked);
+        setCount(data.count);
       }
     } catch {
       // silent fail
