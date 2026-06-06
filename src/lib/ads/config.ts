@@ -5,9 +5,10 @@ export type AdFormat =
   | 'banner-160x600'
   | 'banner-160x300'
   | 'banner-320x50'
+  | 'banner-320x100'
   | 'banner-728x90';
 
-export type AdProvider = 'adsterra-banner' | 'adsterra-native' | 'placeholder';
+export type AdProvider = 'adsterra-banner' | 'adsterra-native' | 'adfit-banner' | 'placeholder';
 
 export interface AdUnit {
   id: string;
@@ -18,6 +19,7 @@ export interface AdUnit {
   provider: AdProvider;
   adsterraKey?: string;
   adsterraScriptSrc?: string;
+  adfitUnitId?: string;
 }
 
 // Adsterra banner iframes all load invoke.js from highperformanceformat.com
@@ -27,7 +29,31 @@ const ADSTERRA_BANNER_BASE = 'https://www.highperformanceformat.com';
 const ADSTERRA_NATIVE_SCRIPT =
   'https://pl29192362.profitablecpmratenetwork.com/240681be25c984bf178926a8d3641744/invoke.js';
 
+// AdFit (Kakao) — unit IDs (DAN-xxxx) come from env so they can be set in
+// Vercel without a code change. Empty until configured → AdSlot renders
+// nothing for that slot (no ugly placeholder in prod).
+const ADFIT_UNIT_BANNER = process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_BANNER || '';
+const ADFIT_UNIT_INLINE = process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_INLINE || '';
+
 export const AD_UNITS: Record<string, AdUnit> = {
+  adfitBottom: {
+    id: 'adfit-bottom',
+    format: 'banner-320x100',
+    width: 320,
+    height: 100,
+    label: 'AdFit_Bottom_320x100',
+    provider: 'adfit-banner',
+    adfitUnitId: ADFIT_UNIT_BANNER,
+  },
+  adfitInline: {
+    id: 'adfit-inline',
+    format: 'banner-300x250',
+    width: 300,
+    height: 250,
+    label: 'AdFit_Inline_300x250',
+    provider: 'adfit-banner',
+    adfitUnitId: ADFIT_UNIT_INLINE,
+  },
   native: {
     id: '29091863',
     format: 'native',

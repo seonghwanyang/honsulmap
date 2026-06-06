@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdSlot from './AdSlot';
+import { AD_TEST_MODE, AD_UNITS } from '@/lib/ads/config';
 
 const STORAGE_KEY = 'ad:bottom:dismissed';
 const BOTTOM_NAV_HEIGHT = 56;
@@ -20,6 +21,8 @@ export default function BottomStickyBar() {
   }
 
   if (!visible) return null;
+  // Don't show an empty bar before the AdFit unit ID is configured.
+  if (!AD_TEST_MODE && !AD_UNITS.adfitBottom.adfitUnitId) return null;
 
   return (
     <div
@@ -39,7 +42,7 @@ export default function BottomStickyBar() {
       >
         ×
       </button>
-      <AdSlot unit="banner320x50" />
+      <AdSlot unit="adfitBottom" />
     </div>
   );
 }
