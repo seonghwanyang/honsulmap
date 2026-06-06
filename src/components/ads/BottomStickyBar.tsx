@@ -26,23 +26,30 @@ export default function BottomStickyBar() {
 
   return (
     <div
-      className="md:hidden fixed left-0 right-0 z-40 flex items-center justify-center"
-      style={{
-        bottom: BOTTOM_NAV_HEIGHT,
-        background: '#ffffff',
-        borderTop: '1px solid #f3f4f6',
-        padding: '4px 0',
-      }}
+      className="md:hidden fixed left-0 right-0 z-40 flex justify-center px-3"
+      style={{ bottom: BOTTOM_NAV_HEIGHT + 8 }}
     >
-      <button
-        onClick={dismiss}
-        aria-label="광고 닫기"
-        className="absolute top-1 right-2 w-5 h-5 rounded-full flex items-center justify-center"
-        style={{ color: '#9ca3af', fontSize: 14 }}
+      <div
+        style={{
+          position: 'relative',
+          borderRadius: 14,
+          overflow: 'hidden',
+          background: '#ffffff',
+          border: '1px solid #e5e7eb',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          lineHeight: 0,
+        }}
       >
-        ×
-      </button>
-      <AdSlot unit="adfitBottom" />
+        <button
+          onClick={dismiss}
+          aria-label="광고 닫기"
+          className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center z-10"
+          style={{ color: '#9ca3af', fontSize: 14, background: 'rgba(255,255,255,0.85)' }}
+        >
+          ×
+        </button>
+        <AdSlot unit="adfitBottom" />
+      </div>
     </div>
   );
 }
