@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { AD_TEST_MODE, AD_UNITS, AdUnit, NATIVE_AD_DEFAULT_HEIGHT } from '@/lib/ads/config';
 
 interface AdSlotProps {
@@ -47,6 +47,43 @@ function Placeholder({ ad }: { ad: AdUnit }) {
   );
 }
 
+// AdFit renders directly in the page DOM (not the sandboxed iframe that
+// Adsterra uses) so Kakao can verify the ad is served on our own domain —
+// an iframe srcdoc has an about:srcdoc origin which can break that check.
+// ba.min.js scans for unrendered .kakao_ad_area on each load, so we append a
+// fresh script per slot (the documented SPA pattern).
+function AdFitBanner({
+  unitId,
+  width,
+  height,
+}: {
+  unitId: string;
+  width: number;
+  height: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const container = ref.current;
+    if (!container) return;
+    container.innerHTML = '';
+    const ins = document.createElement('ins');
+    ins.className = 'kakao_ad_area';
+    ins.style.display = 'none';
+    ins.setAttribute('data-ad-unit', unitId);
+    ins.setAttribute('data-ad-width', String(width));
+    ins.setAttribute('data-ad-height', String(height));
+    const script = document.createElement('script');
+    script.src = '//t1.daumcdn.net/kas/static/ba.min.js';
+    script.async = true;
+    container.appendChild(ins);
+    container.appendChild(script);
+    return () => {
+      container.innerHTML = '';
+    };
+  }, [unitId, width, height]);
+  return <div ref={ref} style={{ width, height, overflow: 'hidden' }} />;
+}
+
 export default function AdSlot({ unit, className, style, nativeHeight }: AdSlotProps) {
   const ad = AD_UNITS[unit];
 
@@ -55,6 +92,33 @@ export default function AdSlot({ unit, className, style, nativeHeight }: AdSlotP
     if (ad.provider === 'adsterra-native') return nativeIframeDoc(ad);
     return null;
   }, [ad]);
+
+  // AdFit: direct render. Nothing until the unit ID is configured, so prod
+  // stays clean before the DAN-id is set in env.
+  if (ad.provider === 'adfit-banner') {
+    if (AD_TEST_MODE) {
+      return (
+        <div className={className} style={style} data-ad-unit={ad.id}>
+          <Placeholder ad={ad} />
+        </div>
+      );
+    }
+    if (!ad.adfitUnitId) return null;
+    return (
+      <div
+        className={className}
+        data-ad-unit={ad.id}
+        data-ad-label={ad.label}
+        style={style}
+      >
+        <AdFitBanner
+          unitId={ad.adfitUnitId}
+          width={ad.width ?? 320}
+          height={ad.height ?? 100}
+        />
+      </div>
+    );
+  }
 
   if (AD_TEST_MODE || ad.provider === 'placeholder' || !doc) {
     return (
