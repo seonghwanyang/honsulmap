@@ -109,7 +109,8 @@ export default function AdminSpotsPage() {
           background: '#ffffff',
           border: '1px solid #e5e7eb',
           borderRadius: 10,
-          overflow: 'hidden',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         {loading ? (
@@ -121,7 +122,7 @@ export default function AdminSpotsPage() {
             결과가 없습니다
           </div>
         ) : (
-          <table className="w-full text-xs">
+          <table className="w-full text-xs" style={{ minWidth: 760 }}>
             <thead>
               <tr style={{ background: '#f8f9fa' }}>
                 <Th>가게명</Th>
