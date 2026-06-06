@@ -32,7 +32,7 @@ const ADSTERRA_NATIVE_SCRIPT =
 // AdFit (Kakao) — unit IDs (DAN-xxxx) come from env so they can be set in
 // Vercel without a code change. Empty until configured → AdSlot renders
 // nothing for that slot (no ugly placeholder in prod).
-const ADFIT_UNIT_BANNER = process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_BANNER || '';
+const ADFIT_UNIT_BANNER = process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_BANNER || 'DAN-NXWQdRAqsJGK6M04';
 const ADFIT_UNIT_INLINE = process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_INLINE || '';
 
 export const AD_UNITS: Record<string, AdUnit> = {
