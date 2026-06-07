@@ -26,7 +26,7 @@ export default function BottomStickyBar() {
 
   return (
     <div
-      className="md:hidden fixed left-0 right-0 z-40 flex justify-center px-3"
+      className="fixed left-0 right-0 z-40 flex justify-center px-3"
       style={{ bottom: BOTTOM_NAV_HEIGHT + 8 }}
     >
       <div
