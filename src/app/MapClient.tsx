@@ -16,6 +16,7 @@ import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
 import { SpotWithStories, Story, Post, City, Region } from '@/lib/types';
+import InlineAd from '@/components/ads/InlineAd';
 import { relativeTime, getCategoryLabel, getRegionLabel, getFingerprint } from '@/lib/utils';
 import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
@@ -1815,6 +1816,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                           priority={idx === 0}
                         />,
                       );
+                      // Inline ad after the 1st story, then every 4 more.
+                      if (idx === 0 || (idx + 1) % 4 === 0) {
+                        items.push(<InlineAd key={`ad-${idx}`} />);
+                      }
                     });
                     return items;
                   })()}
