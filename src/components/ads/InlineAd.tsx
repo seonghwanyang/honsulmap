@@ -14,20 +14,21 @@ export default function InlineAd({
 }) {
   if (!AD_TEST_MODE && !AD_UNITS[unit].adfitUnitId) return null;
 
+  // Full-width card (matches the story cards' width) with the fixed-size ad
+  // centered inside, so the box lines up with the rest of the UI.
   return (
-    <div className="flex justify-center my-1">
-      <div
-        style={{
-          borderRadius: 14,
-          overflow: 'hidden',
-          background: '#ffffff',
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-          lineHeight: 0,
-        }}
-      >
-        <AdSlot unit={unit} />
-      </div>
+    <div
+      className="my-1 w-full flex items-center justify-center"
+      style={{
+        borderRadius: 14,
+        overflow: 'hidden',
+        background: '#ffffff',
+        border: '1px solid #e5e7eb',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+        padding: '14px 0',
+      }}
+    >
+      <AdSlot unit={unit} />
     </div>
   );
 }
