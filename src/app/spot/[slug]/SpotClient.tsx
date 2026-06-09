@@ -633,8 +633,10 @@ export default function SpotPage() {
                 items.push(
                   <SpotPageStory key={story.id} story={story} spot={spot} />,
                 );
-                // Inline ad every 3 stories (never right after the last one).
-                if ((idx + 1) % 3 === 0 && idx !== activeStories.length - 1) {
+                // One inline ad right after the first story so it shows on
+                // any spot (most have only a few stories), then every 4 more
+                // for story-heavy spots.
+                if (idx === 0 || (idx + 1) % 4 === 0) {
                   items.push(<InlineAd key={`ad-${idx}`} />);
                 }
               });
