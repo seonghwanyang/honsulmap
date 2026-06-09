@@ -95,15 +95,110 @@ def _next_interval_min(*, had_stories: bool, prev_empty: int, base_min: int, max
 # ---------------------------------------------------------------------------
 
 
-def _fetch_html(handle: str) -> str:
-    """Drive storysaver and return the raw result HTML. Reuses the live
-    page_action so the fetch behaviour is identical — only parsing differs."""
-    from scrapling.fetchers import StealthyFetcher
+def _build_page_action_v2(handle: str):
+    """Same form-fill as the live page_action, but the result poll exits the
+    moment EITHER a raw cdninstagram.com URL OR storysaver's get-cdn-image
+    proxy appears — so format-B pages don't burn the full 60s deadline.
+    (The live _build_page_action only looks for cdninstagram.com, so it waits
+    the whole 60s on get-cdn-image pages.)"""
     from worker.storysaver_client import (
-        DEFAULT_FETCH_TIMEOUT_MS,
-        SITE_URL,
-        _build_page_action,
+        RESULT_POLL_DEADLINE_SEC,
+        RESULT_POLL_INTERVAL_MS,
     )
+
+    def page_action(page: Any) -> Any:
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=30_000)
+        except Exception:
+            pass
+        try:
+            page.wait_for_timeout(2_000)
+        except Exception:
+            pass
+
+        for sel in (
+            'input[name="username"]',
+            'input[id="username"]',
+            'input[type="text"]',
+            'input[placeholder*="user" i]',
+        ):
+            try:
+                el = page.query_selector(sel)
+                if el and el.is_visible():
+                    el.click()
+                    page.wait_for_timeout(150)
+                    el.fill(handle)
+                    break
+            except Exception:
+                continue
+
+        clicked = False
+        for sel in (
+            'input[type="submit"]',
+            'button[type="submit"]',
+            'button:has-text("Download")',
+            'button:has-text("Submit")',
+            'button:has-text("Search")',
+            "#submit",
+            "button.btn",
+        ):
+            try:
+                btn = page.query_selector(sel)
+                if btn and btn.is_visible():
+                    btn.click()
+                    clicked = True
+                    break
+            except Exception:
+                continue
+        if not clicked:
+            try:
+                page.evaluate(
+                    "document.querySelector('form')?.requestSubmit?.()"
+                    " || document.querySelector('form')?.submit?.()"
+                )
+            except Exception:
+                pass
+
+        deadline = time.time() + RESULT_POLL_DEADLINE_SEC
+        last_content = ""
+        found = False
+        while time.time() < deadline:
+            try:
+                last_content = page.content()
+            except Exception:
+                break
+            if "cdninstagram.com" in last_content or "get-cdn-image" in last_content:
+                found = True
+                break
+            try:
+                page.wait_for_timeout(RESULT_POLL_INTERVAL_MS)
+            except Exception:
+                break
+
+        if not found:
+            low = last_content.lower()
+            tags = []
+            if "turnstile" in low or "challenges.cloudflare.com" in low:
+                tags.append("turnstile-still-present")
+            if "connection error" in low:
+                tags.append("connection-error")
+            if not tags:
+                tags.append("unknown")
+            print(
+                f"[storysaver] handle={handle} no-result-after-poll "
+                f"tags={','.join(tags)} len={len(last_content)}",
+                flush=True,
+            )
+        return page
+
+    return page_action
+
+
+def _fetch_html(handle: str) -> str:
+    """Drive storysaver and return the raw result HTML. Uses the adaptive
+    page_action so the result poll doesn't wait 60s on get-cdn-image pages."""
+    from scrapling.fetchers import StealthyFetcher
+    from worker.storysaver_client import DEFAULT_FETCH_TIMEOUT_MS, SITE_URL
 
     timeout_ms = int(os.getenv("STORYSAVER_TIMEOUT_MS", DEFAULT_FETCH_TIMEOUT_MS))
     resp = StealthyFetcher.fetch(
@@ -113,7 +208,7 @@ def _fetch_html(handle: str) -> str:
         network_idle=True,
         timeout=timeout_ms,
         wait=2_000,
-        page_action=_build_page_action(handle),
+        page_action=_build_page_action_v2(handle),
         google_search=True,
         block_ads=True,
         disable_resources=False,
