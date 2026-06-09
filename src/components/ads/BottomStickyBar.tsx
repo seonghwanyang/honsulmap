@@ -19,23 +19,13 @@ export default function BottomStickyBar() {
   if (!mounted) return null;
   if (!AD_TEST_MODE && !AD_UNITS.adfitBottom.adfitUnitId) return null;
 
+  // Plain ad — no rounding/clipping (AdFit policy). The full ad must show.
   return (
     <div
-      className="fixed left-0 right-0 z-40 flex justify-center px-3"
-      style={{ bottom: BOTTOM_NAV_HEIGHT + 18 }}
+      className="fixed left-0 right-0 z-40 flex justify-center"
+      style={{ bottom: BOTTOM_NAV_HEIGHT + 24, lineHeight: 0 }}
     >
-      <div
-        style={{
-          borderRadius: 14,
-          overflow: 'hidden',
-          background: '#ffffff',
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-          lineHeight: 0,
-        }}
-      >
-        <AdSlot unit="adfitBottom" />
-      </div>
+      <AdSlot unit="adfitBottom" />
     </div>
   );
 }
