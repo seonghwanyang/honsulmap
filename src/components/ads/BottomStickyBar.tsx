@@ -23,7 +23,7 @@ export default function BottomStickyBar() {
   return (
     <div
       className="fixed left-0 right-0 z-40 flex justify-center"
-      style={{ bottom: BOTTOM_NAV_HEIGHT + 24, lineHeight: 0 }}
+      style={{ bottom: BOTTOM_NAV_HEIGHT + 44, lineHeight: 0 }}
     >
       <AdSlot unit="adfitBottom" />
     </div>
