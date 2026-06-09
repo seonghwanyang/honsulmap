@@ -32,16 +32,18 @@ const ADSTERRA_NATIVE_SCRIPT =
 // AdFit (Kakao) — unit IDs (DAN-xxxx) come from env so they can be set in
 // Vercel without a code change. Empty until configured → AdSlot renders
 // nothing for that slot (no ugly placeholder in prod).
-const ADFIT_UNIT_BANNER = process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_BANNER || 'DAN-NXWQdRAqsJGK6M04';
+const ADFIT_UNIT_BANNER = process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_BANNER || 'DAN-cLc7cLFLPsFkagsM';
 const ADFIT_UNIT_INLINE = process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_INLINE || 'DAN-eLH0m2YzTgNvPzgn';
+const ADFIT_UNIT_COMMUNITY =
+  process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_COMMUNITY || 'DAN-NXWQdRAqsJGK6M04';
 
 export const AD_UNITS: Record<string, AdUnit> = {
   adfitBottom: {
     id: 'adfit-bottom',
-    format: 'banner-320x100',
+    format: 'banner-320x50',
     width: 320,
-    height: 100,
-    label: 'AdFit_Bottom_320x100',
+    height: 50,
+    label: 'AdFit_Bottom_320x50',
     provider: 'adfit-banner',
     adfitUnitId: ADFIT_UNIT_BANNER,
   },
@@ -53,6 +55,15 @@ export const AD_UNITS: Record<string, AdUnit> = {
     label: 'AdFit_Inline_300x250',
     provider: 'adfit-banner',
     adfitUnitId: ADFIT_UNIT_INLINE,
+  },
+  adfitCommunity: {
+    id: 'adfit-community',
+    format: 'banner-320x100',
+    width: 320,
+    height: 100,
+    label: 'AdFit_Community_320x100',
+    provider: 'adfit-banner',
+    adfitUnitId: ADFIT_UNIT_COMMUNITY,
   },
   native: {
     id: '29091863',

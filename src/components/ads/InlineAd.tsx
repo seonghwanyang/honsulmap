@@ -7,8 +7,12 @@ import { AD_TEST_MODE, AD_UNITS } from '@/lib/ads/config';
 // nothing until the AdFit inline unit ID is configured, so it's safe to ship
 // the placement before the DAN-id exists. No close button, sits in the
 // content flow away from the nav — satisfies AdFit's review notes.
-export default function InlineAd() {
-  if (!AD_TEST_MODE && !AD_UNITS.adfitInline.adfitUnitId) return null;
+export default function InlineAd({
+  unit = 'adfitInline',
+}: {
+  unit?: keyof typeof AD_UNITS;
+}) {
+  if (!AD_TEST_MODE && !AD_UNITS[unit].adfitUnitId) return null;
 
   return (
     <div className="flex justify-center my-1">
@@ -22,7 +26,7 @@ export default function InlineAd() {
           lineHeight: 0,
         }}
       >
-        <AdSlot unit="adfitInline" />
+        <AdSlot unit={unit} />
       </div>
     </div>
   );
