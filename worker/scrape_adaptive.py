@@ -247,12 +247,27 @@ def _decode_proxy(url: str | None) -> str | None:
     return None
 
 
+def _is_profile_pic(url: str | None) -> bool:
+    """IG profile pictures leak into storysaver results (the account avatar
+    shown next to each story) — they are NOT stories. They use the '-19' CDN
+    path and tiny s100x100 / s150x150 crops; real stories use '-15' or video
+    paths at full size."""
+    if not url:
+        return False
+    import re
+
+    u = url.lower()
+    if "s100x100" in u or "s150x150" in u:
+        return True
+    return bool(re.search(r"t51\.\d+-19/", url))
+
+
 def _find_url_v2(item: Any) -> str | None:
     from worker.parser import _is_cdn_url
 
-    # Format A — raw cdn url in anchor / video / img (what the live parser reads)
+    # Format A — raw cdn url in anchor / video / img (skip profile pics)
     for a in item.find_all("a", href=True):
-        if _is_cdn_url(a["href"]):
+        if _is_cdn_url(a["href"]) and not _is_profile_pic(a["href"]):
             return a["href"]
     for v in item.find_all("video"):
         if v.has_attr("src") and _is_cdn_url(v["src"]):
@@ -261,16 +276,16 @@ def _find_url_v2(item: Any) -> str | None:
             if _is_cdn_url(s["src"]):
                 return s["src"]
     for img in item.find_all("img", src=True):
-        if _is_cdn_url(img["src"]):
+        if _is_cdn_url(img["src"]) and not _is_profile_pic(img["src"]):
             return img["src"]
-    # Format B — get-cdn-image proxy → decode back to the real cdn url
+    # Format B — get-cdn-image proxy → decode (skip if it's a profile pic)
     for img in item.find_all("img", src=True):
         d = _decode_proxy(img["src"])
-        if d:
+        if d and not _is_profile_pic(d):
             return d
     for a in item.find_all("a", href=True):
         d = _decode_proxy(a["href"])
-        if d:
+        if d and not _is_profile_pic(d):
             return d
     return None
 
