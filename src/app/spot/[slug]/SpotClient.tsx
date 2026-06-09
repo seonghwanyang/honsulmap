@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import ReportModal from '@/components/ReportModal';
+import InlineAd from '@/components/ads/InlineAd';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
 import { track, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
@@ -628,10 +629,14 @@ export default function SpotPage() {
           <>
             {(() => {
               const items: React.ReactNode[] = [];
-              activeStories.forEach((story: Story) => {
+              activeStories.forEach((story: Story, idx: number) => {
                 items.push(
                   <SpotPageStory key={story.id} story={story} spot={spot} />,
                 );
+                // Inline ad every 3 stories (never right after the last one).
+                if ((idx + 1) % 3 === 0 && idx !== activeStories.length - 1) {
+                  items.push(<InlineAd key={`ad-${idx}`} />);
+                }
               });
               return items;
             })()}
