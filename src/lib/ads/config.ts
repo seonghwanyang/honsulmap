@@ -36,6 +36,14 @@ const ADFIT_UNIT_BANNER = process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_BANNER || 'DAN-c
 const ADFIT_UNIT_INLINE = process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_INLINE || 'DAN-eLH0m2YzTgNvPzgn';
 const ADFIT_UNIT_COMMUNITY =
   process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_COMMUNITY || 'DAN-NXWQdRAqsJGK6M04';
+// Extra 300x250 units for the story feed — AdFit renders a unit only once per
+// page, so each inline slot needs its own. Empty until their DAN-ids are set.
+const ADFIT_UNIT_INLINE2 =
+  process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_INLINE2 || 'DAN-oEoNpOw4ZPPPvSEz';
+const ADFIT_UNIT_INLINE3 =
+  process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_INLINE3 || 'DAN-AgBCIugRCWKDxmcq';
+const ADFIT_UNIT_INLINE4 =
+  process.env.NEXT_PUBLIC_ADFIT_UNIT_ID_INLINE4 || 'DAN-2XkmnriU9ohgu07S';
 
 export const AD_UNITS: Record<string, AdUnit> = {
   adfitBottom: {
@@ -55,6 +63,33 @@ export const AD_UNITS: Record<string, AdUnit> = {
     label: 'AdFit_Inline_300x250',
     provider: 'adfit-banner',
     adfitUnitId: ADFIT_UNIT_INLINE,
+  },
+  adfitInline2: {
+    id: 'adfit-inline-2',
+    format: 'banner-300x250',
+    width: 300,
+    height: 250,
+    label: 'AdFit_Inline2_300x250',
+    provider: 'adfit-banner',
+    adfitUnitId: ADFIT_UNIT_INLINE2,
+  },
+  adfitInline3: {
+    id: 'adfit-inline-3',
+    format: 'banner-300x250',
+    width: 300,
+    height: 250,
+    label: 'AdFit_Inline3_300x250',
+    provider: 'adfit-banner',
+    adfitUnitId: ADFIT_UNIT_INLINE3,
+  },
+  adfitInline4: {
+    id: 'adfit-inline-4',
+    format: 'banner-300x250',
+    width: 300,
+    height: 250,
+    label: 'AdFit_Inline4_300x250',
+    provider: 'adfit-banner',
+    adfitUnitId: ADFIT_UNIT_INLINE4,
   },
   adfitCommunity: {
     id: 'adfit-community',
@@ -132,6 +167,16 @@ export const AD_UNITS: Record<string, AdUnit> = {
     adsterraScriptSrc: `${ADSTERRA_BANNER_BASE}/40c0713fb06b188a4c28d060466d35a6/invoke.js`,
   },
 };
+
+// Story-feed inline ad slots, in order. Each is a distinct unit because AdFit
+// renders a given unit only once per page; capped at 4 (page-level ad limit).
+// Slots whose unit has no DAN-id yet simply render nothing.
+export const INLINE_AD_UNITS = [
+  'adfitInline',
+  'adfitInline2',
+  'adfitInline3',
+  'adfitInline4',
+];
 
 export const AD_TEST_MODE = process.env.NEXT_PUBLIC_AD_TEST_MODE === 'true';
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import ReportModal from '@/components/ReportModal';
 import InlineAd from '@/components/ads/InlineAd';
+import { INLINE_AD_UNITS } from '@/lib/ads/config';
 import { SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
 import { track, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
@@ -629,15 +630,21 @@ export default function SpotPage() {
           <>
             {(() => {
               const items: React.ReactNode[] = [];
+              let adCount = 0;
               activeStories.forEach((story: Story, idx: number) => {
                 items.push(
                   <SpotPageStory key={story.id} story={story} spot={spot} />,
                 );
-                // One inline ad right after the first story so it shows on
-                // any spot (most have only a few stories), then every 4 more
-                // for story-heavy spots.
-                if (idx === 0 || (idx + 1) % 4 === 0) {
-                  items.push(<InlineAd key={`ad-${idx}`} />);
+                // Up to INLINE_AD_UNITS.length inline ads, each a distinct unit
+                // (AdFit renders a unit only once per page). Skip the last story
+                // so an ad never sits next to the "더 보기" button — and since
+                // ads stop after the first few slots, stories loaded via
+                // "더 보기" get none.
+                if (idx < activeStories.length - 1 && adCount < INLINE_AD_UNITS.length) {
+                  items.push(
+                    <InlineAd key={`ad-${idx}`} unit={INLINE_AD_UNITS[adCount]} />,
+                  );
+                  adCount++;
                 }
               });
               return items;

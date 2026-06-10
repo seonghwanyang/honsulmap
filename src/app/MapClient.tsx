@@ -17,6 +17,7 @@ import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
 import { SpotWithStories, Story, Post, City, Region } from '@/lib/types';
 import InlineAd from '@/components/ads/InlineAd';
+import { INLINE_AD_UNITS } from '@/lib/ads/config';
 import { relativeTime, getCategoryLabel, getRegionLabel, getFingerprint } from '@/lib/utils';
 import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
@@ -1807,6 +1808,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 <div className="flex flex-col px-4">
                   {(() => {
                     const items: React.ReactNode[] = [];
+                    let adCount = 0;
                     activeStories.forEach((story: Story, idx: number) => {
                       items.push(
                         <MapSheetStory
@@ -1816,9 +1818,15 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                           priority={idx === 0}
                         />,
                       );
-                      // Inline ad after the 1st story, then every 4 more.
-                      if (idx === 0 || (idx + 1) % 4 === 0) {
-                        items.push(<InlineAd key={`ad-${idx}`} />);
+                      // Up to INLINE_AD_UNITS.length inline ads, each a distinct
+                      // unit (AdFit renders a unit only once per page). Skip the
+                      // last story (keeps an ad off the "더 보기" button); ads
+                      // stop after the first few, so "더 보기" stories get none.
+                      if (idx < activeStories.length - 1 && adCount < INLINE_AD_UNITS.length) {
+                        items.push(
+                          <InlineAd key={`ad-${idx}`} unit={INLINE_AD_UNITS[adCount]} />,
+                        );
+                        adCount++;
                       }
                     });
                     return items;
