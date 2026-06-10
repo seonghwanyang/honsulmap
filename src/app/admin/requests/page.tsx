@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 interface SpotRequest {
@@ -36,6 +35,16 @@ export default function AdminRequestsPage() {
   useEffect(() => {
     reload();
   }, [tab]);
+
+  async function approve(req: SpotRequest) {
+    const res = await fetch(`/api/admin/spot-requests/${req.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'approved' }),
+    });
+    if (!res.ok) return alert('승인 실패');
+    reload();
+  }
 
   async function reject(req: SpotRequest) {
     const note = prompt('반려 사유 (선택):') || '';
@@ -143,18 +152,17 @@ export default function AdminRequestsPage() {
 
                 {r.status === 'pending' && (
                   <div className="flex flex-col gap-1 flex-shrink-0">
-                    <Link
-                      href={`/admin/spots/new?from_request=${r.id}`}
-                      className="text-xs px-3 py-1.5 text-center"
+                    <button
+                      onClick={() => approve(r)}
+                      className="text-xs px-3 py-1.5"
                       style={{
                         background: '#111827',
                         color: '#fff',
                         borderRadius: 6,
-                        textDecoration: 'none',
                       }}
                     >
-                      승인·등록
-                    </Link>
+                      승인
+                    </button>
                     <button
                       onClick={() => reject(r)}
                       className="text-xs px-3 py-1.5"
