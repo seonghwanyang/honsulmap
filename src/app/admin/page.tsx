@@ -72,19 +72,7 @@ export default function AdminDashboard() {
         <h2 className="font-semibold mb-2" style={{ color: '#111827', fontSize: 14 }}>
           빠른 액션
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <Link
-            href="/admin/spots/new"
-            className="bg-white p-4"
-            style={{ border: '1px solid #e5e7eb', borderRadius: 10, textDecoration: 'none' }}
-          >
-            <div style={{ fontWeight: 600, color: '#111827', fontSize: 13 }}>
-              새 가게 등록
-            </div>
-            <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>
-              직접 입력해서 바로 등록
-            </div>
-          </Link>
+        <div className="grid grid-cols-1 gap-2">
           <Link
             href="/admin/requests"
             className="bg-white p-4"
