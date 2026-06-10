@@ -243,7 +243,7 @@ export default function PrivacyPage() {
           <Table
             headers={['구분', '연락처']}
             rows={[
-              ['개인정보 보호책임자', '혼술맵 운영팀'],
+              ['개인정보 보호책임자', '양성환 (시냅틱)'],
               ['업장·권리자 문의 (스토리 삭제 등)', 'contact@higgsi.com'],
               ['일반 문의·건의·기능 제안', 'yangseonghwan119@gmail.com'],
             ]}

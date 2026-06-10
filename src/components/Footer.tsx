@@ -14,6 +14,9 @@ export default function Footer() {
       style={{ color: '#9ca3af', fontSize: '11px', lineHeight: 1.7 }}
     >
       <div style={{ color: '#6b7280', fontWeight: 600, marginBottom: 2 }}>혼술맵</div>
+      <div style={{ marginBottom: 2 }}>
+        시냅틱(synaptic) · 대표 양성환 · 사업자등록번호 481-19-02344
+      </div>
       <div>
         문의·제휴·업장 문의:{' '}
         <a

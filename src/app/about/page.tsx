@@ -135,7 +135,7 @@ export default function AboutPage() {
 
         <Section title="운영 정보">
           <p className="mb-2">
-            혼술맵은 개인이 운영합니다. 가게 등록은 무료이고, 협찬이나 광고로
+            혼술맵은 시냅틱(synaptic)이 운영합니다. 가게 등록은 무료이고, 협찬이나 광고로
             가게가 노출되지 않습니다.
           </p>
           <p className="mb-2">
