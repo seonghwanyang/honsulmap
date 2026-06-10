@@ -13,22 +13,21 @@ export async function GET() {
       .from('spots')
       .select('id, name, slug, region, category, address, lat, lng, instagram_id, created_at')
       .order('created_at', { ascending: false }),
-    sb.from('spot_views').select('spot_id'),
-    sb.from('spot_visits').select('spot_id'),
+    sb.from('spot_view_counts').select('spot_id, views'),
+    sb.from('spot_visit_counts').select('spot_id, visits'),
   ]);
   if (spotsRes.error)
     return NextResponse.json({ error: spotsRes.error.message }, { status: 500 });
 
-  // Aggregate functions are disabled on this project (PGRST123), so tally
-  // the event-log rows into per-spot counts here. Fine at current scale;
-  // revisit with a DB view if either table grows past ~100k rows.
-  const tally = (rows: { spot_id: string }[] | null | undefined) => {
-    const m = new Map<string, number>();
-    for (const r of rows ?? []) m.set(r.spot_id, (m.get(r.spot_id) ?? 0) + 1);
-    return m;
-  };
-  const views = tally(viewsRes.data as { spot_id: string }[] | null);
-  const visits = tally(visitsRes.data as { spot_id: string }[] | null);
+  // Counts come pre-aggregated from DB views (one row per spot), so reading
+  // the whole view never hits PostgREST's Max Rows cap. Aggregate functions
+  // are disabled on this project (PGRST123), hence the views.
+  const views = new Map<string, number>();
+  for (const r of (viewsRes.data as { spot_id: string; views: number }[] | null) ?? [])
+    views.set(r.spot_id, r.views);
+  const visits = new Map<string, number>();
+  for (const r of (visitsRes.data as { spot_id: string; visits: number }[] | null) ?? [])
+    visits.set(r.spot_id, r.visits);
 
   const data = (spotsRes.data ?? []).map((s) => ({
     ...s,
