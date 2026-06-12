@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { VALID_REGIONS } from '@/lib/types';
 
 const VALID_CATEGORIES = ['bar', 'guesthouse'] as const;
@@ -32,6 +32,27 @@ export async function POST(request: NextRequest) {
   }
   if (note.length > 500) {
     return NextResponse.json({ error: '메모는 500자 이내로 입력해주세요.' }, { status: 400 });
+  }
+
+  // Block double-submits: if this IG handle already has a request awaiting
+  // review, don't queue another (users were resubmitting the same shop
+  // seconds apart with tweaked memos). Needs the service role — anon has
+  // INSERT but no SELECT on spot_requests (RLS). Fails open on error so a
+  // misconfig never blocks legit submissions.
+  if (ig_handle) {
+    const { data: pendingDup } = await supabaseAdmin()
+      .from('spot_requests')
+      .select('id')
+      .eq('ig_handle', ig_handle)
+      .eq('status', 'pending')
+      .limit(1)
+      .maybeSingle();
+    if (pendingDup) {
+      return NextResponse.json(
+        { error: '이미 검토 대기 중인 같은 인스타 계정의 요청이 있어요.' },
+        { status: 409 },
+      );
+    }
   }
 
   const { error } = await supabase.from('spot_requests').insert([
