@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { permanentRedirect } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import PostClient from './PostClient';
 
@@ -94,7 +94,7 @@ export default async function PostPage({
     // Encode the slug: non-ASCII (Korean) slugs would otherwise be written
     // raw into the Location header, which must be a ByteString — that throws
     // server-side and turns the redirect into a 500 (GSC "서버 오류 5xx").
-    redirect(`/post/${encodeURIComponent(post.slug)}`);
+    permanentRedirect(`/post/${encodeURIComponent(post.slug)}`);
   }
 
   const canonicalKey = post?.slug || post?.id;
