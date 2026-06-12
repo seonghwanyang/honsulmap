@@ -127,7 +127,7 @@ export default async function SpotPage({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <SpotClient />
+      <SpotClient initialSpot={spot} />
     </>
   );
 }

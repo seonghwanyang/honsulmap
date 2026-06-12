@@ -22,6 +22,8 @@ interface PostRow {
   content: string;
   nickname: string;
   created_at: string;
+  image_urls: string[] | null;
+  like_count: number;
   spot?: { name: string } | null;
 }
 
@@ -29,7 +31,7 @@ async function getPostBySlugOrId(key: string): Promise<PostRow | null> {
   const column = UUID_RE.test(key) ? 'id' : 'slug';
   const { data } = await supabase
     .from('posts')
-    .select('id, slug, category, title, content, nickname, created_at, spot:spots(name)')
+    .select('id, slug, category, title, content, nickname, created_at, image_urls, like_count, spot:spots(name)')
     .eq(column, key)
     .maybeSingle();
   return (data as unknown as PostRow) || null;
@@ -89,7 +91,10 @@ export default async function PostPage({
   // previously indexed UUID links carry their SEO value over to the
   // new slug. Skip if the post has no slug yet (pre-backfill window).
   if (post && UUID_RE.test(key) && post.slug) {
-    redirect(`/post/${post.slug}`);
+    // Encode the slug: non-ASCII (Korean) slugs would otherwise be written
+    // raw into the Location header, which must be a ByteString — that throws
+    // server-side and turns the redirect into a 500 (GSC "서버 오류 5xx").
+    redirect(`/post/${encodeURIComponent(post.slug)}`);
   }
 
   const canonicalKey = post?.slug || post?.id;
@@ -114,7 +119,7 @@ export default async function PostPage({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <PostClient />
+      <PostClient initialPost={post} />
     </>
   );
 }
