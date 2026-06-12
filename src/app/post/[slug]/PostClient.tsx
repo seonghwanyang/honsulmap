@@ -372,12 +372,21 @@ function CommentSection({ postId }: { postId: string }) {
 
 // ---- Main Page ----
 
-export default function PostPage() {
+type PostView = Pick<
+  Post,
+  'id' | 'title' | 'content' | 'nickname' | 'created_at' | 'image_urls' | 'like_count'
+> & { category: string; spot?: { name: string } | null };
+
+export default function PostPage({ initialPost = null }: { initialPost?: PostView | null }) {
   const params = useParams();
   const slug = params.slug as string;
 
-  const [post, setPost] = useState<Post | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Seed from the server-fetched post so the title/body render during SSR
+  // instead of a spinner. Near-empty SSR HTML was letting Google override the
+  // self-canonical (GSC "중복, 구글이 다른 표준 선택"). The client refetch below
+  // still refreshes like_count / spot.
+  const [post, setPost] = useState<PostView | null>(initialPost);
+  const [loading, setLoading] = useState(!initialPost);
   const [error, setError] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -386,7 +395,6 @@ export default function PostPage() {
 
   useEffect(() => {
     const fetchPost = async () => {
-      setLoading(true);
       setError(null);
       try {
         const res = await fetch(`/api/posts/${encodeURIComponent(slug)}`);
@@ -496,7 +504,7 @@ export default function PostPage() {
           <span className="text-xs font-medium" style={{ color: '#6b7280' }}>
             {post.nickname}
           </span>
-          <span className="text-xs" style={{ color: '#d1d5db' }}>
+          <span className="text-xs" style={{ color: '#d1d5db' }} suppressHydrationWarning>
             {relativeTime(post.created_at)}
           </span>
         </div>

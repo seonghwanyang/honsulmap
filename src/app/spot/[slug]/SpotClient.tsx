@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import ReportModal from '@/components/ReportModal';
 import InlineAd from '@/components/ads/InlineAd';
 import { INLINE_AD_UNITS } from '@/lib/ads/config';
-import { SpotWithStories, Story } from '@/lib/types';
+import { Spot, SpotWithStories, Story } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getRegionLabel } from '@/lib/utils';
 import { track, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
@@ -373,13 +373,19 @@ function SpotPageStory({
 
 // ---- Main Page ----
 
-export default function SpotPage() {
+export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | null }) {
   const params = useParams();
   const searchParams = useSearchParams();
   const slug = params.slug as string;
 
-  const [spot, setSpot] = useState<SpotWithStories | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Seed from the server-fetched base row so the spot's info (name, region,
+  // address, hours, menus, summary paragraph) renders during SSR instead of a
+  // spinner. Stories load client-side and replace this seed. Near-empty SSR
+  // HTML was making Google cluster spot pages as dups (GSC "중복, 표준 없음").
+  const [spot, setSpot] = useState<SpotWithStories | null>(
+    initialSpot ? { ...initialSpot, stories: [], latest_story_at: null } : null,
+  );
+  const [loading, setLoading] = useState(!initialSpot);
   const [error, setError] = useState<string | null>(null);
   // Total story count returned by the API; the initial response only
   // includes the most-recent 5, so this drives the "이전 스토리 더 보기"
@@ -392,7 +398,6 @@ export default function SpotPage() {
 
   useEffect(() => {
     const fetchSpot = async () => {
-      setLoading(true);
       setError(null);
       try {
         const res = await fetch(`/api/spots/${slug}`);
