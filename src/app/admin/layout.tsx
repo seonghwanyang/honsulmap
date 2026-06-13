@@ -22,6 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminNavLink href="/admin">대시보드</AdminNavLink>
             <AdminNavLink href="/admin/spots">가게</AdminNavLink>
             <AdminNavLink href="/admin/requests">요청</AdminNavLink>
+            <AdminNavLink href="/admin/claims">사장님</AdminNavLink>
             <AdminNavLink href="/admin/reports">신고</AdminNavLink>
           </nav>
         </div>

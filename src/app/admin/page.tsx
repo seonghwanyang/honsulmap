@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 
 interface Counts {
   pendingRequests: number;
+  pendingClaims: number;
   pendingReports: number;
   totalSpots: number;
 }
@@ -12,6 +13,7 @@ interface Counts {
 export default function AdminDashboard() {
   const [counts, setCounts] = useState<Counts>({
     pendingRequests: 0,
+    pendingClaims: 0,
     pendingReports: 0,
     totalSpots: 0,
   });
@@ -20,18 +22,21 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [reqRes, repRes, spotsRes] = await Promise.all([
+        const [reqRes, claimRes, repRes, spotsRes] = await Promise.all([
           fetch('/api/admin/spot-requests?status=pending'),
+          fetch('/api/admin/spot-claims?status=pending'),
           fetch('/api/admin/reports?status=pending'),
           fetch('/api/admin/spots'),
         ]);
-        const [requests, reports, spots] = await Promise.all([
+        const [requests, claims, reports, spots] = await Promise.all([
           reqRes.json(),
+          claimRes.json(),
           repRes.json(),
           spotsRes.json(),
         ]);
         setCounts({
           pendingRequests: Array.isArray(requests) ? requests.length : 0,
+          pendingClaims: Array.isArray(claims) ? claims.length : 0,
           pendingReports: Array.isArray(reports) ? reports.length : 0,
           totalSpots: Array.isArray(spots) ? spots.length : 0,
         });
@@ -48,12 +53,18 @@ export default function AdminDashboard() {
         대시보드
       </h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat
           href="/admin/requests"
           label="대기 중 가게 요청"
           value={loading ? '…' : counts.pendingRequests}
           highlight={counts.pendingRequests > 0}
+        />
+        <Stat
+          href="/admin/claims"
+          label="대기 중 사장님 신청"
+          value={loading ? '…' : counts.pendingClaims}
+          highlight={counts.pendingClaims > 0}
         />
         <Stat
           href="/admin/reports"
