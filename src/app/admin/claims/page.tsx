@@ -8,6 +8,7 @@ interface SpotClaim {
   user_id: string;
   role: 'owner' | 'manager';
   evidence: string | null;
+  verification_code: string | null;
   status: 'pending' | 'approved' | 'rejected';
   reviewer_note: string | null;
   created_at: string;
@@ -129,6 +130,21 @@ export default function AdminClaimsPage() {
                       {ROLE_LABEL[c.role] ?? c.role}
                     </span>
                   </div>
+                  {c.status === 'pending' && c.verification_code && (
+                    <div style={{ margin: '6px 0 8px' }}>
+                      <div
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 8 }}
+                      >
+                        <span style={{ fontSize: 10.5, color: '#1d4ed8', fontWeight: 700 }}>DM 코드</span>
+                        <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, fontWeight: 800, color: '#111827', letterSpacing: '0.5px' }}>
+                          {c.verification_code}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
+                        이 코드가 적힌 DM을 {c.spot?.instagram_id ? `@${c.spot.instagram_id}` : '가게'} 계정에서 받았으면 승인하세요.
+                      </p>
+                    </div>
+                  )}
                   <div className="text-xs space-y-0.5" style={{ color: '#6b7280' }}>
                     <div>
                       신청자:{' '}

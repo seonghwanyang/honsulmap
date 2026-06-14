@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   let query = admin
     .from('spot_claims')
     .select(
-      'id, spot_id, user_id, role, evidence, status, reviewer_note, created_at, reviewed_at, spot:spots(name, slug, region, instagram_id)',
+      'id, spot_id, user_id, role, evidence, verification_code, status, reviewer_note, created_at, reviewed_at, spot:spots(name, slug, region, instagram_id)',
     )
     .order('created_at', { ascending: false });
   if (status) query = query.eq('status', status);
