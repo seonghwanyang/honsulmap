@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { REGIONS } from '@/lib/types';
+import { REGIONS, CITIES } from '@/lib/types';
 
 // All region codes (prefixed, e.g. 'busan_suyeong') from the source of
 // truth — the admin <Sel> shows the raw code, which is fine for editing.
@@ -28,7 +28,17 @@ export default function AdminSpotsPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<AdminSpot | null>(null);
-  const [sortBy, setSortBy] = useState<'recent' | 'view' | 'visit'>('recent');
+  const [regionFilter, setRegionFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'bar' | 'guesthouse'>('all');
+  const [sort, setSort] = useState<{ key: 'view' | 'visit' | null; dir: 'desc' | 'asc' }>({
+    key: null,
+    dir: 'desc',
+  });
+
+  const toggleSort = (key: 'view' | 'visit') =>
+    setSort((s) =>
+      s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' },
+    );
 
   async function reload() {
     setLoading(true);
@@ -52,6 +62,8 @@ export default function AdminSpotsPage() {
   }
 
   const filtered = spots.filter((s) => {
+    if (regionFilter !== 'all' && s.region !== regionFilter) return false;
+    if (categoryFilter !== 'all' && s.category !== categoryFilter) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -61,19 +73,20 @@ export default function AdminSpotsPage() {
     );
   });
 
-  // Click 조회수 / 다녀왔어요 header to sort most→least; 'recent' keeps the
-  // API order (created_at desc).
+  // Click 조회수 / 다녀왔어요 header: 1st = 내림차순(▼), 2nd = 오름차순(▲).
+  // No active key keeps the API order (created_at desc).
   const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === 'view') return b.view_count - a.view_count;
-    if (sortBy === 'visit') return b.visit_count - a.visit_count;
-    return 0;
+    if (!sort.key) return 0;
+    const av = sort.key === 'view' ? a.view_count : a.visit_count;
+    const bv = sort.key === 'view' ? b.view_count : b.visit_count;
+    return sort.dir === 'desc' ? bv - av : av - bv;
   });
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold" style={{ color: '#111827' }}>
-          가게 관리 ({spots.length})
+          가게 관리 ({filtered.length})
         </h1>
         <Link
           href="/admin/spots/new"
@@ -104,6 +117,59 @@ export default function AdminSpotsPage() {
         }}
       />
 
+      <div className="flex flex-wrap items-center gap-2">
+        {(
+          [
+            ['all', '전체'],
+            ['bar', '혼술바'],
+            ['guesthouse', '게스트하우스'],
+          ] as const
+        ).map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => setCategoryFilter(val)}
+            style={{
+              padding: '6px 11px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: categoryFilter === val ? 600 : 400,
+              background: categoryFilter === val ? '#111827' : '#fff',
+              color: categoryFilter === val ? '#fff' : '#6b7280',
+              border: '1px solid',
+              borderColor: categoryFilter === val ? '#111827' : '#e5e7eb',
+              cursor: 'pointer',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+        <select
+          value={regionFilter}
+          onChange={(e) => setRegionFilter(e.target.value)}
+          style={{
+            marginLeft: 'auto',
+            border: '1px solid #e5e7eb',
+            borderRadius: 8,
+            padding: '7px 10px',
+            fontSize: 12.5,
+            background: '#fff',
+            color: '#374151',
+            outline: 'none',
+          }}
+        >
+          <option value="all">전체 지역</option>
+          {CITIES.map((c) => (
+            <optgroup key={c.value} label={c.label}>
+              {REGIONS.filter((r) => r.city === c.value).map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
       <div
         style={{
           background: '#ffffff',
@@ -132,15 +198,17 @@ export default function AdminSpotsPage() {
                 <Th>IG</Th>
                 <Th
                   align="right"
-                  onClick={() => setSortBy(sortBy === 'view' ? 'recent' : 'view')}
-                  active={sortBy === 'view'}
+                  onClick={() => toggleSort('view')}
+                  active={sort.key === 'view'}
+                  dir={sort.dir}
                 >
                   조회수
                 </Th>
                 <Th
                   align="right"
-                  onClick={() => setSortBy(sortBy === 'visit' ? 'recent' : 'visit')}
-                  active={sortBy === 'visit'}
+                  onClick={() => toggleSort('visit')}
+                  active={sort.key === 'visit'}
+                  dir={sort.dir}
                 >
                   다녀왔어요
                 </Th>
@@ -214,11 +282,13 @@ function Th({
   align,
   onClick,
   active,
+  dir,
 }: {
   children: React.ReactNode;
   align?: 'right';
   onClick?: () => void;
   active?: boolean;
+  dir?: 'asc' | 'desc';
 }) {
   return (
     <th
@@ -235,7 +305,7 @@ function Th({
       }}
     >
       {children}
-      {active ? ' ▼' : ''}
+      {active ? (dir === 'asc' ? ' ▲' : ' ▼') : ''}
     </th>
   );
 }
