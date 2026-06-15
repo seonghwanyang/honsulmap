@@ -117,3 +117,18 @@ const REGION_LABELS: Record<string, string> = REGIONS.reduce(
 export function getRegionLabel(region: string): string {
   return REGION_LABELS[region] || region;
 }
+
+/**
+ * Great-circle distance between two lat/lng points, in meters. Used by the
+ * "다녀왔어요" location gate (a check-in is only allowed within 300m).
+ */
+export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000; // earth radius, meters
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}

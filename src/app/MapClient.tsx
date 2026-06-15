@@ -10,7 +10,6 @@ import SpotRequestModal from '@/components/SpotRequestModal';
 import WelcomeModal from '@/components/WelcomeModal';
 import LoginModal from '@/components/LoginModal';
 import { useUser } from '@/lib/useUser';
-import { guestMayOpenSpot, recordGuestSpotView, FREE_SPOT_VIEWS } from '@/lib/metering';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
@@ -18,9 +17,23 @@ import SpotSearchBox from '@/components/SpotSearchBox';
 import { SpotWithStories, Story, Post, City, Region } from '@/lib/types';
 import InlineAd from '@/components/ads/InlineAd';
 import { INLINE_AD_UNITS } from '@/lib/ads/config';
-import { relativeTime, getCategoryLabel, getRegionLabel, getFingerprint } from '@/lib/utils';
+import { relativeTime, getCategoryLabel, getRegionLabel, getFingerprint, haversineMeters } from '@/lib/utils';
 import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
+
+// One-shot current position as a promise; resolves null on any failure (no
+// permission, timeout, unsupported). maximumAge lets a recent fix (e.g. the
+// on-load request) return instantly so the 다녀왔어요 tap stays snappy.
+function getCurrentPositionSafe(): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: false, maximumAge: 30000, timeout: 8000 },
+    );
+  });
+}
 
 declare global {
   interface Window {
@@ -343,16 +356,16 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     panelSpotIdRef.current = null;
   }, []);
 
+  // Ask for location once on load so the 다녀왔어요 300m check has a fix ready
+  // (and the permission prompt happens up front, not on the first check-in tap).
+  useEffect(() => {
+    void getCurrentPositionSafe();
+  }, []);
+
   const openSpotPanel = useCallback(
     (spot: SpotWithStories, entry_source: EntrySource) => {
-      // Soft metered gate: guests get FREE_SPOT_VIEWS distinct spots, then a
-      // login nudge before a new one. Logged-in users skip this entirely.
-      if (!user && !guestMayOpenSpot(spot.slug)) {
-        setLoginReason(`오늘 가게 ${FREE_SPOT_VIEWS}곳을 봤어요 · 로그인하면 계속 둘러볼 수 있어요`);
-        setLoginOpen(true);
-        return;
-      }
-      if (!user) recordGuestSpotView(spot.slug);
+      // Story viewing is gated by login (the blurred StoryGate in the panel),
+      // so the panel itself always opens for everyone now.
       // If a panel is already open for a different spot, flush its dwell
       // before swapping in the next one (replacement-by-other-pin path).
       if (panelSpotIdRef.current && panelSpotIdRef.current !== spot.id) {
@@ -362,6 +375,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       panelEntrySourceRef.current = entry_source;
       panelSpotIdRef.current = spot.id;
       setSelectedSpot(spot);
+      // Guest → pop the login modal over the (blurred) stories.
+      if (!user) setLoginOpen(true);
       track('spot_detail_entered', { spot_id: spot.id, entry_source });
       // Fire-and-forget view counter — failures are silent so the panel
       // open never blocks on this network call.
@@ -697,11 +712,31 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const handleVisit = useCallback(async () => {
     if (!selectedSpot) return;
     if (visitSubmitting || justVisited) return;
+
+    // Spinner on from the tap, through the GPS check and the POST.
+    setVisitSubmitting(true);
+
+    // Location gate: a check-in only counts within 300m of the spot. Pull a
+    // fresh (or recently-cached) GPS fix; fail with a toast otherwise.
+    const pos = await getCurrentPositionSafe();
+    if (!pos) {
+      setVisitSubmitting(false);
+      setGpsToast('위치 권한이 필요해요 · 허용 후 다시 눌러주세요');
+      setTimeout(() => setGpsToast(null), 3500);
+      return;
+    }
+    const dist = haversineMeters(pos.lat, pos.lng, selectedSpot.lat, selectedSpot.lng);
+    if (dist > 300) {
+      setVisitSubmitting(false);
+      setGpsToast('가게 300m 이내에서만 체크할 수 있어요');
+      setTimeout(() => setGpsToast(null), 3500);
+      return;
+    }
+
     // Snapshot the spot we're acting on so a panel swap (or close) mid-
     // flight doesn't leak the response into another spot's UI.
     const targetSpotId = selectedSpot.id;
     const targetSlug = selectedSpot.slug;
-    setVisitSubmitting(true);
     try {
       const res = await fetch(`/api/spots/${targetSlug}/visit`, {
         method: 'POST',
@@ -1805,7 +1840,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col px-4">
+                <div
+                  className="flex flex-col px-4"
+                  style={!user ? { filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' } : undefined}
+                >
                   {(() => {
                     const items: React.ReactNode[] = [];
                     let adCount = 0;
@@ -1997,37 +2035,55 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   <style>{'@keyframes visit-pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}'}</style>
                 </div>
               ) : (
-                <button
-                  onClick={handleVisit}
-                  disabled={visitSubmitting}
-                  style={{
-                    pointerEvents: 'auto',
-                    background: visitSubmitting ? '#374151' : '#111827',
-                    color: '#fff',
-                    borderRadius: 999,
-                    // Match the bottom-nav pill outer height + width
-                    // so the two pills feel like a coordinated stack.
-                    height: 46,
-                    width: 240,
-                    padding: '0 22px',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    // Hairline white border so the button stays visible
-                    // when the panel slides over a dark IG video.
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    cursor: visitSubmitting ? 'default' : 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  {visitSubmitting ? '기록 중…' : '다녀왔어요'}
-                </button>
+                <>
+                  <button
+                    onClick={handleVisit}
+                    disabled={visitSubmitting}
+                    style={{
+                      pointerEvents: 'auto',
+                      background: visitSubmitting ? '#374151' : '#111827',
+                      color: '#fff',
+                      borderRadius: 999,
+                      // Match the bottom-nav pill outer height + width
+                      // so the two pills feel like a coordinated stack.
+                      height: 46,
+                      width: 240,
+                      padding: '0 22px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      // Hairline white border so the button stays visible
+                      // when the panel slides over a dark IG video.
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      cursor: visitSubmitting ? 'default' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+                    }}
+                  >
+                    {visitSubmitting ? (
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: 14,
+                          height: 14,
+                          flexShrink: 0,
+                          borderRadius: '50%',
+                          border: '2px solid rgba(255,255,255,0.35)',
+                          borderTopColor: '#fff',
+                          animation: 'visit-spin 0.7s linear infinite',
+                        }}
+                      />
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                    {visitSubmitting ? '확인 중…' : '다녀왔어요'}
+                  </button>
+                  <style>{'@keyframes visit-spin{to{transform:rotate(360deg)}}'}</style>
+                </>
               )}
             </div>
           </>
