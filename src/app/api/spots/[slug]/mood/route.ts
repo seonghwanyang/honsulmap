@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { logUserSpotEvent } from '@/lib/userSpotEvent';
 import type { MoodVoteType } from '@/lib/types';
 
 // One mood vote per fingerprint per spot. The client sends the button it
@@ -71,5 +72,9 @@ export async function POST(
   const mood_down = (rows ?? []).filter((r) => r.vote === 'down').length;
   await sb.from('spots').update({ mood_up, mood_down }).eq('id', spot.id);
 
+  await logUserSpotEvent(
+    myVote === 'up' ? 'mood_up' : myVote === 'down' ? 'mood_down' : 'mood_clear',
+    spot.id,
+  );
   return NextResponse.json({ mood_up, mood_down, vote: myVote });
 }

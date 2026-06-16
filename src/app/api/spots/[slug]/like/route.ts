@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { logUserSpotEvent } from '@/lib/userSpotEvent';
 
 // Spot like toggle. Authoritative count (delete-all on unlike → self-heals
 // duplicates, insert-one on like, recount from the table). Service-role so
@@ -53,5 +54,6 @@ export async function POST(
   const total = count ?? 0;
   await sb.from('spots').update({ like_count: total }).eq('id', spot.id);
 
+  await logUserSpotEvent(has ? 'unlike' : 'like', spot.id);
   return NextResponse.json({ liked: !has, count: total });
 }
