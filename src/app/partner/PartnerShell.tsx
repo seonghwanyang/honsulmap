@@ -174,7 +174,22 @@ export default function PartnerShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#f8f9fa' }}>
+    <div
+      style={{
+        minHeight: '100dvh',
+        background: '#f8f9fa',
+        // The app <body> is `max-w-screen-md mx-auto` — a centered phone column,
+        // right for the consumer app but wrong for this full-width dashboard
+        // (fixed 248px sidebar + content). Break out to the full viewport width
+        // so the sidebar and content align instead of being squished/offset.
+        width: '100vw',
+        position: 'relative',
+        left: '50%',
+        right: '50%',
+        marginLeft: '-50vw',
+        marginRight: '-50vw',
+      }}
+    >
       {/* ---- Desktop sidebar (lg+) ---- */}
       <aside
         className="hidden lg:flex"
@@ -303,14 +318,14 @@ export default function PartnerShell({ children }: { children: ReactNode }) {
       )}
 
       {/* ---- Content ---- */}
-      <main
-        className="lg:pl-[248px]"
-        style={{ minHeight: '100dvh', paddingBottom: 0 }}
-      >
+      {/* A plain <div>, not <main>: the root layout already provides the
+          document's single <main>, and nesting one here both is invalid HTML
+          and pulls in the global `main { padding-bottom: 80px }` rule. */}
+      <div className="lg:pl-[248px]" style={{ minHeight: '100dvh' }}>
         <div style={{ maxWidth: 1040, margin: '0 auto', padding: '28px 20px 64px' }}>
           {children}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

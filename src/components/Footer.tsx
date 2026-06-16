@@ -5,8 +5,9 @@ import { usePathname } from 'next/navigation';
 
 export default function Footer() {
   const pathname = usePathname();
-  // Map page is a fullscreen interactive canvas — skip footer there
-  if (pathname === '/') return null;
+  // Map page is a fullscreen interactive canvas; the owner portal has its own
+  // chrome — skip the consumer footer in both.
+  if (pathname === '/' || pathname.startsWith('/partner')) return null;
 
   return (
     <footer
