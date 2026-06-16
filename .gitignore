@@ -41,6 +41,13 @@ next-env.d.ts
 
 # sensitive
 session_b64.txt
+.mcp.json
+
+# IDE (JetBrains / Android Studio)
+.idea/
+
+# Instagram data export + saved login session (personal — never commit)
+insta_inform/
 
 # reference images / debug artifacts
 ref/

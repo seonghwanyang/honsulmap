@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { logUserSpotEvent } from '@/lib/userSpotEvent';
 
 // Records one row in spot_visits per "다녀왔어요" tap and returns the
 // updated total so the client can show it. No dedup: every tap counts,
@@ -42,6 +43,7 @@ export async function POST(
   if (insertError) {
     return NextResponse.json({ ok: false }, { status: 500 });
   }
+  await logUserSpotEvent('visit', spot.id);
 
   const { count } = await sb
     .from('spot_visits')

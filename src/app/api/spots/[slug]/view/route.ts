@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { logUserSpotEvent } from '@/lib/userSpotEvent';
 
 // Records one row in spot_views per call. Fire-and-forget from the
 // client — we always return 200 so a failed insert doesn't surface as
@@ -28,6 +29,7 @@ export async function POST(
   }
 
   await sb.from('spot_views').insert({ spot_id: spot.id });
+  await logUserSpotEvent('view', spot.id);
 
   return NextResponse.json({ ok: true });
 }
