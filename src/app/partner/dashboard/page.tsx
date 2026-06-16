@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthGate from '../AuthGate';
+import { CopyButton } from '../CopyButton';
 import {
   ACCENT,
+  ACCENT_DARK,
   ACCENT_SOFT,
   Card,
   Chip,
@@ -139,11 +141,30 @@ function PendingCard({ c }: { c: PendingClaim }) {
         >
           {c.spot!.name}
         </span>
-        <span style={{ display: 'block', fontSize: 12, color: '#9ca3af', marginTop: 3 }}>
-          {c.verification_code
-            ? `코드 ${c.verification_code} · @honsulmap에 가게 계정으로 DM`
-            : '운영자 확인을 기다리고 있어요'}
-        </span>
+        {c.verification_code ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+            <span
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', borderRadius: 7, background: ACCENT_SOFT, border: '1px solid #dbeafe' }}
+            >
+              <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, fontWeight: 800, color: '#111827', letterSpacing: '0.5px' }}>
+                {c.verification_code}
+              </span>
+              <CopyButton text={c.verification_code} />
+            </span>
+            <a
+              href="https://ig.me/m/honsulmap"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 11.5, fontWeight: 700, color: ACCENT_DARK, textDecoration: 'none' }}
+            >
+              가게 계정으로 DM →
+            </a>
+          </div>
+        ) : (
+          <span style={{ display: 'block', fontSize: 12, color: '#9ca3af', marginTop: 3 }}>
+            운영자 확인을 기다리고 있어요
+          </span>
+        )}
       </div>
       <Chip tone="pending">심사 중</Chip>
     </Card>

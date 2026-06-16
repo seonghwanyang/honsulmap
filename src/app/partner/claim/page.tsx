@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import AuthGate from '../AuthGate';
+import { CopyButton } from '../CopyButton';
 import {
   ACCENT,
   ACCENT_DARK,
@@ -119,10 +120,13 @@ function ClaimContent() {
             style={{ margin: '18px 0', padding: 16, background: ACCENT_SOFT, border: '1px solid #dbeafe', borderRadius: 14 }}
           >
             <div style={{ fontSize: 11, color: ACCENT_DARK, fontWeight: 700, letterSpacing: '0.3px' }}>인증 코드</div>
-            <div
-              style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 26, fontWeight: 800, color: '#111827', letterSpacing: '2px', marginTop: 4 }}
-            >
-              {code || '—'}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 4 }}>
+              <span
+                style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 26, fontWeight: 800, color: '#111827', letterSpacing: '2px' }}
+              >
+                {code || '—'}
+              </span>
+              {code && <CopyButton text={code} />}
             </div>
           </div>
 
