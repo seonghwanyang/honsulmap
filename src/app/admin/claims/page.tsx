@@ -71,6 +71,17 @@ export default function AdminClaimsPage() {
     reload();
   }
 
+  async function issueCode(c: SpotClaim) {
+    if (c.verification_code && !confirm('새 코드로 재발급할까요? 이전 코드는 무효가 돼요.')) return;
+    const res = await fetch(`/api/admin/spot-claims/${c.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ issue_code: true }),
+    });
+    if (!res.ok) return alert('코드 발급 실패');
+    reload();
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -130,19 +141,38 @@ export default function AdminClaimsPage() {
                       {ROLE_LABEL[c.role] ?? c.role}
                     </span>
                   </div>
-                  {c.status === 'pending' && c.verification_code && (
+                  {(c.verification_code || c.status === 'pending') && (
                     <div style={{ margin: '6px 0 8px' }}>
-                      <div
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 8 }}
-                      >
-                        <span style={{ fontSize: 10.5, color: '#1d4ed8', fontWeight: 700 }}>DM 코드</span>
-                        <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, fontWeight: 800, color: '#111827', letterSpacing: '0.5px' }}>
-                          {c.verification_code}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
-                        이 코드가 적힌 DM을 {c.spot?.instagram_id ? `@${c.spot.instagram_id}` : '가게'} 계정에서 받았으면 승인하세요.
-                      </p>
+                      {c.verification_code ? (
+                        <div
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 8 }}
+                        >
+                          <span style={{ fontSize: 10.5, color: '#1d4ed8', fontWeight: 700 }}>DM 코드</span>
+                          <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, fontWeight: 800, color: '#111827', letterSpacing: '0.5px' }}>
+                            {c.verification_code}
+                          </span>
+                          {c.status === 'pending' && (
+                            <button
+                              onClick={() => issueCode(c)}
+                              style={{ fontSize: 10.5, color: '#6b7280', background: 'transparent', border: 'none', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+                            >
+                              재발급
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => issueCode(c)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}
+                        >
+                          🔑 인증 코드 발급
+                        </button>
+                      )}
+                      {c.status === 'pending' && c.verification_code && (
+                        <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
+                          이 코드가 적힌 DM을 {c.spot?.instagram_id ? `@${c.spot.instagram_id}` : '가게'} 계정에서 받았으면 승인하세요.
+                        </p>
+                      )}
                     </div>
                   )}
                   <div className="text-xs space-y-0.5" style={{ color: '#6b7280' }}>

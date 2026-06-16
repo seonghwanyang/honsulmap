@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { genClaimCode } from '@/lib/claimCode';
 
 const VALID = ['approved', 'rejected'] as const;
 
@@ -12,12 +13,33 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
+  const admin = supabaseAdmin();
+
+  // Issue / reissue the one-time DM verification code. For claims created before
+  // the code feature existed (code is null) or to rotate one. Pending only.
+  if (body.issue_code === true) {
+    const { data: claim } = await admin
+      .from('spot_claims')
+      .select('id, status')
+      .eq('id', id)
+      .maybeSingle();
+    if (!claim) return NextResponse.json({ error: '신청을 찾을 수 없습니다.' }, { status: 404 });
+    if (claim.status !== 'pending')
+      return NextResponse.json({ error: '대기 중인 신청에만 코드를 발급할 수 있어요.' }, { status: 400 });
+    const { data, error } = await admin
+      .from('spot_claims')
+      .update({ verification_code: genClaimCode() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
   const status = typeof body.status === 'string' ? body.status : '';
   const reviewer_note = typeof body.reviewer_note === 'string' ? body.reviewer_note.trim() : null;
   if (!VALID.includes(status as (typeof VALID)[number]))
     return NextResponse.json({ error: '상태가 올바르지 않습니다.' }, { status: 400 });
-
-  const admin = supabaseAdmin();
   const { data: claim } = await admin
     .from('spot_claims')
     .select('id, spot_id, user_id, role')
