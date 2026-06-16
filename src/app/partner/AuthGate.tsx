@@ -3,31 +3,11 @@
 import { useState, type ReactNode } from 'react';
 import { useUser } from '@/lib/useUser';
 import LoginModal from '@/components/LoginModal';
-import { ACCENT } from './ui';
+import { ACCENT, Spinner } from './ui';
 
 // Wraps the partner pages: shows a login prompt until the user is signed in
 // (reusing the existing Kakao/Google LoginModal + /auth/callback flow). The
 // modal sends them back to the current /partner path via ?next.
-
-function Spinner() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '96px 0' }}>
-      <span
-        aria-hidden="true"
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: '50%',
-          border: '3px solid #e5e7eb',
-          borderTopColor: ACCENT,
-          animation: 'partner-spin 0.7s linear infinite',
-        }}
-      />
-      <span style={{ color: '#9ca3af', fontSize: 13 }}>불러오는 중…</span>
-      <style>{`@keyframes partner-spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
-}
 
 const FEATURES: { title: string; desc: string; icon: ReactNode }[] = [
   {

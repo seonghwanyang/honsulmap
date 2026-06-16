@@ -11,6 +11,7 @@ import {
   Card,
   Chip,
   PageHeader,
+  Spinner,
   buttonStyle,
   PlusIcon,
   StoreIcon,
@@ -222,16 +223,7 @@ function DashboardContent() {
   }, []);
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '80px 0' }}>
-        <span
-          aria-hidden="true"
-          style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #e5e7eb', borderTopColor: ACCENT, animation: 'partner-spin 0.7s linear infinite' }}
-        />
-        <span style={{ color: '#9ca3af', fontSize: 13 }}>불러오는 중…</span>
-        <style>{`@keyframes partner-spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <Spinner />;
   }
 
   const spots = (data?.spots ?? []).filter((m) => m.spot);

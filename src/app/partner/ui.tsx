@@ -157,6 +157,40 @@ export function buttonStyle(
   };
 }
 
+// ---- Loading spinner ---------------------------------------------------
+// Centers on BOTH axes within the available area (not top-pinned), so a lone
+// spinner on an otherwise-empty loading screen sits in the optical center.
+// Keyframe `partner-spin` lives in globals.css (defined once).
+
+export function Spinner({ label = '불러오는 중…' }: { label?: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 14,
+        width: '100%',
+        minHeight: '60dvh',
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: '50%',
+          border: '3px solid #e5e7eb',
+          borderTopColor: ACCENT,
+          animation: 'partner-spin 0.7s linear infinite',
+        }}
+      />
+      <span style={{ color: '#9ca3af', fontSize: 13 }}>{label}</span>
+    </div>
+  );
+}
+
 // ---- Icons (inline SVG, currentColor) ---------------------------------
 
 type IconProps = { size?: number };

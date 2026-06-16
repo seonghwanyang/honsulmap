@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthGate from '../../AuthGate';
-import { Card, Chip, PageHeader, buttonStyle } from '../../ui';
+import { Card, Chip, PageHeader, Spinner, buttonStyle } from '../../ui';
 
 interface SpotData {
   role: 'owner' | 'manager';
@@ -124,7 +124,7 @@ function SpotManageContent() {
   };
 
   if (loading) {
-    return <p style={{ color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: '64px 0' }}>불러오는 중…</p>;
+    return <Spinner />;
   }
 
   if (forbidden || !data) {
