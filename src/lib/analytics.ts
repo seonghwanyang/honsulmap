@@ -118,6 +118,10 @@ export type EventParams = {
   spot_request_submitted: SpotRequestSubmittedParams;
   community_post_entered: CommunityPostEnteredParams;
   write_submitted: WriteSubmittedParams;
+  login_started: { provider: 'kakao' | 'google' };
+  mood_voted: { spot_id: string; vote: 'up' | 'down' };
+  partner_claim_submitted: { spot_id: string };
+  partner_spot_managed: { spot_id: string };
   feed_load_more: { region: string; loaded: number };
   gps_centered: { lat: number; lng: number };
   pwa_installed: { platform?: string };

@@ -64,10 +64,40 @@ export default function AdminClaimsPage() {
     reload();
   }
 
+  // Revoke an already-approved claim: removes the spot_members grant (owner
+  // loses access) and flips the claim back to 반려, keeping an audit trail.
+  async function revoke(c: SpotClaim) {
+    if (
+      !confirm(
+        `"${c.spot?.name ?? '이 가게'}" 소유권을 회수할까요?\n${c.user_email ?? c.user_id} 계정의 가게 관리 권한이 사라집니다.`,
+      )
+    )
+      return;
+    const note = prompt('회수 사유 (선택):') || '';
+    const res = await fetch(`/api/admin/spot-claims/${c.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'rejected', reviewer_note: note || '소유권 회수됨' }),
+    });
+    if (!res.ok) return alert('회수 실패');
+    reload();
+  }
+
   async function remove(c: SpotClaim) {
     if (!confirm('신청을 영구 삭제할까요? 기록이 남지 않습니다.')) return;
     const res = await fetch(`/api/admin/spot-claims/${c.id}`, { method: 'DELETE' });
     if (!res.ok) return alert('삭제 실패');
+    reload();
+  }
+
+  async function issueCode(c: SpotClaim) {
+    if (c.verification_code && !confirm('새 코드로 재발급할까요? 이전 코드는 무효가 돼요.')) return;
+    const res = await fetch(`/api/admin/spot-claims/${c.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ issue_code: true }),
+    });
+    if (!res.ok) return alert('코드 발급 실패');
     reload();
   }
 
@@ -130,19 +160,38 @@ export default function AdminClaimsPage() {
                       {ROLE_LABEL[c.role] ?? c.role}
                     </span>
                   </div>
-                  {c.status === 'pending' && c.verification_code && (
+                  {(c.verification_code || c.status === 'pending') && (
                     <div style={{ margin: '6px 0 8px' }}>
-                      <div
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 8 }}
-                      >
-                        <span style={{ fontSize: 10.5, color: '#1d4ed8', fontWeight: 700 }}>DM 코드</span>
-                        <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, fontWeight: 800, color: '#111827', letterSpacing: '0.5px' }}>
-                          {c.verification_code}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
-                        이 코드가 적힌 DM을 {c.spot?.instagram_id ? `@${c.spot.instagram_id}` : '가게'} 계정에서 받았으면 승인하세요.
-                      </p>
+                      {c.verification_code ? (
+                        <div
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 8 }}
+                        >
+                          <span style={{ fontSize: 10.5, color: '#1d4ed8', fontWeight: 700 }}>DM 코드</span>
+                          <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, fontWeight: 800, color: '#111827', letterSpacing: '0.5px' }}>
+                            {c.verification_code}
+                          </span>
+                          {c.status === 'pending' && (
+                            <button
+                              onClick={() => issueCode(c)}
+                              style={{ fontSize: 10.5, color: '#6b7280', background: 'transparent', border: 'none', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+                            >
+                              재발급
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => issueCode(c)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}
+                        >
+                          🔑 인증 코드 발급
+                        </button>
+                      )}
+                      {c.status === 'pending' && c.verification_code && (
+                        <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
+                          이 코드가 적힌 DM을 {c.spot?.instagram_id ? `@${c.spot.instagram_id}` : '가게'} 계정에서 받았으면 승인하세요.
+                        </p>
+                      )}
                     </div>
                   )}
                   <div className="text-xs space-y-0.5" style={{ color: '#6b7280' }}>
@@ -203,13 +252,24 @@ export default function AdminClaimsPage() {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => remove(c)}
-                    className="text-xs px-3 py-1.5 flex-shrink-0"
-                    style={{ background: 'transparent', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 6 }}
-                  >
-                    삭제
-                  </button>
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    {c.status === 'approved' && (
+                      <button
+                        onClick={() => revoke(c)}
+                        className="text-xs px-3 py-1.5"
+                        style={{ background: 'transparent', color: '#b45309', border: '1px solid #fde68a', borderRadius: 6 }}
+                      >
+                        소유권 회수
+                      </button>
+                    )}
+                    <button
+                      onClick={() => remove(c)}
+                      className="text-xs px-3 py-1.5"
+                      style={{ background: 'transparent', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 6 }}
+                    >
+                      삭제
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

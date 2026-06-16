@@ -39,6 +39,9 @@ const NAV_ITEMS = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  // The owner portal (사장님 센터) has its own nav (sidebar / drawer) — the
+  // consumer nav pill should not float over it.
+  if (pathname.startsWith('/partner')) return null;
 
   return (
     <nav className="fixed bottom-1 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1 px-2 py-1.5 bg-white/97 backdrop-blur-2xl rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-black/5">

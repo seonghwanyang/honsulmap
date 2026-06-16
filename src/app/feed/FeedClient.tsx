@@ -11,8 +11,10 @@ import { track, shouldFireOnceForStory } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
 import { usePageDwell } from '@/lib/hooks/usePageDwell';
 import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
+import { useUser } from '@/lib/useUser';
+import LoginModal from '@/components/LoginModal';
 
-function StoryCard({ story }: { story: StoryWithSpot }) {
+function StoryCard({ story, isGuest }: { story: StoryWithSpot; isGuest?: boolean }) {
   const isVideo = story.media_type === 'video';
   const ref = useRef<HTMLDivElement>(null);
 
@@ -49,7 +51,23 @@ function StoryCard({ story }: { story: StoryWithSpot }) {
       className="block rounded-xl overflow-hidden bg-gray-100"
     >
       <div ref={ref} className="relative aspect-[4/5]">
-        {isVideo ? (
+        {isGuest ? (
+          <>
+            <img
+              src={story.thumbnail_url || story.media_url}
+              alt={story.spot.name}
+              className="w-full h-full object-cover"
+              style={{ filter: 'blur(16px)', transform: 'scale(1.1)' }}
+              loading="lazy"
+            />
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ background: 'rgba(17,24,39,0.3)' }}
+            >
+              <span aria-hidden="true" style={{ fontSize: 22 }}>🔒</span>
+            </div>
+          </>
+        ) : isVideo ? (
           <video
             src={story.media_url}
             poster={story.thumbnail_url || undefined}
@@ -68,7 +86,7 @@ function StoryCard({ story }: { story: StoryWithSpot }) {
             loading="lazy"
           />
         )}
-        {isVideo && (
+        {isVideo && !isGuest && (
           <div className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-black/40">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
               <polygon points="5,3 19,12 5,21" />
@@ -112,6 +130,13 @@ export default function FeedClient({ initialStories, city, region }: FeedClientP
 
   usePageDwell('feed', region);
   useScrollDepth('feed', region);
+  const { user, loading: authLoading } = useUser();
+  const [loginOpen, setLoginOpen] = useState(false);
+
+  // Guest → pop the login modal over the blurred feed once auth resolves.
+  useEffect(() => {
+    if (!authLoading && !user) setLoginOpen(true);
+  }, [authLoading, user]);
 
   // Reset paginated state when a fresh SSR page arrives (filter change).
   useEffect(() => {
@@ -169,7 +194,7 @@ export default function FeedClient({ initialStories, city, region }: FeedClientP
   stories.forEach((story) => {
     items.push(
       <div key={story.id} className="feed-item">
-        <StoryCard story={story} />
+        <StoryCard story={story} isGuest={!user} />
       </div>,
     );
   });
@@ -221,6 +246,8 @@ export default function FeedClient({ initialStories, city, region }: FeedClientP
           </>
         )}
       </div>
+
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   );
 }

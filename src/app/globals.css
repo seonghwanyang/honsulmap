@@ -111,3 +111,10 @@ main {
   padding: 0 10px;
   min-width: fit-content;
 }
+
+/* Owner portal (사장님 센터) loading spinner */
+@keyframes partner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

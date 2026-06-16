@@ -11,6 +11,8 @@ import { track, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
 import { usePageDwell } from '@/lib/hooks/usePageDwell';
 import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
+import { useUser } from '@/lib/useUser';
+import LoginModal from '@/components/LoginModal';
 
 function BackButton() {
   return (
@@ -84,6 +86,7 @@ function MoodVoteButton({ spotId, upCount, downCount }: { spotId: string; upCoun
         body: JSON.stringify({ vote, fingerprint: getFingerprint() }),
       });
       if (res.ok) {
+        track('mood_voted', { spot_id: spotId, vote });
         if (voted === vote) {
           setVoted(null);
           vote === 'up' ? setUp((v) => v - 1) : setDown((v) => v - 1);
@@ -395,6 +398,15 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
 
   usePageDwell('spot', slug);
   useScrollDepth('spot', slug);
+  const { user, loading: authLoading } = useUser();
+  const [loginOpen, setLoginOpen] = useState(false);
+
+  // Guest → pop the login modal over the blurred stories once auth resolves.
+  // slug is in the deps so navigating spot→spot (same route, no remount)
+  // re-opens it for each new spot.
+  useEffect(() => {
+    if (!authLoading && !user) setLoginOpen(true);
+  }, [authLoading, user, slug]);
 
   useEffect(() => {
     const fetchSpot = async () => {
@@ -632,7 +644,10 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
             )}
           </div>
         ) : (
-          <>
+          <div
+            className="flex flex-col gap-3"
+            style={!user ? { filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' } : undefined}
+          >
             {(() => {
               const items: React.ReactNode[] = [];
               let adCount = 0;
@@ -673,7 +688,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
                   : `이전 스토리 더 보기 (${storyTotal - activeStories.length})`}
               </button>
             )}
-          </>
+          </div>
         )}
       </div>
 
@@ -869,6 +884,8 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
       <div style={{ borderTop: '1px solid #f3f4f6', marginTop: '16px' }}>
         <CommentSection spotId={spot.id} />
       </div>
+
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   );
 }

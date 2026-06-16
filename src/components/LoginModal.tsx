@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createBrowserSupabase } from '@/lib/supabase/client';
+import { track } from '@/lib/analytics';
 
 interface Props {
   open: boolean;
@@ -21,6 +22,7 @@ export default function LoginModal({ open, onClose, reason }: Props) {
   const signIn = async (provider: 'kakao' | 'google') => {
     if (busy) return;
     setBusy(provider);
+    track('login_started', { provider });
     try {
       const supabase = createBrowserSupabase();
       const next = window.location.pathname + window.location.search;
@@ -62,7 +64,7 @@ export default function LoginModal({ open, onClose, reason }: Props) {
             혼술맵 로그인
           </h2>
           <p style={{ color: '#6b7280', fontSize: 12.5, marginTop: 6, lineHeight: 1.5 }}>
-            {reason ?? '로그인하고 더 많은 가게를 둘러보세요'}
+            {reason ?? '로그인 하고 실시간 현황을 확인하세요'}
           </p>
         </div>
 
