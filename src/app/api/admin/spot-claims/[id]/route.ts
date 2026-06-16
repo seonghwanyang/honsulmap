@@ -57,6 +57,15 @@ export async function PATCH(
         { onConflict: 'spot_id,user_id' },
       );
     if (memErr) return NextResponse.json({ error: memErr.message }, { status: 500 });
+  } else if (status === 'rejected') {
+    // Revoke: ensure the claimant holds no membership for this spot. Covers
+    // both rejecting a pending claim (no-op) and revoking an approved owner.
+    const { error: memErr } = await admin
+      .from('spot_members')
+      .delete()
+      .eq('spot_id', claim.spot_id)
+      .eq('user_id', claim.user_id);
+    if (memErr) return NextResponse.json({ error: memErr.message }, { status: 500 });
   }
 
   const { data, error } = await admin
@@ -74,7 +83,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const { error } = await supabaseAdmin().from('spot_claims').delete().eq('id', id);
+  const admin = supabaseAdmin();
+  // If the claim was approved, drop the membership it granted too — deleting
+  // only the record would otherwise leave the owner with orphaned access.
+  const { data: claim } = await admin
+    .from('spot_claims')
+    .select('spot_id, user_id, status')
+    .eq('id', id)
+    .maybeSingle();
+  if (claim?.status === 'approved') {
+    await admin
+      .from('spot_members')
+      .delete()
+      .eq('spot_id', claim.spot_id)
+      .eq('user_id', claim.user_id);
+  }
+  const { error } = await admin.from('spot_claims').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

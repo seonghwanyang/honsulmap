@@ -64,6 +64,25 @@ export default function AdminClaimsPage() {
     reload();
   }
 
+  // Revoke an already-approved claim: removes the spot_members grant (owner
+  // loses access) and flips the claim back to 반려, keeping an audit trail.
+  async function revoke(c: SpotClaim) {
+    if (
+      !confirm(
+        `"${c.spot?.name ?? '이 가게'}" 소유권을 회수할까요?\n${c.user_email ?? c.user_id} 계정의 가게 관리 권한이 사라집니다.`,
+      )
+    )
+      return;
+    const note = prompt('회수 사유 (선택):') || '';
+    const res = await fetch(`/api/admin/spot-claims/${c.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'rejected', reviewer_note: note || '소유권 회수됨' }),
+    });
+    if (!res.ok) return alert('회수 실패');
+    reload();
+  }
+
   async function remove(c: SpotClaim) {
     if (!confirm('신청을 영구 삭제할까요? 기록이 남지 않습니다.')) return;
     const res = await fetch(`/api/admin/spot-claims/${c.id}`, { method: 'DELETE' });
@@ -233,13 +252,24 @@ export default function AdminClaimsPage() {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => remove(c)}
-                    className="text-xs px-3 py-1.5 flex-shrink-0"
-                    style={{ background: 'transparent', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 6 }}
-                  >
-                    삭제
-                  </button>
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    {c.status === 'approved' && (
+                      <button
+                        onClick={() => revoke(c)}
+                        className="text-xs px-3 py-1.5"
+                        style={{ background: 'transparent', color: '#b45309', border: '1px solid #fde68a', borderRadius: 6 }}
+                      >
+                        소유권 회수
+                      </button>
+                    )}
+                    <button
+                      onClick={() => remove(c)}
+                      className="text-xs px-3 py-1.5"
+                      style={{ background: 'transparent', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 6 }}
+                    >
+                      삭제
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
