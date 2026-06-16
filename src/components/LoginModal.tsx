@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createBrowserSupabase } from '@/lib/supabase/client';
+import { track } from '@/lib/analytics';
 
 interface Props {
   open: boolean;
@@ -21,6 +22,7 @@ export default function LoginModal({ open, onClose, reason }: Props) {
   const signIn = async (provider: 'kakao' | 'google') => {
     if (busy) return;
     setBusy(provider);
+    track('login_started', { provider });
     try {
       const supabase = createBrowserSupabase();
       const next = window.location.pathname + window.location.search;

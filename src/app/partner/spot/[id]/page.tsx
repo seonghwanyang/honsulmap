@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthGate from '../../AuthGate';
 import { Card, Chip, PageHeader, Spinner, buttonStyle } from '../../ui';
+import { track } from '@/lib/analytics';
 
 interface SpotData {
   role: 'owner' | 'manager';
@@ -116,6 +117,7 @@ function SpotManageContent() {
         throw new Error(b.error || '저장에 실패했어요.');
       }
       setSavedMsg('저장됐어요.');
+      track('partner_spot_managed', { spot_id: id });
     } catch (e) {
       setError((e as Error).message);
     } finally {

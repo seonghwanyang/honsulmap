@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import AuthGate from '../AuthGate';
 import { CopyButton } from '../CopyButton';
+import { track } from '@/lib/analytics';
 import {
   ACCENT,
   ACCENT_DARK,
@@ -90,6 +91,7 @@ function ClaimContent() {
       if (!res.ok) throw new Error(body.error || '신청에 실패했어요.');
       setCode(body.code ?? '');
       setDone(true);
+      track('partner_claim_submitted', { spot_id: selected.id });
     } catch (e) {
       setError((e as Error).message);
     } finally {

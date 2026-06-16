@@ -86,6 +86,7 @@ function MoodVoteButton({ spotId, upCount, downCount }: { spotId: string; upCoun
         body: JSON.stringify({ vote, fingerprint: getFingerprint() }),
       });
       if (res.ok) {
+        track('mood_voted', { spot_id: spotId, vote });
         if (voted === vote) {
           setVoted(null);
           vote === 'up' ? setUp((v) => v - 1) : setDown((v) => v - 1);
@@ -401,9 +402,11 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
   const [loginOpen, setLoginOpen] = useState(false);
 
   // Guest → pop the login modal over the blurred stories once auth resolves.
+  // slug is in the deps so navigating spot→spot (same route, no remount)
+  // re-opens it for each new spot.
   useEffect(() => {
     if (!authLoading && !user) setLoginOpen(true);
-  }, [authLoading, user]);
+  }, [authLoading, user, slug]);
 
   useEffect(() => {
     const fetchSpot = async () => {
