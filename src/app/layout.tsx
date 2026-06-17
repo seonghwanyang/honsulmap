@@ -5,7 +5,6 @@ import BottomNav from '@/components/BottomNav';
 import Footer from '@/components/Footer';
 import ClarityScript from '@/components/analytics/ClarityScript';
 import AddToHomePrompt from '@/components/AddToHomePrompt';
-import NoticeModal from '@/components/NoticeModal';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
@@ -166,7 +165,6 @@ export default function RootLayout({
         <Footer />
         <BottomNav />
         <AddToHomePrompt />
-        <NoticeModal />
         <ClarityScript />
       </body>
       {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
