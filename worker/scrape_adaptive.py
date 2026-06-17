@@ -8,8 +8,9 @@ Differences from ``worker.scrape``:
 * Only pulls spots that are *due* (``spots.next_scrape_at <= now()``).
 * After each spot: stories  -> ``next_scrape_at = now + BASE_INTERVAL_MIN``,
   ``consecutive_empty = 0``; empty or errored -> exponential backoff
-  (``BASE * 2**streak``) capped at 24h. So dead/quiet spots drift out to a
-  daily check while active spots stay on the base cadence.
+  (``BASE * 2**streak``) capped at ``MAX_INTERVAL_MIN`` (default 120m). Active
+  spots stay on base cadence (15m); only quiet/dead spots drift out to the cap
+  (keeps request volume to storiesig — and IP-ban risk — low).
 * ``DRY_RUN=1`` fetches and PRINTS the computed schedule but writes nothing
   (no stories, no schedule) — safe to run against prod with no side effects.
 
@@ -21,8 +22,8 @@ Usage:
     BATCH_SIZE=1 python -m worker.scrape_adaptive             # one real spot
     python -m worker.scrape_adaptive                          # full adaptive run
 
-Env knobs: DRY_RUN, BATCH_SIZE, WORKERS, BASE_INTERVAL_MIN (default 30),
-SPOT_TIMEOUT_SEC.
+Env knobs: DRY_RUN, BATCH_SIZE, WORKERS, BASE_INTERVAL_MIN (default 15),
+MAX_INTERVAL_MIN (default 120), SPOT_TIMEOUT_SEC.
 """
 from __future__ import annotations
 
@@ -37,7 +38,8 @@ from typing import Any
 
 # Reuse the unchanged pure helpers from the live worker — no duplication and
 # no behavioural drift between the two.
-from worker.scrape import _build_story_row, _purge_browser_temp_dirs, _utcnow_iso
+from worker.scrape import _purge_browser_temp_dirs, _utcnow_iso
+from worker.storiesig_client import build_rows, fetch_stories_items_session, make_session
 
 
 def _dry_run() -> bool:
@@ -88,6 +90,9 @@ def _next_interval_min(*, had_stories: bool, prev_empty: int, base_min: int, max
 
 
 # ---------------------------------------------------------------------------
+# ⚠️ DEPRECATED (2026-06-18): storysaver가 Cloudflare Turnstile로 막혀 폐기.
+# 스토리 수집은 worker/storiesig_client.py 로 대체됨. 아래 함수들은 폴백/기록용
+# 보존(일부 scripts/ 도 import). 배경: scripts/SCRAPER_FIX_JOURNEY.md
 # Self-contained fetch + parser (ADAPTIVE ONLY — does not touch the live
 # worker.storysaver_client / worker.parser). Handles BOTH storysaver output
 # formats: the raw cdninstagram.com URLs the live parser knows, AND the newer
@@ -326,8 +331,8 @@ def _worker_loop(
     from worker.db import get_client, upsert_stories
 
     dry_run = _dry_run()
-    base_min = max(1, int(os.environ.get("BASE_INTERVAL_MIN", "30")))
-    max_min = 24 * 60
+    base_min = max(1, int(os.environ.get("BASE_INTERVAL_MIN", "15")))
+    max_min = int(os.environ.get("MAX_INTERVAL_MIN", "120"))
 
     try:
         client = get_client()
@@ -342,78 +347,74 @@ def _worker_loop(
         )
         return
 
-    while True:
-        try:
-            job = job_queue.get(timeout=1.0)
-        except Empty:
-            continue
-        if job is None:
-            return
+    # 브라우저 1개를 열어 이 워커의 모든 spot을 재사용 처리 (부팅 1회 → 속도·RAM·IP 개선).
+    with make_session() as session:
+        while True:
+            try:
+                job = job_queue.get(timeout=1.0)
+            except Empty:
+                continue
+            if job is None:
+                return
 
-        spot_id: str = job["id"]
-        handle: str = job["instagram_id"]
-        prev_empty = int(job.get("consecutive_empty") or 0)
-        fetch_time = datetime.now(timezone.utc)
+            spot_id: str = job["id"]
+            handle: str = job["instagram_id"]
+            prev_empty = int(job.get("consecutive_empty") or 0)
+            fetch_time = datetime.now(timezone.utc)
 
-        result: dict[str, Any] = {
-            "spot_id": spot_id,
-            "handle": handle,
-            "stories": 0,
-            "errored": False,
-            "error": None,
-        }
-        had_stories = False
-        try:
-            records = _extract_stories_v2(_fetch_html(handle))
-            rows = [
-                _build_story_row(
-                    spot_id=spot_id,
-                    instagram_handle=handle,
-                    record=r,
-                    fetch_time=fetch_time,
+            result: dict[str, Any] = {
+                "spot_id": spot_id,
+                "handle": handle,
+                "stories": 0,
+                "errored": False,
+                "error": None,
+            }
+            had_stories = False
+            try:
+                # 스토리 수집: storiesig 경유, 브라우저 세션 재사용. 행 구조 동일.
+                items = fetch_stories_items_session(session, handle)
+                rows = build_rows(
+                    items, spot_id=spot_id, instagram_handle=handle, fetch_time=fetch_time
                 )
-                for r in records
-            ]
-            rows = [r for r in rows if r is not None]
-            had_stories = len(rows) > 0
-            if dry_run:
-                result["stories"] = len(rows)
-                result["sample_url"] = rows[0]["media_url"] if rows else None
-            else:
-                result["stories"] = upsert_stories(client, rows)
-        except Exception as exc:
-            result["errored"] = True
-            result["error"] = f"{type(exc).__name__}: {exc}"
-            traceback.print_exc()
-        finally:
-            new_empty, interval_min = _next_interval_min(
-                had_stories=had_stories,
-                prev_empty=prev_empty,
-                base_min=base_min,
-                max_min=max_min,
-            )
-            next_at = fetch_time + timedelta(minutes=interval_min)
-            result["next_in_min"] = interval_min
-            if dry_run:
-                su = (result.get("sample_url") or "")[:75]
-                print(
-                    f"[scrape:DRY] spot={handle} stories={result['stories']} "
-                    f"empty={prev_empty}->{new_empty} next_in={interval_min}min "
-                    f"url={su} (NO DB WRITE)",
-                    flush=True,
+                had_stories = len(rows) > 0
+                if dry_run:
+                    result["stories"] = len(rows)
+                    result["sample_url"] = rows[0]["media_url"] if rows else None
+                else:
+                    result["stories"] = upsert_stories(client, rows)
+            except Exception as exc:
+                result["errored"] = True
+                result["error"] = f"{type(exc).__name__}: {exc}"
+                traceback.print_exc()
+            finally:
+                new_empty, interval_min = _next_interval_min(
+                    had_stories=had_stories,
+                    prev_empty=prev_empty,
+                    base_min=base_min,
+                    max_min=max_min,
                 )
-            else:
-                try:
-                    _update_scrape_schedule(
-                        client,
-                        spot_id,
-                        consecutive_empty=new_empty,
-                        next_scrape_at_iso=next_at.isoformat(),
-                        last_scraped_at_iso=_utcnow_iso(),
+                next_at = fetch_time + timedelta(minutes=interval_min)
+                result["next_in_min"] = interval_min
+                if dry_run:
+                    su = (result.get("sample_url") or "")[:75]
+                    print(
+                        f"[scrape:DRY] spot={handle} stories={result['stories']} "
+                        f"empty={prev_empty}->{new_empty} next_in={interval_min}min "
+                        f"url={su} (NO DB WRITE)",
+                        flush=True,
                     )
-                except Exception as exc:
-                    result.setdefault("error", f"schedule: {exc}")
-            result_queue.put(result)
+                else:
+                    try:
+                        _update_scrape_schedule(
+                            client,
+                            spot_id,
+                            consecutive_empty=new_empty,
+                            next_scrape_at_iso=next_at.isoformat(),
+                            last_scraped_at_iso=_utcnow_iso(),
+                        )
+                    except Exception as exc:
+                        result.setdefault("error", f"schedule: {exc}")
+                result_queue.put(result)
 
 
 # ---------------------------------------------------------------------------
@@ -442,11 +443,11 @@ def main() -> int:
         print(f"[scrape] missing env: {missing}", file=sys.stderr)
         return 2
 
-    batch_size = int(os.environ.get("BATCH_SIZE", "15"))
-    workers = max(1, int(os.environ.get("WORKERS", "4")))
+    batch_size = int(os.environ.get("BATCH_SIZE", "30"))
+    workers = max(1, int(os.environ.get("WORKERS", "2")))
     dry_run = _dry_run()
     if dry_run:
-        print("[scrape] DRY_RUN — fetching only, no DB writes (stories or schedule)")
+        print("[scrape] DRY_RUN - fetching only, no DB writes (stories or schedule)")
 
     from worker.db import get_client
 
@@ -458,7 +459,7 @@ def main() -> int:
 
     workers = min(workers, len(spots))
     print(
-        f"[scrape] {len(spots)} spots due — booting {workers} worker(s) + browsers, "
+        f"[scrape] {len(spots)} spots due - booting {workers} worker(s) + browsers, "
         f"fetching (first lines can take 30-60s)...",
         flush=True,
     )

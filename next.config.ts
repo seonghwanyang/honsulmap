@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
         hostname: "*.cdninstagram.com",
       },
       {
+        // IG 영상 스토리 URL은 fbcdn.net (다중 서브도메인) → ** 와일드카드.
+        protocol: "https",
+        hostname: "**.fbcdn.net",
+      },
+      {
         protocol: "https",
         hostname: "*.supabase.co",
       },
