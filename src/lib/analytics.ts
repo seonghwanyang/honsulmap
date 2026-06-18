@@ -122,6 +122,8 @@ export type EventParams = {
   mood_voted: { spot_id: string; vote: 'up' | 'down' };
   partner_claim_submitted: { spot_id: string };
   partner_spot_managed: { spot_id: string };
+  story_login_blocked: { spot_id: string; surface: StorySurface };
+  checkin_result: { spot_id: string; result: 'passed' | 'too_far' | 'no_gps'; distance_m: number | null };
   feed_load_more: { region: string; loaded: number };
   gps_centered: { lat: number; lng: number };
   pwa_installed: { platform?: string };

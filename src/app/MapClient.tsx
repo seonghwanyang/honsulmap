@@ -376,7 +376,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       panelSpotIdRef.current = spot.id;
       setSelectedSpot(spot);
       // Guest → pop the login modal over the (blurred) stories.
-      if (!user) setLoginOpen(true);
+      if (!user) {
+        setLoginOpen(true);
+        track('story_login_blocked', { spot_id: spot.id, surface: 'map_sheet' });
+      }
       track('spot_detail_entered', { spot_id: spot.id, entry_source });
       // Fire-and-forget view counter — failures are silent so the panel
       // open never blocks on this network call.
@@ -723,6 +726,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       setVisitSubmitting(false);
       setGpsToast('위치 권한이 필요해요 · 허용 후 다시 눌러주세요');
       setTimeout(() => setGpsToast(null), 3500);
+      track('checkin_result', { spot_id: selectedSpot.id, result: 'no_gps', distance_m: null });
       return;
     }
     const dist = haversineMeters(pos.lat, pos.lng, selectedSpot.lat, selectedSpot.lng);
@@ -730,8 +734,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       setVisitSubmitting(false);
       setGpsToast('가게 300m 이내에서만 체크할 수 있어요');
       setTimeout(() => setGpsToast(null), 3500);
+      track('checkin_result', { spot_id: selectedSpot.id, result: 'too_far', distance_m: Math.round(dist) });
       return;
     }
+    track('checkin_result', { spot_id: selectedSpot.id, result: 'passed', distance_m: Math.round(dist) });
 
     // Snapshot the spot we're acting on so a panel swap (or close) mid-
     // flight doesn't leak the response into another spot's UI.
