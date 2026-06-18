@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "886249200062",
+    "project_id": "honsulmap",
+    "storage_bucket": "honsulmap.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:886249200062:android:c1686cf7f092ba0a1181ef",
+        "android_client_info": {
+          "package_name": "com.honsulmap.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "886249200062-jer1h6rbqj3i9f7a4b4obr56cjlcghoo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrJrygNJ-8oys7y0gQHh5IEkVyqFw_5XA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "886249200062-jer1h6rbqj3i9f7a4b4obr56cjlcghoo.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
