@@ -48,7 +48,9 @@ function LikeButton({ targetType, targetId, initialCount }: { targetType: string
       if (res.ok) {
         setLiked((v) => !v);
         setCount((c) => (liked ? c - 1 : c + 1));
+        if (targetType === 'spot' && !liked) track('like', { spot_id: targetId });
       }
+
     } catch (err) {
       console.error('Like error:', err);
     }
@@ -405,7 +407,10 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
   // slug is in the deps so navigating spot→spot (same route, no remount)
   // re-opens it for each new spot.
   useEffect(() => {
-    if (!authLoading && !user) setLoginOpen(true);
+    if (!authLoading && !user) {
+      setLoginOpen(true);
+      track('story_login_blocked', { spot_id: slug, surface: 'spot_page' });
+    }
   }, [authLoading, user, slug]);
 
   useEffect(() => {

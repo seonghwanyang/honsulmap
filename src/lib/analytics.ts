@@ -124,6 +124,8 @@ export type EventParams = {
   partner_spot_managed: { spot_id: string };
   story_login_blocked: { spot_id: string; surface: StorySurface };
   checkin_result: { spot_id: string; result: 'passed' | 'too_far' | 'no_gps'; distance_m: number | null };
+  visit: { spot_id: string };
+  like: { spot_id: string };
   feed_load_more: { region: string; loaded: number };
   gps_centered: { lat: number; lng: number };
   pwa_installed: { platform?: string };

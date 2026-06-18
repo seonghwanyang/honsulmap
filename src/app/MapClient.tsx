@@ -754,6 +754,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       if (panelSpotIdRef.current !== targetSpotId) return; // user moved on
       setVisitCount(payload.count);
       setJustVisited(true);
+      track('visit', { spot_id: targetSpotId });
     } catch (err) {
       console.error('visit error:', err);
     } finally {
