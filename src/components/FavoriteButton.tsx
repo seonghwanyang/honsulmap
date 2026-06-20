@@ -14,9 +14,11 @@ const NUDGE_KEY = 'fav_nudge_seen';
 export default function FavoriteButton({
   spotId,
   onNeedLogin,
+  variant = 'pill',
 }: {
   spotId: string;
   onNeedLogin: () => void;
+  variant?: 'pill' | 'icon';
 }) {
   const { user } = useUser();
   const [fav, setFav] = useState(false);
@@ -95,22 +97,42 @@ export default function FavoriteButton({
 
   return (
     <div style={{ position: 'relative', display: 'inline-flex' }}>
-      <button
-        onClick={toggle}
-        aria-pressed={fav}
-        aria-label="찜하기"
-        className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
-        style={{
-          background: fav ? '#fff7ed' : '#f8f9fa',
-          borderRadius: '10px',
-          color: fav ? '#ea580c' : '#6b7280',
-          border: fav ? '1.5px solid #fdba74' : '1.5px solid #e5e7eb',
-          cursor: 'pointer',
-        }}
-      >
-        <span>{fav ? '★' : '☆'}</span>
-        <span>찜</span>
-      </button>
+      {variant === 'icon' ? (
+        <button
+          onClick={toggle}
+          aria-pressed={fav}
+          aria-label="찜하기"
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
+          style={{
+            background: fav ? '#fff7ed' : '#f3f4f6',
+            color: fav ? '#ea580c' : '#9ca3af',
+            borderRadius: '50%',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill={fav ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+        </button>
+      ) : (
+        <button
+          onClick={toggle}
+          aria-pressed={fav}
+          aria-label="찜하기"
+          className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
+          style={{
+            background: fav ? '#fff7ed' : '#f8f9fa',
+            borderRadius: '10px',
+            color: fav ? '#ea580c' : '#6b7280',
+            border: fav ? '1.5px solid #fdba74' : '1.5px solid #e5e7eb',
+            cursor: 'pointer',
+          }}
+        >
+          <span>{fav ? '★' : '☆'}</span>
+          <span>찜</span>
+        </button>
+      )}
       {nudge && (
         <div
           role="status"

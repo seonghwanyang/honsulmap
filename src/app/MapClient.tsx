@@ -10,6 +10,7 @@ import SpotRequestModal from '@/components/SpotRequestModal';
 import WelcomeModal from '@/components/WelcomeModal';
 import LoginModal from '@/components/LoginModal';
 import { useUser } from '@/lib/useUser';
+import FavoriteButton from '@/components/FavoriteButton';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
@@ -1647,15 +1648,18 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     {activeStories.length > 0 && ` · 스토리 ${activeStories.length}개`}
                   </p>
                 </div>
-                <button
-                  onClick={closeSpotPanel}
-                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
-                  style={{ color: '#9ca3af', background: '#f3f4f6', borderRadius: '50%' }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
+                <div className="flex-shrink-0 flex items-center gap-1.5">
+                  <FavoriteButton spotId={selectedSpot.id} onNeedLogin={() => setLoginOpen(true)} variant="icon" />
+                  <button
+                    onClick={closeSpotPanel}
+                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
+                    style={{ color: '#9ca3af', background: '#f3f4f6', borderRadius: '50%' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {/* Action Buttons — uniform gray pill + black text. Each
