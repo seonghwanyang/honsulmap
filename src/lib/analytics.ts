@@ -126,7 +126,6 @@ export type EventParams = {
   checkin_result: { spot_id: string; result: 'passed' | 'too_far' | 'no_gps'; distance_m: number | null };
   visit: { spot_id: string };
   like: { spot_id: string };
-  favorite_added: { spot_id: string };
   feed_load_more: { region: string; loaded: number };
   gps_centered: { lat: number; lng: number };
   pwa_installed: { platform?: string };

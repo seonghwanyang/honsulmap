@@ -132,23 +132,3 @@ export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: 
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
 }
-
-/**
- * Serialize an object for embedding in a <script type="application/ld+json">
- * via dangerouslySetInnerHTML. JSON.stringify does NOT escape '<', so a value
- * containing "</script>" (e.g. a user-edited spot memo or a post title) would
- * break out of the tag and inject stored XSS. We neutralize <, >, & and the JS
- * line separators U+2028/U+2029.
- *
- * The char class is built with String.fromCharCode so those two code points
- * never appear RAW in this source file — a raw U+2028/U+2029 inside a regex
- * literal is parsed as a line break and breaks the build (TS1161). Keep it this
- * way; do not paste the literal separator characters back into a /regex/.
- */
-const JSONLD_UNSAFE = new RegExp('[<>&' + String.fromCharCode(0x2028, 0x2029) + ']', 'g');
-
-export function jsonLdScript(obj: unknown): string {
-  return JSON.stringify(obj).replace(JSONLD_UNSAFE, (c) =>
-    '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'),
-  );
-}

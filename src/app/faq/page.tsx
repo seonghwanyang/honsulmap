@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { jsonLdScript } from '@/lib/utils';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
 
@@ -166,7 +165,7 @@ export default function FaqPage() {
     <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <header
         className="sticky top-0 z-20 flex items-center gap-3 px-4"
