@@ -1,0 +1,59 @@
+# Codemagic CI/CD — 혼술맵 iOS (Capacitor 8 / SPM)
+# 클라우드 맥에서 빌드 → 서명 → TestFlight 업로드. (Windows에 맥이 없어서 이걸로 iOS 처리)
+#
+# 사전조건:
+#  - Codemagic 대시보드 → Integrations → Developer Portal 에 App Store Connect API 키를
+#    "honsulmap" 이라는 이름으로 등록해둠 (아래 integrations 와 이름이 일치해야 함).
+#  - App Store Connect 에 번들ID com.honsulmap.app 앱 레코드가 존재해야 TestFlight 업로드됨.
+#
+# 특이사항:
+#  - server.url(=honsulmap.com)로 운영사이트를 웹뷰 로드하므로 next build 불필요.
+#    www/ 오프라인 폴백만 cap sync 로 동기화하면 됨 → 맥 빌드가 가볍고 빠름.
+#  - CocoaPods 아님(SPM). 그래서 pod install 없음, workspace 아닌 .xcodeproj 직접 빌드.
+
+workflows:
+  ios-release:
+    name: iOS Release (TestFlight)
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    integrations:
+      app_store_connect: honsulmap        # 대시보드에 등록한 키 이름과 동일
+    environment:
+      ios_signing:
+        # 통합(honsulmap) + 아래 두 값이 있으면 Codemagic이 배포 인증서/프로비저닝을
+        # 자동 생성·다운로드. 스크립트의 `xcode-project use-profiles`가 그걸 프로젝트에 적용.
+        distribution_type: app_store
+        bundle_identifier: com.honsulmap.app
+      vars:
+        BUNDLE_ID: "com.honsulmap.app"
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+      node: 20
+      xcode: latest
+    scripts:
+      - name: Install npm deps
+        script: npm ci
+      - name: Capacitor sync (ios)
+        # capacitor.config.json + www → ios/App/App/public 재생성 (둘 다 gitignore라 매번 필요)
+        script: npx cap sync ios
+      - name: Resolve SPM packages
+        script: xcodebuild -resolvePackageDependencies -project "$XCODE_PROJECT" -scheme "$XCODE_SCHEME"
+      - name: Apply signing profiles
+        script: xcode-project use-profiles
+      - name: Set build number
+        # Codemagic 빌드 카운터를 CFBundleVersion으로 (TestFlight는 빌드번호 증가 요구)
+        script: |
+          cd ios/App
+          agvtool new-version -all "$BUILD_NUMBER"
+      - name: Build ipa
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration                 # honsulmap 키로 인증
+        submit_to_testflight: true         # 업로드 후 TestFlight(내부 테스트) 제출
