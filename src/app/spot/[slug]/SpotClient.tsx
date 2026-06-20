@@ -13,6 +13,7 @@ import { usePageDwell } from '@/lib/hooks/usePageDwell';
 import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
 import { useUser } from '@/lib/useUser';
 import LoginModal from '@/components/LoginModal';
+import FavoriteButton from '@/components/FavoriteButton';
 
 function BackButton() {
   return (
@@ -400,18 +401,8 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
 
   usePageDwell('spot', slug);
   useScrollDepth('spot', slug);
-  const { user, loading: authLoading } = useUser();
+  const { user } = useUser();
   const [loginOpen, setLoginOpen] = useState(false);
-
-  // Guest → pop the login modal over the blurred stories once auth resolves.
-  // slug is in the deps so navigating spot→spot (same route, no remount)
-  // re-opens it for each new spot.
-  useEffect(() => {
-    if (!authLoading && !user) {
-      setLoginOpen(true);
-      track('story_login_blocked', { spot_id: slug, surface: 'spot_page' });
-    }
-  }, [authLoading, user, slug]);
 
   useEffect(() => {
     const fetchSpot = async () => {
@@ -618,7 +609,10 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
 
       {/* Like button + Mood vote */}
       <div className="px-4 mt-4 flex flex-col gap-3">
-        <LikeButton targetType="spot" targetId={spot.slug} initialCount={spot.like_count} />
+        <div className="flex gap-2">
+          <LikeButton targetType="spot" targetId={spot.slug} initialCount={spot.like_count} />
+          <FavoriteButton spotId={spot.id} onNeedLogin={() => setLoginOpen(true)} />
+        </div>
         <MoodVoteButton spotId={spot.slug} upCount={spot.mood_up} downCount={spot.mood_down} />
       </div>
 
@@ -648,11 +642,42 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
               </a>
             )}
           </div>
+        ) : !user ? (
+          // Guest: a short blurred teaser under a click-to-login overlay. The
+          // gate stays (stories need auth) but we no longer auto-pop a modal —
+          // a far better first impression for visitors and the AdSense
+          // reviewer than a wall slammed over the page.
+          <div className="relative">
+            <div
+              className="flex flex-col gap-3"
+              style={{ filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' }}
+              aria-hidden="true"
+            >
+              {activeStories.slice(0, 2).map((story: Story) => (
+                <SpotPageStory key={story.id} story={story} spot={spot} />
+              ))}
+            </div>
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-6 text-center"
+              style={{ background: 'linear-gradient(rgba(255,255,255,0.15), rgba(255,255,255,0.7))' }}
+            >
+              <button
+                onClick={() => {
+                  setLoginOpen(true);
+                  track('story_login_blocked', { spot_id: slug, surface: 'spot_page' });
+                }}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold"
+                style={{ background: '#111827', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
+              >
+                🔒 로그인하고 실시간 스토리 보기
+              </button>
+              <span className="text-xs" style={{ color: '#4b5563' }}>
+                로그인하면 {spot.name}의 스토리 {storyTotal}개를 모두 볼 수 있어요
+              </span>
+            </div>
+          </div>
         ) : (
-          <div
-            className="flex flex-col gap-3"
-            style={!user ? { filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' } : undefined}
-          >
+          <div className="flex flex-col gap-3">
             {(() => {
               const items: React.ReactNode[] = [];
               let adCount = 0;
