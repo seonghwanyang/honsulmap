@@ -11,7 +11,6 @@ import WelcomeModal from '@/components/WelcomeModal';
 import LoginModal from '@/components/LoginModal';
 import { useUser } from '@/lib/useUser';
 import FavoriteButton from '@/components/FavoriteButton';
-import { createBrowserSupabase } from '@/lib/supabase/client';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
@@ -393,11 +392,6 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     flushPanelDwell();
     setSelectedSpot(null);
   }, [flushPanelDwell]);
-
-  const handleLogout = useCallback(async () => {
-    const supabase = createBrowserSupabase();
-    await supabase.auth.signOut();
-  }, []);
 
   const handleDragStart = (e: React.TouchEvent) => {
     dragStartYRef.current = e.touches[0].clientY;
@@ -1359,20 +1353,18 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         </div>
         <div className="ml-auto flex items-center">
           {user ? (
-            <button
-              type="button"
-              onClick={() => { if (window.confirm('로그아웃할까요?')) handleLogout(); }}
-              title="로그아웃"
-              aria-label="로그아웃"
+            <Link
+              href="/me"
+              title="내 정보"
+              aria-label="내 정보"
               className="flex items-center justify-center"
-              style={{ width: 32, height: 32, borderRadius: 999, background: '#fff', color: '#6b7280', border: '1px solid #e5e7eb', cursor: 'pointer' }}
+              style={{ width: 32, height: 32, borderRadius: 999, background: '#fff', color: '#6b7280', border: '1px solid #e5e7eb' }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21a8 8 0 0 1 16 0" />
               </svg>
-            </button>
+            </Link>
           ) : (
             <button
               type="button"
