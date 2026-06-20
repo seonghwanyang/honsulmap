@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { permanentRedirect } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import PostClient from './PostClient';
+import { jsonLdScript } from '@/lib/utils';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
 
@@ -116,7 +117,7 @@ export default async function PostPage({
       {jsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
         />
       )}
       <PostClient initialPost={post} />

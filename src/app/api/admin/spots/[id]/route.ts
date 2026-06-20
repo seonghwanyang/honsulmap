@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { assertAdmin } from '@/lib/adminAuth';
 import { VALID_REGIONS } from '@/lib/types';
 
 const VALID_CATEGORIES = ['bar', 'guesthouse'] as const;
@@ -8,6 +9,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = assertAdmin(request);
+  if (denied) return denied;
+
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
 
@@ -72,9 +76,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = assertAdmin(request);
+  if (denied) return denied;
+
   const { id } = await params;
   const { error } = await supabaseAdmin().from('spots').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

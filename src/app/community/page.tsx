@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { Post, PostCategory } from '@/lib/types';
 import CommunityClient from './CommunityClient';
+import { jsonLdScript } from '@/lib/utils';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
 
@@ -70,7 +71,7 @@ export default async function CommunityPage({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
       <CommunityClient initialPosts={posts} category={category} />
     </>
