@@ -138,9 +138,9 @@ export default function FavoriteButton({
           role="status"
           style={{
             position: 'absolute',
-            bottom: 'calc(100% + 8px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
+            top: 'calc(100% + 8px)',
+            ...(variant === 'icon' ? { right: 0 } : { left: 0 }),
+            maxWidth: '72vw',
             whiteSpace: 'nowrap',
             background: '#111827',
             color: '#fff',
@@ -148,23 +148,22 @@ export default function FavoriteButton({
             fontWeight: 600,
             padding: '7px 11px',
             borderRadius: 9,
-            boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+            boxShadow: '0 6px 18px rgba(0,0,0,0.22)',
             pointerEvents: 'none',
-            zIndex: 50,
+            zIndex: 60,
           }}
         >
           찜하고 새 소식·혜택 받아보세요
           <span
             style={{
               position: 'absolute',
-              top: '100%',
-              left: '50%',
-              transform: 'translateX(-50%)',
+              bottom: '100%',
+              ...(variant === 'icon' ? { right: 11 } : { left: 16 }),
               width: 0,
               height: 0,
               borderLeft: '5px solid transparent',
               borderRight: '5px solid transparent',
-              borderTop: '5px solid #111827',
+              borderBottom: '5px solid #111827',
             }}
           />
         </div>
