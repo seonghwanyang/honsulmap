@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { assertAdmin } from '@/lib/adminAuth';
 import { VALID_REGIONS } from '@/lib/types';
 
 const VALID_CATEGORIES = ['bar', 'guesthouse'] as const;
 
 // List all spots (no story join) for the admin table, each annotated with
 // 조회수 (spot_views) + 다녀왔어요 (spot_visits) counts.
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const denied = assertAdmin(request);
+  if (denied) return denied;
+
   const sb = supabaseAdmin();
   const [spotsRes, viewsRes, visitsRes] = await Promise.all([
     sb
@@ -38,6 +42,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = assertAdmin(request);
+  if (denied) return denied;
+
   const body = await request.json().catch(() => ({}));
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   const slug = typeof body.slug === 'string' ? body.slug.trim().toLowerCase() : '';

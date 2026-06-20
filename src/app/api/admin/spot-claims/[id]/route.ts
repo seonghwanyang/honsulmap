@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { assertAdmin } from '@/lib/adminAuth';
 import { genClaimCode } from '@/lib/claimCode';
 
 const VALID = ['approved', 'rejected'] as const;
@@ -11,6 +12,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = assertAdmin(request);
+  if (denied) return denied;
+
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
   const admin = supabaseAdmin();
@@ -79,9 +83,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = assertAdmin(request);
+  if (denied) return denied;
+
   const { id } = await params;
   const admin = supabaseAdmin();
   // If the claim was approved, drop the membership it granted too — deleting

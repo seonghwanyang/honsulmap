@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { assertAdmin } from '@/lib/adminAuth';
 
 const VALID_STATUSES = ['pending', 'resolved', 'dismissed'] as const;
 
@@ -7,6 +8,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = assertAdmin(request);
+  if (denied) return denied;
+
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
   const status = typeof body.status === 'string' ? body.status : '';
