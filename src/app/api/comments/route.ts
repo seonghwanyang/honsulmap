@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 import type { CommentCreateRequest, Comment } from '@/lib/types';
 
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (post) {
-      await supabase
+      await supabaseAdmin()
         .from('posts')
         .update({ comment_count: (post.comment_count ?? 0) + 1 })
         .eq('id', post_id);
