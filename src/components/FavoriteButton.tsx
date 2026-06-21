@@ -1,15 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import { useUser } from '@/lib/useUser';
 import { track } from '@/lib/analytics';
 
-// 찜(favorite): login-only. The parent owns the login modal and passes
-// onNeedLogin (so we don't stack a second modal). Toggling writes directly to
-// the `favorites` table under RLS (user owns their own rows). A one-time,
-// dismiss-on-any-tap nudge gently explains the value.
-const NUDGE_KEY = 'fav_nudge_seen';
+// 찜(favorite): login-only. Parent owns the login modal (onNeedLogin).
+//
+// Nudge logic: show "찜하고 새 소식·혜택 받아보세요" to users who haven't favorited
+// anything yet — once per session, lifetime cap NUDGE_MAX, and never again once
+// they've favorited at least one spot. Rendered via a portal with position:fixed
+// so no ancestor's overflow can clip it.
+const NUDGE_COUNT_KEY = 'fav_nudge_count';
+const NUDGE_SESSION_KEY = 'fav_nudge_session';
+const FAV_USED_KEY = 'fav_used';
+const NUDGE_MAX = 3;
 
 export default function FavoriteButton({
   spotId,
@@ -23,9 +29,10 @@ export default function FavoriteButton({
   const { user } = useUser();
   const [fav, setFav] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [nudge, setNudge] = useState(false);
+  const [nudgePos, setNudgePos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
 
-  // Load initial favorited state for the logged-in user.
+  // Initial favorited state for the logged-in user.
   useEffect(() => {
     if (!user) {
       setFav(false);
@@ -46,23 +53,26 @@ export default function FavoriteButton({
     };
   }, [user, spotId]);
 
-  // One-time gentle nudge — disappears on any tap (or after 5s), shown once ever.
+  // Nudge: once/session, lifetime cap, stop once they've ever favorited.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !btnRef.current) return;
     try {
-      if (localStorage.getItem(NUDGE_KEY)) return;
+      if (localStorage.getItem(FAV_USED_KEY)) return;
+      if (Number(localStorage.getItem(NUDGE_COUNT_KEY) || '0') >= NUDGE_MAX) return;
+      if (sessionStorage.getItem(NUDGE_SESSION_KEY)) return;
     } catch {
       return;
     }
-    setNudge(true);
-    const dismiss = () => {
-      setNudge(false);
-      try {
-        localStorage.setItem(NUDGE_KEY, '1');
-      } catch {
-        /* ignore */
-      }
-    };
+    const r = btnRef.current.getBoundingClientRect();
+    const left = Math.min(Math.max(r.left + r.width / 2, 124), window.innerWidth - 124);
+    setNudgePos({ top: r.bottom + 8, left });
+    try {
+      sessionStorage.setItem(NUDGE_SESSION_KEY, '1');
+      localStorage.setItem(NUDGE_COUNT_KEY, String(Number(localStorage.getItem(NUDGE_COUNT_KEY) || '0') + 1));
+    } catch {
+      /* ignore */
+    }
+    const dismiss = () => setNudgePos(null);
     const t = window.setTimeout(dismiss, 5000);
     window.addEventListener('pointerdown', dismiss, { once: true });
     return () => {
@@ -78,6 +88,7 @@ export default function FavoriteButton({
     }
     if (busy) return;
     setBusy(true);
+    setNudgePos(null);
     const sb = createBrowserSupabase();
     try {
       if (fav) {
@@ -87,6 +98,11 @@ export default function FavoriteButton({
         await sb.from('favorites').insert({ user_id: user.id, spot_id: spotId });
         setFav(true);
         track('favorite_added', { spot_id: spotId });
+        try {
+          localStorage.setItem(FAV_USED_KEY, '1');
+        } catch {
+          /* ignore */
+        }
       }
     } catch {
       /* best-effort */
@@ -95,10 +111,40 @@ export default function FavoriteButton({
     }
   };
 
-  return (
-    <div style={{ position: 'relative', display: 'inline-flex' }}>
-      {variant === 'icon' ? (
+  const nudge =
+    nudgePos && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            role="status"
+            style={{
+              position: 'fixed',
+              top: nudgePos.top,
+              left: nudgePos.left,
+              transform: 'translateX(-50%)',
+              maxWidth: 'min(80vw, 240px)',
+              whiteSpace: 'nowrap',
+              background: '#111827',
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 600,
+              padding: '7px 11px',
+              borderRadius: 9,
+              boxShadow: '0 6px 18px rgba(0,0,0,0.25)',
+              pointerEvents: 'none',
+              zIndex: 10000,
+            }}
+          >
+            찜하고 새 소식·혜택 받아보세요
+          </div>,
+          document.body,
+        )
+      : null;
+
+  if (variant === 'icon') {
+    return (
+      <>
         <button
+          ref={btnRef}
           onClick={toggle}
           aria-pressed={fav}
           aria-label="찜하기"
@@ -115,59 +161,31 @@ export default function FavoriteButton({
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
         </button>
-      ) : (
-        <button
-          onClick={toggle}
-          aria-pressed={fav}
-          aria-label="찜하기"
-          className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
-          style={{
-            background: fav ? '#fff7ed' : '#f8f9fa',
-            borderRadius: '10px',
-            color: fav ? '#ea580c' : '#6b7280',
-            border: fav ? '1.5px solid #fdba74' : '1.5px solid #e5e7eb',
-            cursor: 'pointer',
-          }}
-        >
-          <span>{fav ? '★' : '☆'}</span>
-          <span>찜</span>
-        </button>
-      )}
-      {nudge && (
-        <div
-          role="status"
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            ...(variant === 'icon' ? { right: 0 } : { left: 0 }),
-            maxWidth: '72vw',
-            whiteSpace: 'nowrap',
-            background: '#111827',
-            color: '#fff',
-            fontSize: 12,
-            fontWeight: 600,
-            padding: '7px 11px',
-            borderRadius: 9,
-            boxShadow: '0 6px 18px rgba(0,0,0,0.22)',
-            pointerEvents: 'none',
-            zIndex: 60,
-          }}
-        >
-          찜하고 새 소식·혜택 받아보세요
-          <span
-            style={{
-              position: 'absolute',
-              bottom: '100%',
-              ...(variant === 'icon' ? { right: 11 } : { left: 16 }),
-              width: 0,
-              height: 0,
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderBottom: '5px solid #111827',
-            }}
-          />
-        </div>
-      )}
-    </div>
+        {nudge}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        aria-pressed={fav}
+        aria-label="찜하기"
+        className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
+        style={{
+          background: fav ? '#fff7ed' : '#f8f9fa',
+          borderRadius: '10px',
+          color: fav ? '#ea580c' : '#6b7280',
+          border: fav ? '1.5px solid #fdba74' : '1.5px solid #e5e7eb',
+          cursor: 'pointer',
+        }}
+      >
+        <span>{fav ? '★' : '☆'}</span>
+        <span>찜</span>
+      </button>
+      {nudge}
+    </>
   );
 }
