@@ -53,33 +53,71 @@ export default function FavoriteButton({
     };
   }, [user, spotId]);
 
-  // Nudge: once/session, lifetime cap, stop once they've ever favorited.
+  // Nudge: anchor only after the button has STOPPED moving. The map sheet slides
+  // up over a few hundred ms, so we poll frames and wait until the button is
+  // on-screen AND its top hasn't changed for a few frames (animation finished) —
+  // measuring mid-slide lands the fixed tooltip far below the settled button.
+  // Strict-Mode-safe: the cap flag is written only when we actually show (inside
+  // the frame callback), so the dev double-invoke can't burn the cap or suppress
+  // the display.
   useEffect(() => {
-    if (typeof window === 'undefined' || !btnRef.current) return;
+    if (typeof window === 'undefined') return;
+    let ok = false;
     try {
-      if (localStorage.getItem(FAV_USED_KEY)) return;
-      if (Number(localStorage.getItem(NUDGE_COUNT_KEY) || '0') >= NUDGE_MAX) return;
-      if (sessionStorage.getItem(NUDGE_SESSION_KEY)) return;
+      ok =
+        !localStorage.getItem(FAV_USED_KEY) &&
+        Number(localStorage.getItem(NUDGE_COUNT_KEY) || '0') < NUDGE_MAX &&
+        !sessionStorage.getItem(NUDGE_SESSION_KEY);
     } catch {
-      return;
+      ok = false;
     }
-    const r = btnRef.current.getBoundingClientRect();
-    const left = Math.min(Math.max(r.left + r.width / 2, 124), window.innerWidth - 124);
-    setNudgePos({ top: r.bottom + 8, left });
-    try {
-      sessionStorage.setItem(NUDGE_SESSION_KEY, '1');
-      localStorage.setItem(NUDGE_COUNT_KEY, String(Number(localStorage.getItem(NUDGE_COUNT_KEY) || '0') + 1));
-    } catch {
-      /* ignore */
-    }
+    if (!ok) return;
+
+    let raf = 0;
+    let tries = 0;
+    let lastTop = NaN;
+    let stable = 0;
+    const tick = () => {
+      const el = btnRef.current;
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const onScreen = r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight;
+        stable = onScreen && Math.abs(r.top - lastTop) < 0.5 ? stable + 1 : 0;
+        lastTop = r.top;
+        if (onScreen && stable >= 3) {
+          const left = Math.min(Math.max(r.left + r.width / 2, 124), window.innerWidth - 124);
+          setNudgePos({ top: r.bottom + 8, left });
+          try {
+            sessionStorage.setItem(NUDGE_SESSION_KEY, '1');
+            localStorage.setItem(NUDGE_COUNT_KEY, String(Number(localStorage.getItem(NUDGE_COUNT_KEY) || '0') + 1));
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+      }
+      if (tries++ < 90) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Auto-dismiss after 5s, or on the next tap anywhere — tied to the visible
+  // nudge so Strict Mode re-arms it. The tap listener is deferred so the tap
+  // that opened the sheet doesn't instantly dismiss it.
+  useEffect(() => {
+    if (!nudgePos) return;
     const dismiss = () => setNudgePos(null);
-    const t = window.setTimeout(dismiss, 5000);
-    window.addEventListener('pointerdown', dismiss, { once: true });
+    const auto = window.setTimeout(dismiss, 5000);
+    const arm = window.setTimeout(() => {
+      window.addEventListener('pointerdown', dismiss, { once: true });
+    }, 150);
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(auto);
+      window.clearTimeout(arm);
       window.removeEventListener('pointerdown', dismiss);
     };
-  }, []);
+  }, [nudgePos]);
 
   const toggle = async () => {
     if (!user) {
