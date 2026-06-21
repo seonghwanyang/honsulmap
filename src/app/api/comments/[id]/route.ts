@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 
 export async function DELETE(
@@ -30,7 +30,7 @@ export async function DELETE(
     return NextResponse.json({ error: '비밀번호가 올바르지 않습니다.' }, { status: 403 });
   }
 
-  const { error } = await supabase.from('comments').delete().eq('id', id);
+  const { error } = await supabaseAdmin().from('comments').delete().eq('id', id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -45,7 +45,7 @@ export async function DELETE(
       .single();
 
     if (post) {
-      await supabase
+      await supabaseAdmin()
         .from('posts')
         .update({ comment_count: Math.max(0, (post.comment_count ?? 1) - 1) })
         .eq('id', comment.post_id);

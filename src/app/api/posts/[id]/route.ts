@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -84,7 +84,9 @@ export async function PATCH(
   // Remove password_hash from updates if accidentally included
   delete updates.password_hash;
 
-  const { data, error } = await supabase
+  // service role: anon must NOT hold UPDATE on posts (RLS locked down). The
+  // password check above is the real authz; the write goes through service role.
+  const { data, error } = await supabaseAdmin()
     .from('posts')
     .update(updates)
     .eq('id', id)
@@ -137,7 +139,7 @@ export async function DELETE(
     return NextResponse.json({ error: '비밀번호가 올바르지 않습니다.' }, { status: 403 });
   }
 
-  const { error } = await supabase.from('posts').delete().eq('id', id);
+  const { error } = await supabaseAdmin().from('posts').delete().eq('id', id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
