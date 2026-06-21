@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { assertAdmin } from '@/lib/adminAuth';
 
 // Ownership claims submitted from the 사장님 센터 (partner portal). Behind admin
 // basic-auth (middleware). Approving one (see [id]/route.ts) creates the
 // spot_members row that unlocks the owner's dashboard.
 export async function GET(request: NextRequest) {
+  const denied = assertAdmin(request);
+  if (denied) return denied;
+
   const status = new URL(request.url).searchParams.get('status');
   const admin = supabaseAdmin();
 
