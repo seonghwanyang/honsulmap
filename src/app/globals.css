@@ -45,6 +45,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 네이티브 느낌(Capacitor 웹뷰): 탭 시 회색 플래시 제거 + 길게눌러
+   이미지/링크 콜아웃(저장·복사 메뉴) 억제. 입력 선택은 유지. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+html {
+  -webkit-touch-callout: none;
+}
+
 /* Bottom nav safe area */
 main {
   padding-bottom: 80px;
