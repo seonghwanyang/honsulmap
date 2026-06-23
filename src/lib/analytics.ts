@@ -118,7 +118,7 @@ export type EventParams = {
   spot_request_submitted: SpotRequestSubmittedParams;
   community_post_entered: CommunityPostEnteredParams;
   write_submitted: WriteSubmittedParams;
-  login_started: { provider: 'kakao' | 'google' };
+  login_started: { provider: 'kakao' | 'google' | 'apple' };
   mood_voted: { spot_id: string; vote: 'up' | 'down' };
   partner_claim_submitted: { spot_id: string };
   partner_spot_managed: { spot_id: string };

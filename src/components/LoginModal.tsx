@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Capacitor } from '@capacitor/core';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import { track } from '@/lib/analytics';
 
@@ -14,16 +15,29 @@ interface Props {
 
 export default function LoginModal({ open, onClose, reason }: Props) {
   const [mounted, setMounted] = useState(false);
-  const [busy, setBusy] = useState<'kakao' | 'google' | null>(null);
-  useEffect(() => setMounted(true), []);
+  const [busy, setBusy] = useState<'kakao' | 'google' | 'apple' | null>(null);
+  const [platform, setPlatform] = useState<'web' | 'ios' | 'android'>('web');
+  useEffect(() => {
+    setMounted(true);
+    setPlatform(Capacitor.getPlatform() as 'web' | 'ios' | 'android');
+  }, []);
 
   if (!open || !mounted) return null;
 
-  const signIn = async (provider: 'kakao' | 'google') => {
+  const signIn = async (provider: 'kakao' | 'google' | 'apple') => {
     if (busy) return;
     setBusy(provider);
     track('login_started', { provider });
     try {
+      // 네이티브 앱: 구글/애플은 웹뷰 OAuth가 막히므로 네이티브 플러그인으로.
+      // (카카오는 웹뷰에서 동작하므로 아래 웹 OAuth 경로를 그대로 탄다)
+      if (Capacitor.isNativePlatform() && (provider === 'google' || provider === 'apple')) {
+        const { nativeSignIn } = await import('@/lib/nativeAuth');
+        await nativeSignIn(provider);
+        // 세션이 쿠키에 저장됨 → 리로드로 서버컴포넌트에 로그인 반영
+        window.location.reload();
+        return;
+      }
       const supabase = createBrowserSupabase();
       const next = window.location.pathname + window.location.search;
       const { error } = await supabase.auth.signInWithOAuth({
@@ -111,6 +125,30 @@ export default function LoginModal({ open, onClose, reason }: Props) {
             {busy === 'google' ? '이동 중…' : 'Google로 시작하기'}
           </button>
 
+          {/* 애플 로그인: iOS 네이티브에서만 (App Store 4.8 필수). 네이티브 SIWA. */}
+          {platform === 'ios' && (
+            <button
+              type="button"
+              onClick={() => signIn('apple')}
+              disabled={!!busy}
+              className="w-full flex items-center justify-center gap-2"
+              style={{
+                height: 48,
+                borderRadius: 12,
+                background: '#000',
+                color: '#fff',
+                fontSize: 14.5,
+                fontWeight: 600,
+                border: 'none',
+                cursor: busy ? 'default' : 'pointer',
+                opacity: busy && busy !== 'apple' ? 0.5 : 1,
+              }}
+            >
+              <AppleIcon />
+              {busy === 'apple' ? '진행 중…' : 'Apple로 시작하기'}
+            </button>
+          )}
+
           <p style={{ color: '#9ca3af', fontSize: 11, textAlign: 'center', marginTop: 6, lineHeight: 1.5 }}>
             로그인 시{' '}
             <a href="/terms" className="underline">이용약관</a> ·{' '}
@@ -142,6 +180,14 @@ function GoogleIcon() {
       <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
       <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
       <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+      <path d="M17.05 12.04c-.03-2.6 2.12-3.84 2.22-3.91-1.21-1.77-3.09-2.01-3.76-2.04-1.6-.16-3.12.94-3.93.94-.81 0-1.65-.92-2.72-.9-1.4.02-2.69.81-3.41 2.06-1.45 2.52-.37 6.25 1.04 8.3.69.99 1.51 2.11 2.59 2.07 1.04-.04 1.43-.67 2.69-.67 1.25 0 1.61.67 2.71.65 1.12-.02 1.83-1.01 2.51-2.01.79-1.15 1.12-2.26 1.14-2.32-.03-.01-2.19-.84-2.21-3.34zM14.6 4.42c.57-.69.96-1.65.85-2.61-.83.03-1.83.55-2.42 1.24-.53.61-.99 1.59-.87 2.53.92.07 1.87-.47 2.44-1.16z"/>
     </svg>
   );
 }
