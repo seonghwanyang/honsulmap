@@ -11,6 +11,7 @@ import WelcomeModal from '@/components/WelcomeModal';
 import LoginModal from '@/components/LoginModal';
 import { useUser } from '@/lib/useUser';
 import FavoriteButton from '@/components/FavoriteButton';
+import MarketingConsentPrompt from '@/components/MarketingConsentPrompt';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
@@ -1533,6 +1534,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         onClose={() => setLoginOpen(false)}
         reason={loginReason}
       />
+
+      <MarketingConsentPrompt />
 
       {/* Bottom Sheet: Spot List */}
       <div

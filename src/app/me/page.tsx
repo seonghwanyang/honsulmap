@@ -20,10 +20,12 @@ export default function MyPage() {
   const { user, loading } = useUser();
   const [loginOpen, setLoginOpen] = useState(false);
   const [favs, setFavs] = useState<FavSpot[] | null>(null);
+  const [optedIn, setOptedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!user) {
       setFavs(null);
+      setOptedIn(null);
       return;
     }
     let alive = true;
@@ -35,6 +37,12 @@ export default function MyPage() {
       .catch(() => {
         if (alive) setFavs([]);
       });
+    fetch('/api/me/marketing-consent')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d) setOptedIn(!!d.opted_in);
+      })
+      .catch(() => {});
     return () => {
       alive = false;
     };
@@ -43,6 +51,21 @@ export default function MyPage() {
   const logout = async () => {
     await createBrowserSupabase().auth.signOut();
     window.location.href = '/';
+  };
+
+  const toggleConsent = async () => {
+    if (optedIn === null) return;
+    const next = !optedIn;
+    setOptedIn(next);
+    try {
+      await fetch('/api/me/marketing-consent', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opted_in: next, source: 'me_toggle' }),
+      });
+    } catch {
+      setOptedIn(!next);
+    }
   };
 
   return (
@@ -90,6 +113,25 @@ export default function MyPage() {
             </div>
             <button onClick={logout} style={{ flexShrink: 0, fontSize: 12.5, color: '#6b7280', background: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: 8, padding: '7px 12px', cursor: 'pointer' }}>
               로그아웃
+            </button>
+          </div>
+
+          {/* 알림(마케팅 수신) 동의 */}
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>새 소식·혜택 알림</div>
+              <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2, lineHeight: 1.5 }}>
+                찜한 가게의 새 스토리·혜택을 알림으로 받아요 (마케팅 수신 동의)
+              </div>
+            </div>
+            <button
+              onClick={toggleConsent}
+              disabled={optedIn === null}
+              aria-pressed={!!optedIn}
+              aria-label="마케팅 수신 동의"
+              style={{ flexShrink: 0, width: 46, height: 28, borderRadius: 999, border: 'none', cursor: optedIn === null ? 'default' : 'pointer', position: 'relative', background: optedIn ? '#111827' : '#d1d5db', transition: 'background .15s', opacity: optedIn === null ? 0.5 : 1 }}
+            >
+              <span style={{ position: 'absolute', top: 3, left: optedIn ? 21 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', transition: 'left .15s' }} />
             </button>
           </div>
 
