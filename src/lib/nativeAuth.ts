@@ -16,8 +16,14 @@
 
 import { createBrowserSupabase } from '@/lib/supabase/client';
 
-const GOOGLE_WEB_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-const GOOGLE_IOS_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+// 구글 OAuth 클라이언트 ID는 '비밀'이 아니라 공개 식별자라 코드에 박아도 안전
+// (시크릿은 네이티브 플로우에서 안 씀). env로 덮어쓸 수도 있게 fallback.
+const GOOGLE_WEB_CLIENT_ID =
+  process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID ??
+  '886249200062-jer1h6rbqj3i9f7a4b4obr56cjlcghoo.apps.googleusercontent.com';
+const GOOGLE_IOS_CLIENT_ID =
+  process.env.NEXT_PUBLIC_GOOGLE_IOS_CLIENT_ID ??
+  '886249200062-uu5krad7fu6pqkrgfhabcnm4421nhv0b.apps.googleusercontent.com';
 
 let initialized = false;
 
