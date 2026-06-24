@@ -68,18 +68,19 @@ export default function MarketingConsentPrompt() {
         zIndex: 9999,
         background: 'rgba(0,0,0,0.45)',
         display: 'flex',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         justifyContent: 'center',
+        padding: 24,
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 360,
           background: '#fff',
-          borderRadius: '20px 20px 0 0',
-          padding: '24px 22px calc(22px + env(safe-area-inset-bottom))',
+          borderRadius: 20,
+          padding: '26px 22px 22px',
         }}
       >
         <div style={{ fontSize: 32, textAlign: 'center', marginBottom: 10 }}>🔔</div>
