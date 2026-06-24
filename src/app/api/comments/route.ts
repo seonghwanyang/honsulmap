@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 import type { CommentCreateRequest, Comment } from '@/lib/types';
+import { rateLimit, clientIp } from '@/lib/rateLimit';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -52,6 +53,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const ip = clientIp(request);
+  if (!(await rateLimit('comment:create', ip, 60, 10))) {
+    return NextResponse.json(
+      { error: '댓글을 너무 자주 달고 있어요. 잠시 후 다시 시도해주세요.' },
+      { status: 429 },
+    );
+  }
+
   const body: CommentCreateRequest = await request.json();
   const { post_id, spot_id, parent_id, nickname, password, content } = body;
 
