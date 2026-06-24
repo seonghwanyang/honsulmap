@@ -20,6 +20,9 @@ interface SpotData {
     business_hours: string | null;
     phone: string | null;
     vip_until: string | null;
+    benefit_title: string | null;
+    benefit_detail: string | null;
+    benefit_active: boolean;
   };
   stats: { views: number; visits: number; likes: number; mood_up: number; mood_down: number };
 }
@@ -77,6 +80,12 @@ function SpotManageContent() {
   const [memo, setMemo] = useState('');
   const [hours, setHours] = useState('');
   const [phone, setPhone] = useState('');
+  const [benefitTitle, setBenefitTitle] = useState('');
+  const [benefitDetail, setBenefitDetail] = useState('');
+  const [benefitActive, setBenefitActive] = useState(false);
+  const [savingBenefit, setSavingBenefit] = useState(false);
+  const [benefitMsg, setBenefitMsg] = useState('');
+  const [benefitErr, setBenefitErr] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
   const [error, setError] = useState('');
@@ -96,6 +105,9 @@ function SpotManageContent() {
           setMemo(d.spot.memo ?? '');
           setHours(d.spot.business_hours ?? '');
           setPhone(d.spot.phone ?? '');
+          setBenefitTitle(d.spot.benefit_title ?? '');
+          setBenefitDetail(d.spot.benefit_detail ?? '');
+          setBenefitActive(!!d.spot.benefit_active);
         }
       })
       .catch(() => {})
@@ -122,6 +134,37 @@ function SpotManageContent() {
       setError((e as Error).message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveBenefit = async () => {
+    if (benefitActive && !benefitTitle.trim()) {
+      setBenefitMsg('');
+      setBenefitErr('혜택을 켜려면 제목을 입력해주세요.');
+      return;
+    }
+    setSavingBenefit(true);
+    setBenefitErr('');
+    setBenefitMsg('');
+    try {
+      const res = await fetch(`/api/partner/spots/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          benefit_title: benefitTitle,
+          benefit_detail: benefitDetail,
+          benefit_active: benefitActive,
+        }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        throw new Error(b.error || '저장에 실패했어요.');
+      }
+      setBenefitMsg('혜택이 저장됐어요.');
+    } catch (e) {
+      setBenefitErr((e as Error).message);
+    } finally {
+      setSavingBenefit(false);
     }
   };
 
@@ -174,6 +217,59 @@ function SpotManageContent() {
           <StatBox label="좋아요" value={stats.likes.toLocaleString()} />
           <StatBox label="분위기 👍" value={upPct == null ? '—' : `${upPct}%`} />
         </div>
+      </section>
+
+      {/* 혜택 */}
+      <section>
+        <h2 style={sectionLabel}>혜택</h2>
+        <Card style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>혜택 노출</div>
+              <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2, lineHeight: 1.5 }}>
+                켜면 지도 마커와 가게 상세에 🎁 혜택이 표시돼요.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setBenefitActive((v) => !v)}
+              aria-pressed={benefitActive}
+              aria-label="혜택 노출"
+              style={{ flexShrink: 0, width: 46, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative', background: benefitActive ? '#111827' : '#d1d5db', transition: 'background .15s' }}
+            >
+              <span style={{ position: 'absolute', top: 3, left: benefitActive ? 21 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', transition: 'left .15s' }} />
+            </button>
+          </div>
+          <div>
+            <label style={labelStyle}>혜택 제목</label>
+            <input
+              value={benefitTitle}
+              onChange={(e) => setBenefitTitle(e.target.value)}
+              maxLength={40}
+              placeholder="예) 웰컴 드링크 1잔 서비스"
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>조건·설명 (선택)</label>
+            <input
+              value={benefitDetail}
+              onChange={(e) => setBenefitDetail(e.target.value)}
+              maxLength={200}
+              placeholder="예) 방문 1회 한정 · 첫 주문 시"
+              style={inputStyle}
+            />
+          </div>
+          {benefitErr && <p style={{ color: '#ef4444', fontSize: 12.5 }}>{benefitErr}</p>}
+          {benefitMsg && <p style={{ color: '#16a34a', fontSize: 12.5, fontWeight: 600 }}>{benefitMsg}</p>}
+          <button
+            onClick={saveBenefit}
+            disabled={savingBenefit}
+            style={{ ...buttonStyle('primary', { disabled: savingBenefit }), alignSelf: 'flex-start' }}
+          >
+            {savingBenefit ? '저장 중…' : '혜택 저장'}
+          </button>
+        </Card>
       </section>
 
       {/* Edit */}
