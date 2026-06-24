@@ -982,6 +982,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // signal "not active now".
       const storyDot = isFresh ? `<span style="position:absolute;top:-1px;right:-1px;width:8px;height:8px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>` : '';
       const tipBadge = isFresh ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#7C3AED;margin-left:4px;flex-shrink:0;"></span>` : '';
+      // 혜택(#8) 마커 서브마크 — 좌상단 🎁 (스토리 점은 우상단이라 안 겹침).
+      const benefitMark =
+        spot.benefit_active && spot.benefit_title
+          ? `<span style="position:absolute;top:-6px;left:-6px;width:16px;height:16px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.3);">🎁</span>`
+          : '';
 
       const content = `
         <div onclick="window.__selectSpot && window.__selectSpot('${spot.id}')"
@@ -998,7 +1003,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             ${name}${tipBadge}
           </div>
           <div style="position:relative;width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};display:flex;align-items:center;justify-content:center;">
-            ${glassIcon}${storyDot}
+            ${glassIcon}${storyDot}${benefitMark}
           </div>
           <div style="width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${tailColor};margin-top:-1px;"></div>
         </div>
@@ -1656,6 +1661,18 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   </button>
                 </div>
               </div>
+
+              {selectedSpot.benefit_active && selectedSpot.benefit_title && (
+                <div
+                  className="flex items-start gap-2 mt-3"
+                  style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '9px 11px' }}
+                >
+                  <span style={{ fontSize: 15, lineHeight: 1.2, flexShrink: 0 }}>🎁</span>
+                  <div style={{ minWidth: 0, fontSize: 12.5, fontWeight: 700, color: '#9a3412' }}>
+                    {selectedSpot.benefit_title}
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons — uniform gray pill + black text. Each
                   carries its brand mark so the row reads as "what is

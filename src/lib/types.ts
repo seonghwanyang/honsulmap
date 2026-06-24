@@ -57,6 +57,9 @@ export interface Spot {
   phone: string | null;
   business_hours: string | null;
   memo: string | null;
+  benefit_title?: string | null;
+  benefit_detail?: string | null;
+  benefit_active?: boolean;
   naver_place_id: string | null;
   naver_rating?: number | null;
   naver_review_count?: number | null;

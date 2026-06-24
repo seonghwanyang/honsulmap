@@ -605,6 +605,23 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
             {spot.memo}
           </p>
         )}
+
+        {spot.benefit_active && spot.benefit_title && (
+          <div
+            className="mt-3 flex items-start gap-2"
+            style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '10px 12px' }}
+          >
+            <span style={{ fontSize: 16, lineHeight: 1.2, flexShrink: 0 }}>🎁</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#9a3412' }}>{spot.benefit_title}</div>
+              {spot.benefit_detail && (
+                <div style={{ fontSize: 11.5, color: '#c2410c', marginTop: 2, lineHeight: 1.5 }}>
+                  {spot.benefit_detail}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Like button + Mood vote */}
