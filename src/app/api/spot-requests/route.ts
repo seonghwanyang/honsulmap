@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { VALID_REGIONS } from '@/lib/types';
+import { rateLimit, clientIp } from '@/lib/rateLimit';
 
 const VALID_CATEGORIES = ['bar', 'guesthouse'] as const;
 
 export async function POST(request: NextRequest) {
+  const ip = clientIp(request);
+  if (!(await rateLimit('spot-request:create', ip, 600, 5))) {
+    return NextResponse.json(
+      { error: '요청을 너무 자주 보내고 있어요. 잠시 후 다시 시도해주세요.' },
+      { status: 429 },
+    );
+  }
+
   const body = await request.json().catch(() => ({}));
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   const ig_handle =

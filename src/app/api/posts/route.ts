@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 import type { PostCreateRequest } from '@/lib/types';
 import { generatePostSlug } from '@/lib/utils';
+import { rateLimit, clientIp } from '@/lib/rateLimit';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -62,6 +63,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const ip = clientIp(request);
+  if (!(await rateLimit('post:create', ip, 600, 5))) {
+    return NextResponse.json(
+      { error: '글을 너무 자주 올리고 있어요. 잠시 후 다시 시도해주세요.' },
+      { status: 429 },
+    );
+  }
+
   const body = (await request.json()) as PostCreateRequest & { spot_name?: string };
   const { category, title, content, nickname, password, spot_id, image_urls } = body;
   const spotNameRaw = typeof body.spot_name === 'string' ? body.spot_name.trim() : '';
