@@ -1664,6 +1664,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 </div>
               </div>
 
+              {selectedSpot.memo && (
+                <p className="mt-2 text-[13px] leading-relaxed" style={{ color: '#374151' }}>
+                  {selectedSpot.memo}
+                </p>
+              )}
+
               {selectedSpot.benefit_active && selectedSpot.benefit_title && (
                 <div className="mt-3" style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '11px 13px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
@@ -1812,18 +1818,6 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 </div>
               )}
 
-              {/* Admin memo — short editorial note about the spot
-                  (e.g. "애월에서 제일 늦게까지 하는 혼술바"). Renders
-                  full-width below the info bar so a long sentence wraps
-                  cleanly instead of squeezing into the inline pill row. */}
-              {selectedSpot.memo && (
-                <p
-                  className="mt-2 text-[12px] leading-snug"
-                  style={{ color: '#4b5563' }}
-                >
-                  {selectedSpot.memo}
-                </p>
-              )}
             </div>
 
             {/* Stories Vertical Scroll — snap so each story takes one
