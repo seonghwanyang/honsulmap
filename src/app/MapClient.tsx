@@ -989,7 +989,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         : '';
       const tipBadge = isFresh ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#7C3AED;margin-left:4px;flex-shrink:0;"></span>` : '';
       const benefitMark = hasBenefit
-        ? `<span style="position:absolute;top:-7px;right:-7px;width:16px;height:16px;border-radius:50%;background:#111827;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.35);"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>`
+        ? `<span style="position:absolute;top:-7px;right:-7px;width:16px;height:16px;border-radius:50%;background:#111827;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.35);"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg></span>`
         : '';
 
       const content = `
