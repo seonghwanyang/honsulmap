@@ -981,13 +981,16 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // Purple story dot — fresh only. Stale spots had a story but it's
       // outside the 24h activity window, so we drop the dot/tipBadge to
       // signal "not active now".
-      const storyDot = isFresh ? `<span style="position:absolute;top:-1px;right:-1px;width:8px;height:8px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>` : '';
+      // 혜택(#8): 우상단 주황 배지 + 흰 태그 아이콘(이모지·흰배경 X).
+      // 스토리 보라점과 우상단이 겹치면 보라점을 좌상단으로 옮겨 둘 다 보이게.
+      const hasBenefit = !!(spot.benefit_active && spot.benefit_title);
+      const storyDot = isFresh
+        ? `<span style="position:absolute;top:-1px;${hasBenefit ? 'left:-1px' : 'right:-1px'};width:8px;height:8px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>`
+        : '';
       const tipBadge = isFresh ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#7C3AED;margin-left:4px;flex-shrink:0;"></span>` : '';
-      // 혜택(#8) 마커 서브마크 — 좌상단 🎁 (스토리 점은 우상단이라 안 겹침).
-      const benefitMark =
-        spot.benefit_active && spot.benefit_title
-          ? `<span style="position:absolute;top:-6px;left:-6px;width:16px;height:16px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.3);">🎁</span>`
-          : '';
+      const benefitMark = hasBenefit
+        ? `<span style="position:absolute;top:-6px;right:-6px;width:15px;height:15px;border-radius:50%;background:#f97316;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.3);"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>`
+        : '';
 
       const content = `
         <div onclick="window.__selectSpot && window.__selectSpot('${spot.id}')"
@@ -1672,8 +1675,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
 
               {selectedSpot.benefit_active && selectedSpot.benefit_title && (
                 <div className="mt-3" style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '11px 13px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: 14, lineHeight: 1 }}>🎁</span>
+                  <div style={{ marginBottom: 4 }}>
                     <span style={{ fontSize: 11, fontWeight: 800, color: '#ea580c', background: '#ffedd5', borderRadius: 999, padding: '2px 8px' }}>혜택</span>
                   </div>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: '#9a3412', lineHeight: 1.4 }}>

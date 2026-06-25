@@ -541,8 +541,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
             className="mt-3"
             style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '12px 14px' }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-              <span style={{ fontSize: 15, lineHeight: 1 }}>🎁</span>
+            <div style={{ marginBottom: 5 }}>
               <span style={{ fontSize: 11, fontWeight: 800, color: '#ea580c', background: '#ffedd5', borderRadius: 999, padding: '2px 8px' }}>혜택</span>
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#9a3412', lineHeight: 1.4 }}>{spot.benefit_title}</div>
