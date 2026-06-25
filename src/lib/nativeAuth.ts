@@ -68,9 +68,11 @@ export async function nativeSignIn(provider: 'google' | 'apple'): Promise<void> 
 
   if (provider === 'google') {
     const { rawNonce, nonceDigest } = await getNonce();
+    // scopes는 넣지 않는다 — @capgo Android에선 scopes 사용 시 MainActivity
+    // 네이티브 수정을 요구함. 로그인용 idToken엔 email/profile이 기본 포함되므로 불필요.
     const res = await SocialLogin.login({
       provider: 'google',
-      options: { scopes: ['email', 'profile'], nonce: nonceDigest },
+      options: { nonce: nonceDigest },
     });
     const idToken = (res.result as { idToken?: string }).idToken;
     if (!idToken) throw new Error('Google idToken 없음');
