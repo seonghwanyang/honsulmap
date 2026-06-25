@@ -75,76 +75,6 @@ function LikeButton({ targetType, targetId, initialCount }: { targetType: string
   );
 }
 
-function MoodVoteButton({ spotId, upCount, downCount }: { spotId: string; upCount: number; downCount: number }) {
-  const [voted, setVoted] = useState<'up' | 'down' | null>(null);
-  const [up, setUp] = useState(upCount);
-  const [down, setDown] = useState(downCount);
-
-  const handleVote = async (vote: 'up' | 'down') => {
-    try {
-      const { getFingerprint } = await import('@/lib/utils');
-      const res = await fetch(`/api/spots/${spotId}/mood`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vote, fingerprint: getFingerprint() }),
-      });
-      if (res.ok) {
-        track('mood_voted', { spot_id: spotId, vote });
-        if (voted === vote) {
-          setVoted(null);
-          vote === 'up' ? setUp((v) => v - 1) : setDown((v) => v - 1);
-        } else {
-          if (voted === 'up') setUp((v) => v - 1);
-          if (voted === 'down') setDown((v) => v - 1);
-          setVoted(vote);
-          vote === 'up' ? setUp((v) => v + 1) : setDown((v) => v + 1);
-        }
-      }
-    } catch (err) {
-      console.error('MoodVote error:', err);
-    }
-  };
-
-  const total = up + down;
-  const upPercent = total > 0 ? Math.round((up / total) * 100) : 50;
-  const downPercent = total > 0 ? 100 - upPercent : 50;
-
-  return (
-    <div className="w-full">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium" style={{ color: '#6b7280' }}>분위기 투표</span>
-        <span className="text-xs" style={{ color: '#9ca3af' }}>총 {total}표</span>
-      </div>
-      <div className="vote-bar">
-        <button
-          onClick={() => handleVote('up')}
-          className="vote-bar-up"
-          style={{
-            width: `${Math.max(upPercent, 15)}%`,
-            opacity: voted === 'down' ? 0.6 : 1,
-            cursor: 'pointer',
-            border: 'none',
-          }}
-        >
-          &#9650; {upPercent}% ({up})
-        </button>
-        <button
-          onClick={() => handleVote('down')}
-          className="vote-bar-down"
-          style={{
-            width: `${Math.max(downPercent, 15)}%`,
-            opacity: voted === 'up' ? 0.6 : 1,
-            cursor: 'pointer',
-            border: 'none',
-          }}
-        >
-          &#9660; {downPercent}% ({down})
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function CommentSection({ spotId }: { spotId: string }) {
   const [comments, setComments] = useState<Array<{ id: string; nickname: string; content: string; created_at: string; like_count: number }>>([]);
   const [nickname, setNickname] = useState('');
@@ -624,13 +554,10 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
         )}
       </div>
 
-      {/* Like button + Mood vote */}
-      <div className="px-4 mt-4 flex flex-col gap-3">
-        <div className="flex gap-2">
-          <LikeButton targetType="spot" targetId={spot.slug} initialCount={spot.like_count} />
-          <FavoriteButton spotId={spot.id} onNeedLogin={() => setLoginOpen(true)} />
-        </div>
-        <MoodVoteButton spotId={spot.slug} upCount={spot.mood_up} downCount={spot.mood_down} />
+      {/* Like + Favorite */}
+      <div className="px-4 mt-4 flex gap-2">
+        <LikeButton targetType="spot" targetId={spot.slug} initialCount={spot.like_count} />
+        <FavoriteButton spotId={spot.id} onNeedLogin={() => setLoginOpen(true)} />
       </div>
 
       {/* Stories — 1-column full-width 9:16 cards, NativeCard after each except last */}

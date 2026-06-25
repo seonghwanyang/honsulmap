@@ -11,6 +11,7 @@ import WelcomeModal from '@/components/WelcomeModal';
 import LoginModal from '@/components/LoginModal';
 import { useUser } from '@/lib/useUser';
 import FavoriteButton from '@/components/FavoriteButton';
+import LikeButton from '@/components/LikeButton';
 import MarketingConsentPrompt from '@/components/MarketingConsentPrompt';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
@@ -1649,6 +1650,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   </p>
                 </div>
                 <div className="flex-shrink-0 flex items-center gap-1.5">
+                  <LikeButton key={selectedSpot.id} targetType="spot" targetId={selectedSpot.slug} initialCount={selectedSpot.like_count} />
                   <FavoriteButton spotId={selectedSpot.id} onNeedLogin={() => setLoginOpen(true)} variant="icon" />
                   <button
                     onClick={closeSpotPanel}
