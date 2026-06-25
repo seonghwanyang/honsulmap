@@ -160,7 +160,11 @@ function SpotManageContent() {
         const b = await res.json().catch(() => ({}));
         throw new Error(b.error || '저장에 실패했어요.');
       }
-      setBenefitMsg('혜택이 저장됐어요.');
+      setBenefitMsg(
+        benefitActive
+          ? '혜택이 저장됐어요. 지도·상세에 표시돼요.'
+          : '저장됐어요. 단, 위 "혜택 노출"을 켜야 지도·상세에 보여요.',
+      );
     } catch (e) {
       setBenefitErr((e as Error).message);
     } finally {

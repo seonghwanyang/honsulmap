@@ -1662,6 +1662,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 </div>
               </div>
 
+              {selectedSpot.memo && (
+                <p className="mt-2 text-[13px] leading-relaxed" style={{ color: '#374151' }}>
+                  {selectedSpot.memo}
+                </p>
+              )}
+
               {selectedSpot.benefit_active && selectedSpot.benefit_title && (
                 <div
                   className="flex items-start gap-2 mt-3"
