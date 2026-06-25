@@ -1664,19 +1664,13 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 </div>
               </div>
 
-              {selectedSpot.memo && (
-                <p className="mt-2 text-[13px] leading-relaxed" style={{ color: '#374151' }}>
-                  {selectedSpot.memo}
-                </p>
-              )}
-
               {selectedSpot.benefit_active && selectedSpot.benefit_title && (
-                <div
-                  className="flex items-start gap-2 mt-3"
-                  style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '9px 11px' }}
-                >
-                  <span style={{ fontSize: 15, lineHeight: 1.2, flexShrink: 0 }}>🎁</span>
-                  <div style={{ minWidth: 0, fontSize: 12.5, fontWeight: 700, color: '#9a3412' }}>
+                <div className="mt-3" style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '11px 13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <span style={{ fontSize: 14, lineHeight: 1 }}>🎁</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#ea580c', background: '#ffedd5', borderRadius: 999, padding: '2px 8px' }}>혜택</span>
+                  </div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#9a3412', lineHeight: 1.4 }}>
                     {selectedSpot.benefit_title}
                   </div>
                 </div>

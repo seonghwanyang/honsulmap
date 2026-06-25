@@ -248,7 +248,10 @@ function SpotManageContent() {
             <label style={labelStyle}>혜택 제목</label>
             <input
               value={benefitTitle}
-              onChange={(e) => setBenefitTitle(e.target.value)}
+              onChange={(e) => {
+                setBenefitTitle(e.target.value);
+                if (e.target.value.trim() && !benefitActive) setBenefitActive(true);
+              }}
               maxLength={40}
               placeholder="예) 웰컴 드링크 1잔 서비스"
               style={inputStyle}

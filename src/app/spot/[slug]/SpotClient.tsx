@@ -538,18 +538,19 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
 
         {spot.benefit_active && spot.benefit_title && (
           <div
-            className="mt-3 flex items-start gap-2"
-            style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '10px 12px' }}
+            className="mt-3"
+            style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '12px 14px' }}
           >
-            <span style={{ fontSize: 16, lineHeight: 1.2, flexShrink: 0 }}>🎁</span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#9a3412' }}>{spot.benefit_title}</div>
-              {spot.benefit_detail && (
-                <div style={{ fontSize: 11.5, color: '#c2410c', marginTop: 2, lineHeight: 1.5 }}>
-                  {spot.benefit_detail}
-                </div>
-              )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+              <span style={{ fontSize: 15, lineHeight: 1 }}>🎁</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: '#ea580c', background: '#ffedd5', borderRadius: 999, padding: '2px 8px' }}>혜택</span>
             </div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#9a3412', lineHeight: 1.4 }}>{spot.benefit_title}</div>
+            {spot.benefit_detail && (
+              <div style={{ fontSize: 12, color: '#c2410c', marginTop: 3, lineHeight: 1.5 }}>
+                {spot.benefit_detail}
+              </div>
+            )}
           </div>
         )}
       </div>
