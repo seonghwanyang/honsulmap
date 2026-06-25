@@ -35,6 +35,7 @@ async function getSocialLogin() {
 
 async function ensureInit() {
   if (initialized) return;
+  const { Capacitor } = await import('@capacitor/core');
   const SocialLogin = await getSocialLogin();
   await SocialLogin.initialize({
     google: {
@@ -42,7 +43,9 @@ async function ensureInit() {
       iOSClientId: GOOGLE_IOS_CLIENT_ID,
       mode: 'online',
     },
-    apple: {}, // iOS 네이티브 SIWA — clientId/secret 불필요
+    // 애플은 iOS에서만 init. Android는 apple.android.redirectUrl을 요구해서
+    // 빈 객체를 넘기면 initialize 자체가 실패한다(구글까지 막힘).
+    ...(Capacitor.getPlatform() === 'ios' ? { apple: {} } : {}),
   });
   initialized = true;
 }
