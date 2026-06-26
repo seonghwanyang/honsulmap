@@ -1273,12 +1273,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         setTimeout(() => setGpsToast(null), 3000);
       },
       {
-        // No client timeout: the permission prompt + GPS fix shouldn't
-        // be raced. Browsers eventually surface code 2/3 themselves if
-        // the device truly can't locate — that's the only useful
-        // failure signal anyway.
+        // 20s 클라이언트 타임아웃 — GPS 픽스가 안 잡히는 환경(에뮬레이터,
+        // 실내/신호 약함)에서 "내 위치 찾는 중…" 스피너가 무한정 도는 걸 막는다.
+        // 초과하면 error 콜백(code 3 → '위치 확인 시간 초과')이 토스트를 정리한다.
         enableHighAccuracy: false,
         maximumAge: 60_000,
+        timeout: 20_000,
       },
     );
   }, [applyGpsCoords]);
