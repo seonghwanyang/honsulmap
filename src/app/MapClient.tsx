@@ -1674,12 +1674,32 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               )}
 
               {selectedSpot.benefit_active && selectedSpot.benefit_title && (
-                <div className="mt-3" style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '11px 13px' }}>
-                  <div style={{ marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: '#ea580c', background: '#ffedd5', borderRadius: 999, padding: '2px 8px' }}>혜택</span>
+                <div
+                  className="mt-3 flex items-center gap-3"
+                  style={{
+                    background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                    border: '1px solid #fed7aa',
+                    borderRadius: 14,
+                    padding: '10px 12px',
+                    boxShadow: '0 2px 8px rgba(234, 88, 12, 0.10)',
+                  }}
+                >
+                  <div
+                    className="flex-shrink-0 flex items-center justify-center"
+                    style={{ width: 38, height: 38, background: '#111827', borderRadius: 11 }}
+                    aria-hidden="true"
+                  >
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 12 20 22 4 22 4 12" />
+                      <rect x="2" y="7" width="20" height="5" />
+                      <line x1="12" y1="22" x2="12" y2="7" />
+                      <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                      <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                    </svg>
                   </div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#9a3412', lineHeight: 1.4 }}>
-                    {selectedSpot.benefit_title}
+                  <div className="min-w-0">
+                    <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, color: '#ea580c', lineHeight: 1, marginBottom: 3 }}>오늘의 혜택</span>
+                    <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: '#111827', lineHeight: 1.35 }}>{selectedSpot.benefit_title}</span>
                   </div>
                 </div>
               )}
