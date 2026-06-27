@@ -335,6 +335,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
   const { user } = useUser();
   const [loginOpen, setLoginOpen] = useState(false);
   const [freeSpot, setFreeSpot] = useState(false);
+  const [loginReason, setLoginReason] = useState<string | undefined>(undefined);
 
   // Guests get ONE free spot per device: the first spot they open shows all
   // its stories (and is claimed here); every other spot is gated. Logged-in
@@ -445,6 +446,16 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
   // Free-spot guests AND logged-in users see all stories; gated-spot guests
   // get a blurred teaser + login CTA.
   const showFull = !!user || freeSpot;
+
+  // Gated spot (guest who used their one free spot): keep the blur teaser, AND
+  // pop the shared login modal with a story-specific message. Gating on
+  // activeStories.length means this fires after stories load — by then freeSpot
+  // has resolved, so no race and no pop on story-less spots.
+  useEffect(() => {
+    if (showFull || activeStories.length === 0) return;
+    setLoginReason('로그인하면 모든 가게의 스토리를 볼 수 있어요');
+    setLoginOpen(true);
+  }, [showFull, activeStories.length, spot?.id]);
 
   return (
     <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
@@ -593,7 +604,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
       {/* Like + Favorite */}
       <div className="px-4 mt-4 flex gap-2">
         <LikeButton targetType="spot" targetId={spot.slug} initialCount={spot.like_count} />
-        <FavoriteButton spotId={spot.id} onNeedLogin={() => setLoginOpen(true)} />
+        <FavoriteButton spotId={spot.id} onNeedLogin={() => { setLoginReason(undefined); setLoginOpen(true); }} />
       </div>
 
       {/* Stories — 1-column full-width 9:16 cards, NativeCard after each except last */}
@@ -894,7 +905,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
         <CommentSection spotId={spot.id} />
       </div>
 
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} reason={loginReason} />
     </div>
   );
 }

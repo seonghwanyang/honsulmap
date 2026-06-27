@@ -1369,6 +1369,16 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   // get a blurred teaser + login CTA.
   const showFullStories = !!user || freeStorySpot;
 
+  // Gated spot (guest who used their free spot): keep blur, AND pop the shared
+  // login modal with a story message — after stories load (so freeStorySpot has
+  // resolved → no race, and no pop on story-less spots).
+  useEffect(() => {
+    if (!selectedSpot || showFullStories) return;
+    if (isLoadingStories || activeStories.length === 0) return;
+    setLoginReason('로그인하면 모든 가게의 스토리를 볼 수 있어요');
+    setLoginOpen(true);
+  }, [selectedSpot?.id, showFullStories, isLoadingStories, activeStories.length]);
+
   return (
     <div className="relative w-full" style={{ height: '100dvh', background: '#f8f9fa' }}>
       {/* Header */}
