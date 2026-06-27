@@ -536,7 +536,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
           </p>
         )}
 
-        {spot.benefit_active && spot.benefit_title && (
+        {spot.benefit_active && spot.benefit_title && (!spot.benefit_expires_at || new Date(spot.benefit_expires_at) > new Date()) && (
           <div
             className="mt-3 flex items-center gap-3"
             style={{

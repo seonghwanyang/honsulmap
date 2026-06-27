@@ -23,6 +23,7 @@ interface SpotData {
     benefit_title: string | null;
     benefit_detail: string | null;
     benefit_active: boolean;
+    benefit_expires_at: string | null;
   };
   stats: { views: number; visits: number; likes: number; mood_up: number; mood_down: number };
 }
@@ -83,6 +84,10 @@ function SpotManageContent() {
   const [benefitTitle, setBenefitTitle] = useState('');
   const [benefitDetail, setBenefitDetail] = useState('');
   const [benefitActive, setBenefitActive] = useState(false);
+  const [benefitDuration, setBenefitDuration] = useState<
+    'forever' | '1h' | '1d' | '1w' | '1m' | 'custom'
+  >('forever');
+  const [benefitCustom, setBenefitCustom] = useState('');
   const [savingBenefit, setSavingBenefit] = useState(false);
   const [benefitMsg, setBenefitMsg] = useState('');
   const [benefitErr, setBenefitErr] = useState('');
@@ -108,6 +113,12 @@ function SpotManageContent() {
           setBenefitTitle(d.spot.benefit_title ?? '');
           setBenefitDetail(d.spot.benefit_detail ?? '');
           setBenefitActive(!!d.spot.benefit_active);
+          if (d.spot.benefit_expires_at) {
+            setBenefitDuration('custom');
+            setBenefitCustom(d.spot.benefit_expires_at.slice(0, 16));
+          } else {
+            setBenefitDuration('forever');
+          }
         }
       })
       .catch(() => {})
@@ -146,6 +157,13 @@ function SpotManageContent() {
     setSavingBenefit(true);
     setBenefitErr('');
     setBenefitMsg('');
+    let benefit_expires_at: string | null = null;
+    if (benefitDuration === '1h') benefit_expires_at = new Date(Date.now() + 3600e3).toISOString();
+    else if (benefitDuration === '1d') benefit_expires_at = new Date(Date.now() + 86400e3).toISOString();
+    else if (benefitDuration === '1w') benefit_expires_at = new Date(Date.now() + 7 * 86400e3).toISOString();
+    else if (benefitDuration === '1m') benefit_expires_at = new Date(Date.now() + 30 * 86400e3).toISOString();
+    else if (benefitDuration === 'custom')
+      benefit_expires_at = benefitCustom ? new Date(benefitCustom).toISOString() : null;
     try {
       const res = await fetch(`/api/partner/spots/${id}`, {
         method: 'PATCH',
@@ -154,6 +172,7 @@ function SpotManageContent() {
           benefit_title: benefitTitle,
           benefit_detail: benefitDetail,
           benefit_active: benefitActive,
+          benefit_expires_at,
         }),
       });
       if (!res.ok) {
@@ -266,6 +285,58 @@ function SpotManageContent() {
               placeholder="예) 방문 1회 한정 · 첫 주문 시"
               style={inputStyle}
             />
+          </div>
+          <div>
+            <label style={labelStyle}>노출 기간</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {(
+                [
+                  ['forever', '상시'],
+                  ['1h', '1시간'],
+                  ['1d', '하루'],
+                  ['1w', '일주일'],
+                  ['1m', '한달'],
+                  ['custom', '직접 설정'],
+                ] as const
+              ).map(([val, lbl]) => {
+                const on = benefitDuration === val;
+                return (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setBenefitDuration(val)}
+                    style={{
+                      padding: '7px 13px',
+                      borderRadius: 999,
+                      border: `1px solid ${on ? '#ea580c' : '#e5e7eb'}`,
+                      background: on ? '#ea580c' : '#fff',
+                      color: on ? '#fff' : '#374151',
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      lineHeight: 1,
+                      letterSpacing: '-0.2px',
+                    }}
+                  >
+                    {lbl}
+                  </button>
+                );
+              })}
+            </div>
+            {benefitDuration === 'custom' && (
+              <input
+                type="datetime-local"
+                value={benefitCustom}
+                onChange={(e) => setBenefitCustom(e.target.value)}
+                style={{ ...inputStyle, marginTop: 10 }}
+              />
+            )}
+            <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 8 }}>
+              현재:{' '}
+              {spot.benefit_expires_at
+                ? `${spot.benefit_expires_at.slice(0, 10)} ${spot.benefit_expires_at.slice(11, 16)} 까지`
+                : '상시'}
+            </div>
           </div>
           {benefitErr && <p style={{ color: '#ef4444', fontSize: 12.5 }}>{benefitErr}</p>}
           {benefitMsg && <p style={{ color: '#16a34a', fontSize: 12.5, fontWeight: 600 }}>{benefitMsg}</p>}

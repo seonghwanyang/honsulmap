@@ -35,7 +35,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     admin
       .from('spots')
       .select(
-        'id, name, slug, region, category, instagram_id, memo, business_hours, phone, vip_until, like_count, mood_up, mood_down, benefit_title, benefit_detail, benefit_active',
+        'id, name, slug, region, category, instagram_id, memo, business_hours, phone, vip_until, like_count, mood_up, mood_down, benefit_title, benefit_detail, benefit_active, benefit_expires_at',
       )
       .eq('id', id)
       .maybeSingle(),
@@ -85,6 +85,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     patch.benefit_active = body.benefit_active;
     benefitTouched = true;
   }
+  if (typeof body.benefit_expires_at === 'string') {
+    patch.benefit_expires_at = body.benefit_expires_at;
+    benefitTouched = true;
+  } else if (body.benefit_expires_at === null) {
+    patch.benefit_expires_at = null;
+    benefitTouched = true;
+  }
   if (benefitTouched) patch.benefit_updated_at = new Date().toISOString();
 
   if (Object.keys(patch).length === 0)
@@ -94,7 +101,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .from('spots')
     .update(patch)
     .eq('id', id)
-    .select('memo, business_hours, phone, benefit_title, benefit_detail, benefit_active')
+    .select('memo, business_hours, phone, benefit_title, benefit_detail, benefit_active, benefit_expires_at')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);

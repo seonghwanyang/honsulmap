@@ -981,7 +981,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // signal "not active now".
       // 혜택(#8): 우상단 주황 배지 + 흰 태그 아이콘(이모지·흰배경 X).
       // 스토리 보라점과 우상단이 겹치면 보라점을 좌상단으로 옮겨 둘 다 보이게.
-      const hasBenefit = !!(spot.benefit_active && spot.benefit_title);
+      const hasBenefit = !!(spot.benefit_active && spot.benefit_title && (!spot.benefit_expires_at || new Date(spot.benefit_expires_at) > new Date()));
       const storyDot = isFresh
         ? `<span style="position:absolute;top:-1px;${hasBenefit ? 'left:-1px' : 'right:-1px'};width:8px;height:8px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>`
         : '';
@@ -1671,7 +1671,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 </p>
               )}
 
-              {selectedSpot.benefit_active && selectedSpot.benefit_title && (
+              {selectedSpot.benefit_active && selectedSpot.benefit_title && (!selectedSpot.benefit_expires_at || new Date(selectedSpot.benefit_expires_at) > new Date()) && (
                 <div
                   className="mt-3 flex items-center gap-3"
                   style={{
