@@ -1375,7 +1375,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   useEffect(() => {
     if (!selectedSpot || showFullStories) return;
     if (isLoadingStories || activeStories.length === 0) return;
-    setLoginReason('로그인하면 모든 가게의 스토리를 볼 수 있어요');
+    setLoginReason('로그인하시면 다른 가게의 현황을 더 볼 수 있어요');
     setLoginOpen(true);
   }, [selectedSpot?.id, showFullStories, isLoadingStories, activeStories.length]);
 
@@ -1947,7 +1947,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                         🔒 로그인하고 스토리 보기
                       </button>
                       <span className="text-xs" style={{ color: '#4b5563' }}>
-                        로그인하면 모든 가게의 스토리를 볼 수 있어요
+                        로그인하시면 다른 가게의 현황을 더 볼 수 있어요
                       </span>
                     </div>
                   </div>

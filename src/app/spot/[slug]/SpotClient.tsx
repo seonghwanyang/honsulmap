@@ -453,7 +453,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
   // has resolved, so no race and no pop on story-less spots.
   useEffect(() => {
     if (showFull || activeStories.length === 0) return;
-    setLoginReason('로그인하면 모든 가게의 스토리를 볼 수 있어요');
+    setLoginReason('로그인하시면 다른 가게의 현황을 더 볼 수 있어요');
     setLoginOpen(true);
   }, [showFull, activeStories.length, spot?.id]);
 
@@ -662,7 +662,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
                 🔒 로그인하고 스토리 보기
               </button>
               <span className="text-xs" style={{ color: '#4b5563' }}>
-                로그인하면 모든 가게의 스토리를 볼 수 있어요
+                로그인하시면 다른 가게의 현황을 더 볼 수 있어요
               </span>
             </div>
           </div>
