@@ -19,11 +19,6 @@ workflows:
     integrations:
       app_store_connect: honsulmap        # 대시보드에 등록한 키 이름과 동일
     environment:
-      ios_signing:
-        # 통합(honsulmap) + 아래 두 값이 있으면 Codemagic이 배포 인증서/프로비저닝을
-        # 자동 생성·다운로드. 스크립트의 `xcode-project use-profiles`가 그걸 프로젝트에 적용.
-        distribution_type: app_store
-        bundle_identifier: com.honsulmap.app
       vars:
         BUNDLE_ID: "com.honsulmap.app"
         XCODE_PROJECT: "ios/App/App.xcodeproj"
@@ -38,8 +33,16 @@ workflows:
         script: npx cap sync ios
       - name: Resolve SPM packages
         script: xcodebuild -resolvePackageDependencies -project "$XCODE_PROJECT" -scheme "$XCODE_SCHEME"
-      - name: Apply signing profiles
-        script: xcode-project use-profiles
+      - name: Set up code signing (인증서·프로파일 없으면 생성)
+        script: |
+          keychain initialize
+          # App Store 배포 프로파일을 가져오고, 없으면 --create로 생성.
+          # 배포 인증서도 없으면 함께 만들어진다. (키 권한이 App Manager/Admin이어야 가능)
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Set build number
         # Codemagic 빌드 카운터를 CFBundleVersion으로 (TestFlight는 빌드번호 증가 요구)
         script: |
