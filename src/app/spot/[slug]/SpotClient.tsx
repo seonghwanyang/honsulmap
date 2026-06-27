@@ -14,6 +14,7 @@ import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
 import { useUser } from '@/lib/useUser';
 import LoginModal from '@/components/LoginModal';
 import FavoriteButton from '@/components/FavoriteButton';
+import { isFreeStorySpot, claimFreeStorySpot } from '@/lib/storyGate';
 
 function BackButton() {
   return (
@@ -333,6 +334,18 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
   useScrollDepth('spot', slug);
   const { user } = useUser();
   const [loginOpen, setLoginOpen] = useState(false);
+  const [freeSpot, setFreeSpot] = useState(false);
+
+  // Guests get ONE free spot per device: the first spot they open shows all
+  // its stories (and is claimed here); every other spot is gated. Logged-in
+  // users always see everything.
+  useEffect(() => {
+    if (user) return;
+    if (!spot) return;
+    const free = isFreeStorySpot(spot.id);
+    setFreeSpot(free);
+    if (free) claimFreeStorySpot(spot.id);
+  }, [user, spot?.id]);
 
   useEffect(() => {
     const fetchSpot = async () => {
@@ -428,6 +441,10 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
   const instagramUrl = spot.instagram_id
     ? `https://www.instagram.com/${spot.instagram_id}/`
     : null;
+
+  // Free-spot guests AND logged-in users see all stories; gated-spot guests
+  // get a blurred teaser + login CTA.
+  const showFull = !!user || freeSpot;
 
   return (
     <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
@@ -605,48 +622,38 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
               </a>
             )}
           </div>
-        ) : !user ? (
-          // Guest: FIRST story is free (a taste), the rest behind a login gate.
-          // One free story converts far better than walling everything, and is a
-          // better first impression for visitors / the AdSense reviewer.
-          <div className="flex flex-col gap-3">
-            {activeStories[0] && (
-              <SpotPageStory key={activeStories[0].id} story={activeStories[0]} spot={spot} />
-            )}
-            {storyTotal > 1 && (
-              <div className="relative" style={{ minHeight: 220 }}>
-                <div
-                  className="flex flex-col gap-3"
-                  style={{ filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' }}
-                  aria-hidden="true"
-                >
-                  {(activeStories.length > 1
-                    ? activeStories.slice(1, 3)
-                    : activeStories.slice(0, 1)
-                  ).map((story: Story) => (
-                    <SpotPageStory key={`blur-${story.id}`} story={story} spot={spot} />
-                  ))}
-                </div>
-                <div
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-6 text-center"
-                  style={{ background: 'linear-gradient(rgba(255,255,255,0.15), rgba(255,255,255,0.7))' }}
-                >
-                  <button
-                    onClick={() => {
-                      setLoginOpen(true);
-                      track('story_login_blocked', { spot_id: slug, surface: 'spot_page' });
-                    }}
-                    className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold"
-                    style={{ background: '#111827', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
-                  >
-                    🔒 로그인하고 나머지 스토리 보기
-                  </button>
-                  <span className="text-xs" style={{ color: '#4b5563' }}>
-                    로그인하면 {spot.name}의 스토리 {storyTotal}개를 모두 볼 수 있어요
-                  </span>
-                </div>
-              </div>
-            )}
+        ) : !showFull ? (
+          // Gated spot (guest who already used their one free spot): blur a
+          // teaser of every story behind a login CTA. Free-spot guests and
+          // logged-in users fall through to the full branch below.
+          <div className="relative" style={{ minHeight: 220 }}>
+            <div
+              className="flex flex-col gap-3"
+              style={{ filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' }}
+              aria-hidden="true"
+            >
+              {activeStories.slice(0, 2).map((story: Story) => (
+                <SpotPageStory key={`blur-${story.id}`} story={story} spot={spot} />
+              ))}
+            </div>
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-6 text-center"
+              style={{ background: 'linear-gradient(rgba(255,255,255,0.15), rgba(255,255,255,0.7))' }}
+            >
+              <button
+                onClick={() => {
+                  setLoginOpen(true);
+                  track('story_login_blocked', { spot_id: slug, surface: 'spot_page' });
+                }}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold"
+                style={{ background: '#111827', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
+              >
+                🔒 로그인하고 스토리 보기
+              </button>
+              <span className="text-xs" style={{ color: '#4b5563' }}>
+                로그인하면 모든 가게의 스토리를 볼 수 있어요
+              </span>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

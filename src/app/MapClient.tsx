@@ -22,6 +22,7 @@ import { INLINE_AD_UNITS } from '@/lib/ads/config';
 import { relativeTime, getCategoryLabel, getRegionLabel, getFingerprint, haversineMeters } from '@/lib/utils';
 import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
+import { isFreeStorySpot, claimFreeStorySpot } from '@/lib/storyGate';
 
 // One-shot current position as a promise; resolves null on any failure (no
 // permission, timeout, unsupported). maximumAge lets a recent fix (e.g. the
@@ -318,6 +319,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [storyTotal, setStoryTotal] = useState<number | null>(null);
   const [storyLoading, setStoryLoading] = useState(false);
   const [storyLoadingMore, setStoryLoadingMore] = useState(false);
+  // Whether the currently-selected spot is this device's one free spot
+  // (guests view all of one spot's stories; every other spot is gated).
+  const [freeStorySpot, setFreeStorySpot] = useState(false);
 
   // "다녀왔어요" state for the currently-selected spot. `justVisited`
   // flips on tap and triggers the inline "후기를 남겨주세요" prompt.
@@ -621,6 +625,19 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     setVisitSubmitting(false);
     setSpotPosts(null);
   }, [selectedSpot?.id]);
+
+  // Recompute the free-spot flag whenever the user taps a different marker.
+  // First spot a guest opens on this device is free (claimed here); every
+  // other spot is gated. Logged-in users always see everything.
+  useEffect(() => {
+    if (!selectedSpot || user) {
+      setFreeStorySpot(false);
+      return;
+    }
+    const free = isFreeStorySpot(selectedSpot.id);
+    setFreeStorySpot(free);
+    if (free) claimFreeStorySpot(selectedSpot.id);
+  }, [user, selectedSpot?.id]);
 
   // Fetch the community posts tied to the current spot. Capped at the
   // first 5 — the panel just shows a preview, full thread lives in
@@ -1347,6 +1364,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     ? `https://www.instagram.com/${selectedSpot.instagram_id}/`
     : null;
 
+  // Free-spot guests AND logged-in users see all stories; gated-spot guests
+  // get a blurred teaser + login CTA.
+  const showFullStories = !!user || freeStorySpot;
+
   return (
     <div className="relative w-full" style={{ height: '100dvh', background: '#f8f9fa' }}>
       {/* Header */}
@@ -1878,50 +1899,39 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     </a>
                   )}
                 </div>
-              ) : !user ? (
-                // Guest: first story free, the rest behind an inline login gate.
+              ) : !showFullStories ? (
+                // Gated spot (guest who already used their one free spot): blur a
+                // teaser of every story behind a login CTA. Free-spot guests and
+                // logged-in users fall through to the full branch below.
                 <div className="flex flex-col px-4">
-                  {activeStories[0] && (
-                    <MapSheetStory
-                      key={activeStories[0].id}
-                      story={activeStories[0]}
-                      spot={selectedSpot}
-                      priority
-                    />
-                  )}
-                  {(storyTotal ?? 0) > 1 && (
-                    <div className="relative mt-3" style={{ minHeight: 200 }}>
-                      <div
-                        style={{ filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' }}
-                        aria-hidden="true"
-                      >
-                        {(activeStories.length > 1
-                          ? activeStories.slice(1, 2)
-                          : activeStories.slice(0, 1)
-                        ).map((story: Story) => (
-                          <MapSheetStory key={`blur-${story.id}`} story={story} spot={selectedSpot} priority={false} />
-                        ))}
-                      </div>
-                      <div
-                        className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-6 text-center"
-                        style={{ background: 'linear-gradient(rgba(255,255,255,0.15), rgba(255,255,255,0.75))' }}
-                      >
-                        <button
-                          onClick={() => {
-                            setLoginOpen(true);
-                            track('story_login_blocked', { spot_id: selectedSpot.id, surface: 'map_sheet' });
-                          }}
-                          className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold"
-                          style={{ background: '#111827', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
-                        >
-                          🔒 로그인하고 나머지 스토리 보기
-                        </button>
-                        <span className="text-xs" style={{ color: '#4b5563' }}>
-                          로그인하면 {selectedSpot.name}의 스토리 {storyTotal}개를 모두 볼 수 있어요
-                        </span>
-                      </div>
+                  <div className="relative" style={{ minHeight: 200 }}>
+                    <div
+                      style={{ filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' }}
+                      aria-hidden="true"
+                    >
+                      {activeStories.slice(0, 2).map((story: Story) => (
+                        <MapSheetStory key={`blur-${story.id}`} story={story} spot={selectedSpot} priority={false} />
+                      ))}
                     </div>
-                  )}
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-6 text-center"
+                      style={{ background: 'linear-gradient(rgba(255,255,255,0.15), rgba(255,255,255,0.75))' }}
+                    >
+                      <button
+                        onClick={() => {
+                          setLoginOpen(true);
+                          track('story_login_blocked', { spot_id: selectedSpot.id, surface: 'map_sheet' });
+                        }}
+                        className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold"
+                        style={{ background: '#111827', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
+                      >
+                        🔒 로그인하고 스토리 보기
+                      </button>
+                      <span className="text-xs" style={{ color: '#4b5563' }}>
+                        로그인하면 모든 가게의 스토리를 볼 수 있어요
+                      </span>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col px-4">
