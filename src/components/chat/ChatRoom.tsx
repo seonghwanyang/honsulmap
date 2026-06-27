@@ -14,9 +14,14 @@ interface Props {
   spotName: string;
   notice: string | null;
   onClose: () => void;
+  // 플로팅 윈도우(ChatLauncher)에 박아 쓸 때: 자체 헤더를 숨기고(윈도우가 헤더+닫기를
+  // 그림) 높이를 부모에 꽉 채운다. 미지정이면 기존 인라인 동작 그대로.
+  embedded?: boolean;
+  // 메시지 총수 변동 알림 — 런처 배지를 라이브로 유지(초기 로드/Realtime/전송).
+  onCount?: (count: number) => void;
 }
 
-export default function ChatRoom({ spotId, spotName, notice, onClose }: Props) {
+export default function ChatRoom({ spotId, spotName, notice, onClose, embedded = false, onCount }: Props) {
   const { user, loading: userLoading } = useUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +113,11 @@ export default function ChatRoom({ spotId, spotName, notice, onClose }: Props) {
     }
   }, [messages]);
 
+  // 런처 배지 동기화 — 메시지 수가 바뀔 때마다 보고(로딩 끝난 뒤에만; 0으로 깜빡임 방지).
+  useEffect(() => {
+    if (!loading) onCount?.(messages.length);
+  }, [messages.length, loading, onCount]);
+
   const send = useCallback(async () => {
     const text = input.trim();
     if (!text || sending) return;
@@ -140,30 +150,36 @@ export default function ChatRoom({ spotId, spotName, notice, onClose }: Props) {
   return (
     <div
       className="flex flex-col"
-      style={{ height: '60vh', maxHeight: 520, background: '#fff', borderRadius: 14, overflow: 'hidden' }}
+      style={
+        embedded
+          ? { height: '100%', background: '#fff', overflow: 'hidden' }
+          : { height: '60vh', maxHeight: 520, background: '#fff', borderRadius: 14, overflow: 'hidden' }
+      }
     >
-      {/* 헤더 */}
-      <div
-        className="flex items-center justify-between px-4 py-2.5"
-        style={{ borderBottom: '1px solid #f3f4f6' }}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <span style={{ fontSize: 13.5, fontWeight: 700, color: '#111827' }} className="truncate">
-            {spotName} 채팅
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex-shrink-0 w-7 h-7 flex items-center justify-center"
-          style={{ color: '#9ca3af', background: '#f3f4f6', borderRadius: '50%', border: 'none' }}
-          aria-label="채팅 닫기"
+      {/* 헤더 — 인라인 모드에서만. 플로팅 윈도우는 자체 헤더+닫기를 그린다. */}
+      {!embedded && (
+        <div
+          className="flex items-center justify-between px-4 py-2.5"
+          style={{ borderBottom: '1px solid #f3f4f6' }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: '#111827' }} className="truncate">
+              {spotName} 채팅
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-shrink-0 w-7 h-7 flex items-center justify-center"
+            style={{ color: '#9ca3af', background: '#f3f4f6', borderRadius: '50%', border: 'none' }}
+            aria-label="채팅 닫기"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* 공지 핀 */}
       {notice && (

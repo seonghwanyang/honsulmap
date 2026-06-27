@@ -2,15 +2,19 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useUser } from '@/lib/useUser';
-import ChatRoom from '@/components/chat/ChatRoom';
+import ChatLauncher from '@/components/chat/ChatLauncher';
 
 // 가게별 채팅방(#6) 지도 패널 엔트리(설계 §6.2). MapClient는 이 컴포넌트에
-// spotId/spotName만 넘기고, 채팅 상태/방 뷰는 여기가 소유(MapClient 비대화 방지).
+// spotId/spotName만 넘기고, 채팅 상태는 여기가 소유(MapClient 비대화 방지).
+//
+// 방이 open이면 인라인 '채팅 입장' 대신 플로팅 런처(ChatLauncher)를 띄운다.
+// 미개설/닫힘 빈 상태와 사장님 '채팅방 개설' CTA만 패널 안에 남는다.
 
 interface Props {
   spotId: string;
   spotName: string;
-  onNeedLogin: () => void;
+  // MapClient 호환용(현재는 ChatRoom/Launcher가 로그인 게이트를 자체 처리). 미사용.
+  onNeedLogin?: () => void;
 }
 
 type Room = {
@@ -20,19 +24,17 @@ type Room = {
   opened_by: string;
 };
 
-export default function ChatEntry({ spotId, spotName, onNeedLogin }: Props) {
+export default function ChatEntry({ spotId, spotName }: Props) {
   const { user } = useUser();
   const [room, setRoom] = useState<Room | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [opening, setOpening] = useState(false);
-  const [view, setView] = useState(false); // 방 뷰 열림
 
   // 방 존재/open 조회 — 빈 상태 분기용. spot 바뀌면 재조회.
   useEffect(() => {
     let active = true;
     setLoaded(false);
-    setView(false);
     fetch(`/api/chat/${spotId}`)
       .then((r) => r.json())
       .then((d) => {
@@ -80,34 +82,17 @@ export default function ChatEntry({ spotId, spotName, onNeedLogin }: Props) {
       const data = await res.json();
       if (res.ok) {
         setRoom(data.room);
-        setView(true);
       }
     } finally {
       setOpening(false);
     }
   }, [spotId, opening]);
 
-  const enter = useCallback(() => {
-    if (!user) {
-      onNeedLogin();
-      return;
-    }
-    setView(true);
-  }, [user, onNeedLogin]);
-
   if (!loaded) return null;
 
-  if (view && room && room.is_open) {
-    return (
-      <div className="mt-3">
-        <ChatRoom
-          spotId={spotId}
-          spotName={spotName}
-          notice={room.notice}
-          onClose={() => setView(false)}
-        />
-      </div>
-    );
+  // open — 플로팅 런처. 패널 인라인 UI는 그리지 않는다.
+  if (room && room.is_open) {
+    return <ChatLauncher spotId={spotId} spotName={spotName} notice={room.notice} />;
   }
 
   return (
@@ -154,26 +139,6 @@ export default function ChatEntry({ spotId, spotName, onNeedLogin }: Props) {
       {/* 닫힘 */}
       {room && !room.is_open && (
         <p style={{ fontSize: 12.5, color: '#6b7280', lineHeight: 1.5 }}>사장님이 채팅방을 닫았어요.</p>
-      )}
-
-      {/* open — 입장 */}
-      {room && room.is_open && (
-        <button
-          type="button"
-          onClick={enter}
-          style={{
-            background: '#ea580c',
-            color: '#fff',
-            fontSize: 12.5,
-            fontWeight: 700,
-            border: 'none',
-            borderRadius: 9,
-            padding: '8px 16px',
-            cursor: 'pointer',
-          }}
-        >
-          채팅 입장
-        </button>
       )}
     </div>
   );

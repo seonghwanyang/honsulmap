@@ -43,6 +43,8 @@ type Room = {
 const ROOM_COLS = 'spot_id, is_open, notice, opened_by, created_at, updated_at';
 
 // 방 조회. row 없으면 { room: null } (= 미개설). 누구나 호출 가능.
+// open 방이면 메시지 수(message_count)도 같이 — 플로팅 런처 배지용. head:true로
+// row를 받지 않고 count만(저렴). 닫힘/미개설이면 0.
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ spotId: string }> }) {
   const { spotId } = await params;
   const admin = supabaseAdmin();
@@ -52,7 +54,17 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     .eq('spot_id', spotId)
     .maybeSingle<Room>();
 
-  return NextResponse.json({ room: room ?? null });
+  let messageCount = 0;
+  if (room?.is_open) {
+    const { count } = await admin
+      .from('chat_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('spot_id', spotId)
+      .eq('is_deleted', false);
+    messageCount = count ?? 0;
+  }
+
+  return NextResponse.json({ room: room ?? null, message_count: messageCount });
 }
 
 // 방 개설 — is_open=true, opened_by=현재 사장님. 이미 있으면 다시 열기.
