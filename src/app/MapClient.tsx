@@ -377,11 +377,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       panelEntrySourceRef.current = entry_source;
       panelSpotIdRef.current = spot.id;
       setSelectedSpot(spot);
-      // Guest → pop the login modal over the (blurred) stories.
-      if (!user) {
-        setLoginOpen(true);
-        track('story_login_blocked', { spot_id: spot.id, surface: 'map_sheet' });
-      }
+      // Guest no longer gets a modal slammed on open — the first story is free,
+      // and the login gate (with story_login_blocked tracking) sits inline on the
+      // "나머지 스토리 보기" CTA below.
       track('spot_detail_entered', { spot_id: spot.id, entry_source });
       // Fire-and-forget view counter — failures are silent so the panel
       // open never blocks on this network call.
@@ -1880,11 +1878,53 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     </a>
                   )}
                 </div>
+              ) : !user ? (
+                // Guest: first story free, the rest behind an inline login gate.
+                <div className="flex flex-col px-4">
+                  {activeStories[0] && (
+                    <MapSheetStory
+                      key={activeStories[0].id}
+                      story={activeStories[0]}
+                      spot={selectedSpot}
+                      priority
+                    />
+                  )}
+                  {(storyTotal ?? 0) > 1 && (
+                    <div className="relative mt-3" style={{ minHeight: 200 }}>
+                      <div
+                        style={{ filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' }}
+                        aria-hidden="true"
+                      >
+                        {(activeStories.length > 1
+                          ? activeStories.slice(1, 2)
+                          : activeStories.slice(0, 1)
+                        ).map((story: Story) => (
+                          <MapSheetStory key={`blur-${story.id}`} story={story} spot={selectedSpot} priority={false} />
+                        ))}
+                      </div>
+                      <div
+                        className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-6 text-center"
+                        style={{ background: 'linear-gradient(rgba(255,255,255,0.15), rgba(255,255,255,0.75))' }}
+                      >
+                        <button
+                          onClick={() => {
+                            setLoginOpen(true);
+                            track('story_login_blocked', { spot_id: selectedSpot.id, surface: 'map_sheet' });
+                          }}
+                          className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold"
+                          style={{ background: '#111827', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
+                        >
+                          🔒 로그인하고 나머지 스토리 보기
+                        </button>
+                        <span className="text-xs" style={{ color: '#4b5563' }}>
+                          로그인하면 {selectedSpot.name}의 스토리 {storyTotal}개를 모두 볼 수 있어요
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
-                <div
-                  className="flex flex-col px-4"
-                  style={!user ? { filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' } : undefined}
-                >
+                <div className="flex flex-col px-4">
                   {(() => {
                     const items: React.ReactNode[] = [];
                     let adCount = 0;
