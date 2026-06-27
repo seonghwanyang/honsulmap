@@ -12,6 +12,7 @@ import LoginModal from '@/components/LoginModal';
 import { useUser } from '@/lib/useUser';
 import FavoriteButton from '@/components/FavoriteButton';
 import LikeButton from '@/components/LikeButton';
+import ChatEntry from '@/components/chat/ChatEntry';
 import MarketingConsentPrompt from '@/components/MarketingConsentPrompt';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
@@ -1820,6 +1821,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   </button>
                 )}
               </div>
+
+              {/* 가게별 채팅(#6) — 엔트리. 상태/방 뷰는 ChatEntry가 소유. */}
+              <ChatEntry
+                key={selectedSpot.id}
+                spotId={selectedSpot.id}
+                spotName={selectedSpot.name}
+                onNeedLogin={() => setLoginOpen(true)}
+              />
 
               {/* Compact info bar — only renders when at least one fact is set */}
               {(selectedSpot.business_hours
