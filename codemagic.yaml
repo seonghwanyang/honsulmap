@@ -35,16 +35,12 @@ workflows:
         script: npx cap sync ios
       - name: Resolve SPM packages
         script: xcodebuild -resolvePackageDependencies -project "$XCODE_PROJECT" -scheme "$XCODE_SCHEME"
-      - name: Set up code signing (인증서 생성 + 프로파일 생성)
+      - name: Set up code signing (기존 인증서 재사용 + 프로파일 생성)
         script: |
           keychain initialize
-          # 1) CERTIFICATE_PRIVATE_KEY(env)로 배포 인증서 생성.
-          #    fetch-signing-files는 프로파일만 만들고 인증서는 못 만들기 때문에 이 단계가 필수.
-          app-store-connect certificates create \
-            --type IOS_DISTRIBUTION \
-            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
-            --save
-          # 2) 프로파일 생성(없으면) + 인증서·프로파일 다운로드
+          # 인증서를 매 빌드 새로 만들지 않는다(중복 인증서 → 아카이브 깨짐).
+          # --certificate-key 로 '이미 만들어둔' 배포 인증서를 매칭해 가져오고,
+          # 프로파일만 없으면 --create 로 생성한다.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
