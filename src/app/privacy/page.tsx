@@ -33,7 +33,7 @@ export default function PrivacyPage() {
           개인정보처리방침
         </h1>
         <p className="text-xs mb-8" style={{ color: '#9ca3af' }}>
-          최종 업데이트: 2026년 4월 24일
+          최종 업데이트: 2026년 6월 30일
         </p>
 
         <Section title="1. 서비스 소개">
@@ -49,6 +49,9 @@ export default function PrivacyPage() {
           <p className="mb-2">서비스 이용 시 아래 항목이 수집됩니다.</p>
           <Table
             rows={[
+              ['이메일 주소', '소셜 로그인(카카오·구글·애플) 시 제공', '계정 인증·식별'],
+              ['이름·프로필', '소셜 로그인 시 제공', '계정 표시'],
+              ['위치 정보', '‘내 주변’ 등 위치 기능 사용 시 기기에서 수집', '주변 장소 검색'],
               ['닉네임', '게시글·댓글 작성 시 직접 입력', '게시글·댓글 표시'],
               ['비밀번호 (해시)', '게시글·댓글 작성 시 직접 입력', '본인 확인 및 삭제'],
               ['브라우저 핑거프린트', '서비스 접속 시 자동 생성', '좋아요·분위기투표 중복 방지'],
@@ -56,7 +59,9 @@ export default function PrivacyPage() {
             ]}
           />
           <p className="mt-2 text-xs" style={{ color: '#9ca3af' }}>
-            비밀번호는 단방향 암호화(해시) 처리되어 저장되며, 원문은 보관되지 않습니다.
+            이메일·이름은 찜·채팅 등 로그인이 필요한 기능 이용 시 소셜 로그인 제공자로부터
+            전달받아 계정 인증에 사용하며, 위치 정보는 ‘내 주변’ 등 위치 기반 기능 제공을
+            위해 사용합니다. 비밀번호는 단방향 암호화(해시) 처리되어 저장되며, 원문은 보관되지 않습니다.
             브라우저 핑거프린트는 UUID 형태로 로컬스토리지에 저장되며 개인을 특정하는 데
             사용되지 않습니다. 접속 로그는 호스팅 제공자(Vercel)의 시스템 로그에
             일시적으로 기록되며 마케팅 목적으로 활용되지 않습니다.
@@ -65,6 +70,9 @@ export default function PrivacyPage() {
 
         <Section title="3. 개인정보 수집·이용 목적">
           <ul className="list-disc list-inside space-y-1">
+            <li>소셜 로그인 계정 인증 및 식별</li>
+            <li>찜(장소 저장)·채팅 등 로그인 기능 제공</li>
+            <li>‘내 주변’ 등 위치 기반 장소 검색</li>
             <li>게시글 및 댓글 등록·수정·삭제 본인 확인</li>
             <li>좋아요 및 분위기 투표 기능의 중복 방지</li>
             <li>서비스 운영 및 부정 이용 방지</li>
@@ -75,6 +83,8 @@ export default function PrivacyPage() {
         <Section title="4. 개인정보 보유 및 이용 기간">
           <Table
             rows={[
+              ['이메일·이름 (소셜 로그인)', '계정 삭제 요청 시 파기'],
+              ['찜·채팅 데이터', '계정 삭제 요청 시 파기'],
               ['닉네임', '게시글·댓글 삭제 시 즉시 삭제'],
               ['비밀번호 해시', '게시글·댓글 삭제 시 즉시 삭제'],
               ['브라우저 핑거프린트', '사용자가 로컬스토리지 삭제 시 즉시 소멸'],
@@ -83,8 +93,13 @@ export default function PrivacyPage() {
             headers={['항목', '보유 기간']}
           />
           <p className="mt-2 text-xs" style={{ color: '#9ca3af' }}>
-            서비스는 별도의 회원가입 절차가 없습니다. 게시글·댓글 삭제 시 관련 개인정보는
-            즉시 파기됩니다.
+            커뮤니티 글·댓글은 회원가입 없이 닉네임만으로 작성할 수 있으며, 삭제 시 관련
+            개인정보는 즉시 파기됩니다. 찜·채팅 등 일부 기능은 소셜 로그인(카카오·구글·애플)이
+            필요하며, 계정 삭제는{' '}
+            <a href="/account-deletion" style={{ color: '#111827', textDecoration: 'underline' }}>
+              계정 및 데이터 삭제
+            </a>{' '}
+            안내에 따라 요청하실 수 있습니다.
           </p>
         </Section>
 
@@ -140,10 +155,12 @@ export default function PrivacyPage() {
           <Table
             headers={['수탁자', '위탁 업무']}
             rows={[
-              ['Supabase Inc.', '데이터베이스 저장·관리'],
+              ['Supabase Inc.', '데이터베이스 저장·관리·계정 인증'],
               ['Vercel Inc.', '웹 호스팅 및 서버 로그'],
               ['Meta Platforms, Inc.', '인스타그램 공개 스토리 조회'],
-              ['Google LLC (AdSense)', '맞춤 광고 게재'],
+              ['Kakao Corp.', '소셜 로그인·애드핏(AdFit) 광고 게재'],
+              ['Google LLC', '소셜 로그인·AdSense 광고 게재'],
+              ['Apple Inc.', '소셜 로그인(Sign in with Apple)'],
               ['Adsterra', '광고 게재'],
             ]}
           />
@@ -168,11 +185,11 @@ export default function PrivacyPage() {
             로컬스토리지에 핑거프린트를 저장합니다.
           </p>
           <p className="mb-2">
-            다만 서비스에 게재되는 제3자 광고 파트너(<strong style={{ color: '#111827' }}>Google
-            AdSense</strong>, <strong style={{ color: '#111827' }}>Adsterra</strong>)는 광고 성과
-            측정과 맞춤 광고 제공을 위해 쿠키·광고 ID·유사 기술을 사용할 수 있습니다. 이
-            쿠키는 광고 파트너에 의해 관리되며, 서비스 운영자는 해당 정보에 접근하지
-            않습니다.
+            다만 서비스에 게재되는 제3자 광고 파트너(<strong style={{ color: '#111827' }}>카카오
+            애드핏(Kakao AdFit)</strong>, <strong style={{ color: '#111827' }}>Google AdSense</strong>,{' '}
+            <strong style={{ color: '#111827' }}>Adsterra</strong>)는 광고 성과 측정과 맞춤 광고
+            제공을 위해 쿠키·광고 ID·유사 기술을 사용할 수 있습니다. 이 쿠키는 광고 파트너에
+            의해 관리되며, 서비스 운영자는 해당 정보에 접근하지 않습니다.
           </p>
           <ul className="list-disc list-inside space-y-1 mb-2">
             <li>
@@ -210,6 +227,16 @@ export default function PrivacyPage() {
 
         <Section title="9. 이용자의 권리">
           <ul className="list-disc list-inside space-y-1">
+            <li>
+              계정 및 데이터 삭제: 소셜 로그인으로 생성된 계정과 데이터는{' '}
+              <a
+                href="/account-deletion"
+                style={{ color: '#111827', textDecoration: 'underline' }}
+              >
+                계정 및 데이터 삭제
+              </a>{' '}
+              안내에 따라 요청하실 수 있습니다.
+            </li>
             <li>
               게시글·댓글 삭제: 작성 시 입력한 비밀번호를 통해 직접 삭제할 수 있습니다.
             </li>
