@@ -43,6 +43,14 @@ next-env.d.ts
 session_b64.txt
 .mcp.json
 
+# iOS signing secrets — NEVER commit (public repo). Apple lets you download
+# the .p8 only ONCE; losing/leaking it means revoke + reissue.
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+*.certSigningRequest
+
 # IDE (JetBrains / Android Studio)
 .idea/
 
@@ -91,3 +99,8 @@ worker_venv/
 
 # Google OAuth client secret JSON — never commit (public repo)
 client_secret_*.json
+
+# Android 출시 서명 (절대 커밋 금지)
+*.jks
+*.keystore
+android/key.properties
