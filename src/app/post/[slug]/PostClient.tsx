@@ -9,6 +9,7 @@ import { Post } from '@/lib/types';
 import { relativeTime, getCategoryLabel, getFingerprint } from '@/lib/utils';
 import { usePageDwell } from '@/lib/hooks/usePageDwell';
 import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
+import { isBlockedNick } from '@/lib/blocklist';
 
 function BackButton() {
   return (
@@ -114,7 +115,8 @@ function CommentSection({ postId }: { postId: string }) {
   const [replyContent, setReplyContent] = useState('');
   const [replySubmitting, setReplySubmitting] = useState(false);
   const [replyError, setReplyError] = useState('');
-  const [reportId, setReportId] = useState<string | null>(null);
+  const [report, setReport] = useState<{ id: string; nick: string } | null>(null);
+  const [, bumpBlocked] = useState(0);
 
   useEffect(() => {
     const fetchComments = async () => {
@@ -287,7 +289,7 @@ function CommentSection({ postId }: { postId: string }) {
       <div className="mb-4">{renderForm(false)}</div>
 
       <div className="divide-y" style={{ borderColor: '#f3f4f6' }}>
-        {comments.map((c) => (
+        {comments.filter((c) => !isBlockedNick(c.nickname)).map((c) => (
           <div key={c.id} className="py-3">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-semibold" style={{ color: '#111827' }}>
@@ -304,7 +306,7 @@ function CommentSection({ postId }: { postId: string }) {
                 답글
               </button>
               <button
-                onClick={() => setReportId(c.id)}
+                onClick={() => setReport({ id: c.id, nick: c.nickname })}
                 className="text-xs"
                 style={{ color: '#9ca3af' }}
               >
@@ -329,7 +331,7 @@ function CommentSection({ postId }: { postId: string }) {
                 className="mt-2 pl-3 border-l-2"
                 style={{ borderColor: '#e5e7eb' }}
               >
-                {c.replies.map((r) => (
+                {c.replies.filter((r) => !isBlockedNick(r.nickname)).map((r) => (
                   <div key={r.id} className="py-2">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-semibold" style={{ color: '#111827' }}>
@@ -339,7 +341,7 @@ function CommentSection({ postId }: { postId: string }) {
                         {relativeTime(r.created_at)}
                       </span>
                       <button
-                        onClick={() => setReportId(r.id)}
+                        onClick={() => setReport({ id: r.id, nick: r.nickname })}
                         className="ml-auto text-xs"
                         style={{ color: '#9ca3af' }}
                       >
@@ -361,10 +363,12 @@ function CommentSection({ postId }: { postId: string }) {
       </div>
 
       <ReportModal
-        open={!!reportId}
-        onClose={() => setReportId(null)}
+        open={!!report}
+        onClose={() => setReport(null)}
         targetType="comment"
-        targetId={reportId || ''}
+        targetId={report?.id || ''}
+        authorNickname={report?.nick}
+        onBlocked={() => bumpBlocked((n) => n + 1)}
       />
     </div>
   );
@@ -601,6 +605,8 @@ export default function PostPage({ initialPost = null }: { initialPost?: PostVie
         onClose={() => setReportOpen(false)}
         targetType="post"
         targetId={post.id}
+        authorNickname={post.nickname}
+        onBlocked={() => window.history.back()}
       />
     </div>
   );

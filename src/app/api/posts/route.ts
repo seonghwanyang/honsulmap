@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import type { PostCreateRequest } from '@/lib/types';
 import { generatePostSlug } from '@/lib/utils';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
+import { isObjectionable } from '@/lib/contentFilter';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -93,6 +94,12 @@ export async function POST(request: NextRequest) {
   }
   if (!content?.trim() || content.trim().length > 2000) {
     return NextResponse.json({ error: '내용을 1~2000자로 입력해주세요.' }, { status: 400 });
+  }
+  if (isObjectionable(title, content)) {
+    return NextResponse.json(
+      { error: '부적절한 표현이 포함되어 있어 등록할 수 없습니다.' },
+      { status: 400 },
+    );
   }
 
   const password_hash = await bcrypt.hash(password, 10);

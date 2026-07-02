@@ -40,7 +40,7 @@ export default function TermsPage() {
           이용약관
         </h1>
         <p className="text-xs mb-8" style={{ color: '#9ca3af' }}>
-          최종 업데이트: 2026년 5월 12일
+          최종 업데이트: 2026년 7월 2일
         </p>
 
         <Section title="제1조 (목적)">
@@ -113,6 +113,14 @@ export default function TermsPage() {
 
         <Section title="제6조 (게시물의 책임과 관리)">
           <ul className="list-disc list-inside space-y-1">
+            <li>
+              운영자는 욕설·혐오·음란·폭력 등 부적절한 게시물과 이를 게시하는 이용자에 대해{' '}
+              <strong style={{ color: '#111827' }}>무관용(zero-tolerance) 원칙</strong>을 적용합니다.
+              모든 게시물·댓글에는 <strong style={{ color: '#111827' }}>신고</strong> 및 작성자{' '}
+              <strong style={{ color: '#111827' }}>차단</strong> 기능이 제공되며, 운영자는 신고 접수
+              후 <strong style={{ color: '#111827' }}>24시간 이내</strong>에 검토하여 위반 콘텐츠를
+              삭제하고 위반 이용자의 이용을 제한합니다.
+            </li>
             <li>
               이용자가 게시한 게시물·댓글의 내용과 그로 인해 발생하는 일체의 결과에 대한
               책임은 <strong style={{ color: '#111827' }}>전적으로 작성자 본인에게 있습니다.</strong>
@@ -194,8 +202,8 @@ export default function TermsPage() {
 
         <Section title="제10조 (광고 게재)">
           <p>
-            서비스는 운영 유지를 위해 Google AdSense, Adsterra 등 제3자 광고를 게재할 수
-            있습니다. 광고의 내용과 그로 인한 거래·피해에 대해서는 광고주가 책임을 지며,
+            서비스는 운영 유지를 위해 카카오 애드핏(Kakao AdFit), Google AdSense, Adsterra 등
+            제3자 광고를 게재할 수 있습니다. 광고의 내용과 그로 인한 거래·피해에 대해서는 광고주가 책임을 지며,
             운영자는 광고 클릭으로 인해 발생한 손해에 대해 책임을 지지 않습니다. 광고
             관련 쿠키 처리는{' '}
             <Link href="/privacy" style={{ color: '#111827', textDecoration: 'underline' }}>
