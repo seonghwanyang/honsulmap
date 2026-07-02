@@ -59,6 +59,17 @@ main {
   padding-bottom: 80px;
 }
 
+/* iOS 노치/상태바 안전영역: 상단 고정 헤더(뒤로+제목 바)가 노치에 가려지지
+   않도록 safe-area-inset 만큼 위 여백을 주고, 헤더 배경이 그 영역까지 채우게 한다.
+   height는 내용 높이로 유지(content-box)해 내용이 눌리지 않게 한다.
+   (viewport-fit=cover 가 설정돼 있어야 env() 값이 실제로 들어온다.) */
+@supports (padding-top: env(safe-area-inset-top)) {
+  header.sticky.top-0 {
+    padding-top: env(safe-area-inset-top);
+    box-sizing: content-box;
+  }
+}
+
 /* Feed grid - row-first order */
 .masonry-grid {
   display: grid;
