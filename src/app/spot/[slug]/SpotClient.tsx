@@ -400,6 +400,17 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spot?.id]);
 
+  // 게이트된 가게(무료 1곳 소진한 게스트): 블러 유지 + 로그인 모달 팝업.
+  // 훅은 반드시 early return 위에 둔다(안 그러면 로딩 중/후 훅 개수가 달라져
+  // "change in order of Hooks" 에러). 스토리 로드 뒤 발화되도록 내부에서 가드.
+  useEffect(() => {
+    if (!spot) return;
+    const showFullNow = !!user || freeSpot;
+    if (showFullNow || spot.stories.length === 0) return;
+    setLoginReason('로그인하시면 다른 가게의 현황을 더 볼 수 있어요');
+    setLoginOpen(true);
+  }, [user, freeSpot, spot]);
+
   if (loading) {
     return (
       <div
@@ -446,16 +457,6 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
   // Free-spot guests AND logged-in users see all stories; gated-spot guests
   // get a blurred teaser + login CTA.
   const showFull = !!user || freeSpot;
-
-  // Gated spot (guest who used their one free spot): keep the blur teaser, AND
-  // pop the shared login modal with a story-specific message. Gating on
-  // activeStories.length means this fires after stories load — by then freeSpot
-  // has resolved, so no race and no pop on story-less spots.
-  useEffect(() => {
-    if (showFull || activeStories.length === 0) return;
-    setLoginReason('로그인하시면 다른 가게의 현황을 더 볼 수 있어요');
-    setLoginOpen(true);
-  }, [showFull, activeStories.length, spot?.id]);
 
   return (
     <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
