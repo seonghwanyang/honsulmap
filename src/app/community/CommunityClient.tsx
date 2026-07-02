@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Post, POST_CATEGORIES, PostCategory } from '@/lib/types';
 import { relativeTime, getCategoryLabel } from '@/lib/utils';
 import { track } from '@/lib/analytics';
+import { isBlockedNick } from '@/lib/blocklist';
 import { usePageDwell } from '@/lib/hooks/usePageDwell';
 import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
 
@@ -138,9 +139,11 @@ export default function CommunityClient({ initialPosts, category }: CommunityCli
 
   const renderPosts = () => {
     const items: React.ReactNode[] = [];
-    posts.forEach((post) => {
-      items.push(<PostItem key={post.id} post={post} />);
-    });
+    posts
+      .filter((post) => !isBlockedNick(post.nickname))
+      .forEach((post) => {
+        items.push(<PostItem key={post.id} post={post} />);
+      });
     return items;
   };
 

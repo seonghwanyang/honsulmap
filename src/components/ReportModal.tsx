@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { getFingerprint } from '@/lib/utils';
+import { blockNick } from '@/lib/blocklist';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   targetType: 'post' | 'comment';
   targetId: string;
+  // UGC 차단(App Store 1.2): 작성자 닉네임을 주면 "차단" 버튼이 표시됨.
+  authorNickname?: string;
+  onBlocked?: () => void;
 }
 
 const REASONS = [
@@ -17,7 +21,7 @@ const REASONS = [
   { value: 'other', label: '기타' },
 ];
 
-export default function ReportModal({ open, onClose, targetType, targetId }: Props) {
+export default function ReportModal({ open, onClose, targetType, targetId, authorNickname, onBlocked }: Props) {
   const [reason, setReason] = useState('spam');
   const [detail, setDetail] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -59,6 +63,31 @@ export default function ReportModal({ open, onClose, targetType, targetId }: Pro
       setDone(true);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // 사용자 차단: 닉네임을 로컬 차단목록에 추가(피드에서 즉시 숨김) + 개발자에게
+  // 신고 접수(부적절 콘텐츠 확인용). App Store 1.2 요건.
+  async function block() {
+    if (submitting || !authorNickname) return;
+    setSubmitting(true);
+    try {
+      blockNick(authorNickname);
+      await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_type: targetType,
+          target_id: targetId,
+          reason: 'abuse',
+          detail: '사용자 차단',
+          fingerprint: getFingerprint(),
+        }),
+      }).catch(() => {});
+      onBlocked?.();
+      onClose();
     } finally {
       setSubmitting(false);
     }
@@ -185,6 +214,30 @@ export default function ReportModal({ open, onClose, targetType, targetId }: Pro
             >
               {submitting ? '제출 중…' : '신고 접수'}
             </button>
+
+            {authorNickname && (
+              <>
+                <button
+                  onClick={block}
+                  disabled={submitting}
+                  className="w-full"
+                  style={{
+                    background: '#fff',
+                    color: '#dc2626',
+                    padding: '10px 0',
+                    borderRadius: 10,
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    border: '1px solid #fecaca',
+                  }}
+                >
+                  이 사용자 차단하기
+                </button>
+                <p style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', lineHeight: 1.5 }}>
+                  차단하면 이 사용자의 글·댓글이 목록에서 바로 숨겨지고 운영자에게 접수됩니다.
+                </p>
+              </>
+            )}
           </div>
         )}
       </div>

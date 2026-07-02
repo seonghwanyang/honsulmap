@@ -3,6 +3,7 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 import type { CommentCreateRequest, Comment } from '@/lib/types';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
+import { isObjectionable } from '@/lib/contentFilter';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -82,6 +83,12 @@ export async function POST(request: NextRequest) {
 
   if (!content?.trim()) {
     return NextResponse.json({ error: '내용을 입력해주세요.' }, { status: 400 });
+  }
+  if (isObjectionable(content)) {
+    return NextResponse.json(
+      { error: '부적절한 표현이 포함되어 있어 등록할 수 없습니다.' },
+      { status: 400 },
+    );
   }
   if (!password || password.length < 4) {
     return NextResponse.json({ error: '비밀번호는 4자 이상이어야 합니다.' }, { status: 400 });
