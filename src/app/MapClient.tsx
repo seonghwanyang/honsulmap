@@ -1347,7 +1347,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   return (
     <div className="relative w-full" style={{ height: '100dvh', background: '#f8f9fa' }}>
       {/* Header */}
-      <header className="absolute top-0 left-0 right-0 z-20 flex items-center px-4 h-14 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
+      <header className="absolute top-0 left-0 right-0 z-20 flex items-center px-4 h-14 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]" style={{ height: 'calc(3.5rem + env(safe-area-inset-top))', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex flex-col justify-center gap-px">
           <span className="font-bold leading-tight text-[17px] tracking-[-0.3px] text-[#111827]">
             혼술맵
@@ -1388,7 +1388,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           their own white band (chips need a solid surface), but the
           rest — request banner, search box, hot strip — float over the
           map as individual cards so the map is visible between them. */}
-      <div className="absolute z-20 left-0 right-0 top-14">
+      <div className="absolute z-20 left-0 right-0" style={{ top: 'calc(3.5rem + env(safe-area-inset-top))' }}>
         <div className="relative z-40 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0] flex items-start">
           <div className="flex-1 min-w-0">
             <LocationPicker
