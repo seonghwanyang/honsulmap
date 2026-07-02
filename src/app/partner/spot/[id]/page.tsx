@@ -1,11 +1,45 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthGate from '../../AuthGate';
 import { Card, Chip, PageHeader, Spinner, buttonStyle } from '../../ui';
 import { track } from '@/lib/analytics';
+import ChatRoom from '@/components/chat/ChatRoom';
+
+interface RankInfo {
+  rank: number;
+  topPct: number;
+}
+interface CohortRanks {
+  views: RankInfo;
+  likes: RankInfo;
+  visits: RankInfo;
+}
+interface StatsData {
+  region: { name: string; label: string; size: number; ranks: CohortRanks | null };
+  national: { label: string; size: number; ranks: CohortRanks | null };
+  trend: { views7d: number; prev7d: number; pct: number | null };
+}
+
+interface ChatReport {
+  id: string;
+  message_id: string;
+  reason: string;
+  detail: string | null;
+  created_at: string;
+  body: string | null;
+  nickname: string;
+  deleted: boolean;
+}
+
+const REPORT_REASON: Record<string, string> = {
+  spam: '스팸·광고',
+  abuse: '욕설·비방',
+  illegal: '불법·음란',
+  other: '기타',
+};
 
 interface SpotData {
   role: 'owner' | 'manager';
@@ -55,19 +89,38 @@ const sectionLabel: React.CSSProperties = {
   margin: '0 2px 10px',
 };
 
-function StatBox({ label, value }: { label: string; value: number | string }) {
-  return (
-    <Card style={{ padding: '15px 14px' }}>
-      <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600, letterSpacing: '-0.1px' }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: '#111827', marginTop: 4, letterSpacing: '-0.6px' }}>
-        {value}
-      </div>
-    </Card>
-  );
-}
-
 function isVip(until: string | null) {
   return !!until && new Date(until).getTime() > Date.now();
+}
+
+function RankCard({
+  label,
+  regionName,
+  regionSize,
+  region,
+  nationalSize,
+  national,
+}: {
+  label: string;
+  regionName: string;
+  regionSize: number;
+  region: RankInfo;
+  nationalSize: number;
+  national: RankInfo | null;
+}) {
+  return (
+    <Card style={{ padding: '13px 12px' }}>
+      <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600, letterSpacing: '-0.1px' }}>{label}</div>
+      <div style={{ fontSize: 13.5, fontWeight: 800, color: '#111827', marginTop: 5, letterSpacing: '-0.3px', lineHeight: 1.3 }}>
+        {regionName} {regionSize}곳 중 {region.rank}위
+      </div>
+      {national && (
+        <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 3, lineHeight: 1.3 }}>
+          전국 {nationalSize}곳 중 {national.rank}위
+        </div>
+      )}
+    </Card>
+  );
 }
 
 function SpotManageContent() {
@@ -91,6 +144,18 @@ function SpotManageContent() {
   const [savingBenefit, setSavingBenefit] = useState(false);
   const [benefitMsg, setBenefitMsg] = useState('');
   const [benefitErr, setBenefitErr] = useState('');
+  // 채팅방(#6) 관리 상태
+  const [chatRoom, setChatRoom] = useState<{ is_open: boolean; notice: string | null } | null>(null);
+  const [chatLoaded, setChatLoaded] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatNotice, setChatNotice] = useState('');
+  const [chatMsgCount, setChatMsgCount] = useState(0);
+  const [chatBusy, setChatBusy] = useState(false);
+  const [chatMsg, setChatMsg] = useState('');
+  const [chatErr, setChatErr] = useState('');
+  const [chatReports, setChatReports] = useState<ChatReport[]>([]);
+  const [statsData, setStatsData] = useState<StatsData | null>(null);
+  const [chatVersion, setChatVersion] = useState(0); // 삭제 후 임베드 채팅 재마운트용
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
   const [error, setError] = useState('');
@@ -124,6 +189,89 @@ function SpotManageContent() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  // 채팅방 현황 로드 — 미개설/열림/닫힘 분기 + 공지/메시지 수.
+  useEffect(() => {
+    fetch(`/api/chat/${id}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setChatRoom(d.room ?? null);
+        setChatOpen(!!d.room?.is_open);
+        setChatNotice(d.room?.notice ?? '');
+        setChatMsgCount(d.message_count ?? 0);
+      })
+      .catch(() => {})
+      .finally(() => setChatLoaded(true));
+  }, [id]);
+
+  const loadChatReports = useCallback(() => {
+    fetch(`/api/partner/spots/${id}/chat-reports`)
+      .then((r) => (r.ok ? r.json() : { reports: [] }))
+      .then((d) => setChatReports(d.reports ?? []))
+      .catch(() => {});
+  }, [id]);
+
+  useEffect(() => {
+    loadChatReports();
+  }, [loadChatReports]);
+
+  useEffect(() => {
+    fetch(`/api/partner/spots/${id}/stats`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setStatsData(d))
+      .catch(() => {});
+  }, [id]);
+
+  const deleteReported = async (messageId: string) => {
+    if (typeof window !== 'undefined' && !window.confirm('이 메시지를 삭제할까요?')) return;
+    const res = await fetch(`/api/chat/${id}/messages/${messageId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      alert('삭제에 실패했어요.');
+      return;
+    }
+    setChatVersion((v) => v + 1); // 임베드 채팅 재마운트 → 삭제 즉시 반영
+    loadChatReports();
+  };
+
+  const openChat = async () => {
+    setChatBusy(true);
+    setChatErr('');
+    setChatMsg('');
+    try {
+      const res = await fetch(`/api/chat/${id}`, { method: 'POST' });
+      const b = await res.json();
+      if (!res.ok) throw new Error(b.error || '개설에 실패했어요.');
+      setChatRoom(b.room);
+      setChatOpen(!!b.room.is_open);
+      setChatNotice(b.room.notice ?? '');
+      setChatMsg('채팅방이 개설됐어요. 지도 가게 화면에 채팅 버튼이 표시돼요.');
+    } catch (e) {
+      setChatErr((e as Error).message);
+    } finally {
+      setChatBusy(false);
+    }
+  };
+
+  const saveChat = async () => {
+    setChatBusy(true);
+    setChatErr('');
+    setChatMsg('');
+    try {
+      const res = await fetch(`/api/chat/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_open: chatOpen, notice: chatNotice }),
+      });
+      const b = await res.json();
+      if (!res.ok) throw new Error(b.error || '저장에 실패했어요.');
+      setChatRoom(b.room);
+      setChatMsg(chatOpen ? '저장됐어요. 채팅방이 열려 있어요.' : '저장됐어요. 채팅방을 닫았어요.');
+    } catch (e) {
+      setChatErr((e as Error).message);
+    } finally {
+      setChatBusy(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -208,9 +356,18 @@ function SpotManageContent() {
     );
   }
 
-  const { spot, stats } = data;
-  const moodTotal = stats.mood_up + stats.mood_down;
-  const upPct = moodTotal > 0 ? Math.round((stats.mood_up / moodTotal) * 100) : null;
+  const { spot } = data;
+  const trend = statsData?.trend;
+  let trendText = '—';
+  let trendColor = '#111827';
+  if (trend) {
+    if (trend.pct != null) {
+      trendText = `${trend.pct > 0 ? '▲' : trend.pct < 0 ? '▼' : ''}${Math.abs(trend.pct)}%`;
+      trendColor = trend.pct > 0 ? '#16a34a' : trend.pct < 0 ? '#dc2626' : '#111827';
+    } else if (trend.views7d > 0) {
+      trendText = '새로 집계 중';
+    }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -231,15 +388,41 @@ function SpotManageContent() {
         }
       />
 
-      {/* Stats */}
+      {/* 통계 — 상대평가(상위%) + 주간 추세 */}
       <section>
         <h2 style={sectionLabel}>통계</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 10 }}>
-          <StatBox label="조회수" value={stats.views.toLocaleString()} />
-          <StatBox label="다녀왔어요" value={stats.visits.toLocaleString()} />
-          <StatBox label="좋아요" value={stats.likes.toLocaleString()} />
-          <StatBox label="분위기 👍" value={upPct == null ? '—' : `${upPct}%`} />
-        </div>
+        {!statsData ? (
+          <Card style={{ padding: 16 }}>
+            <p style={{ fontSize: 12.5, color: '#9ca3af' }}>불러오는 중…</p>
+          </Card>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {statsData.region.ranks ? (
+              <>
+                <div className="grid grid-cols-3" style={{ gap: 10 }}>
+                  <RankCard label="조회수" regionName={statsData.region.name} regionSize={statsData.region.size} region={statsData.region.ranks.views} nationalSize={statsData.national.size} national={statsData.national.ranks?.views ?? null} />
+                  <RankCard label="좋아요" regionName={statsData.region.name} regionSize={statsData.region.size} region={statsData.region.ranks.likes} nationalSize={statsData.national.size} national={statsData.national.ranks?.likes ?? null} />
+                  <RankCard label="다녀왔어요" regionName={statsData.region.name} regionSize={statsData.region.size} region={statsData.region.ranks.visits} nationalSize={statsData.national.size} national={statsData.national.ranks?.visits ?? null} />
+                </div>
+                <p style={{ fontSize: 11, color: '#9ca3af', padding: '0 2px', lineHeight: 1.5 }}>
+                  {statsData.region.label} 기준. 조회수는 방문자가 가게 화면을 연 횟수.
+                </p>
+              </>
+            ) : (
+              <Card style={{ padding: 16 }}>
+                <p style={{ fontSize: 12.5, color: '#6b7280', lineHeight: 1.6 }}>
+                  {statsData.region.label} 가게가 아직 적어 순위를 낼 수 없어요. 데이터가 더 쌓이면 순위를 보여드릴게요.
+                </p>
+              </Card>
+            )}
+            <Card style={{ padding: '14px 16px' }}>
+              <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>이번 주 조회 추세</div>
+              <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: trendColor }}>
+                {trendText}
+              </div>
+            </Card>
+          </div>
+        )}
       </section>
 
       {/* 혜택 */}
@@ -348,6 +531,126 @@ function SpotManageContent() {
             {savingBenefit ? '저장 중…' : '혜택 저장'}
           </button>
         </Card>
+      </section>
+
+      {/* 채팅방 */}
+      <section>
+        <h2 style={sectionLabel}>채팅방</h2>
+        <Card style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {!chatLoaded ? (
+            <p style={{ fontSize: 12.5, color: '#9ca3af' }}>불러오는 중…</p>
+          ) : !chatRoom ? (
+            <>
+              <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6 }}>
+                채팅방을 열면 방문자가 가게에 직접 메시지를 남길 수 있어요. 개설하면 지도 가게 화면에 채팅
+                버튼이 떠요.
+              </p>
+              {chatErr && <p style={{ color: '#ef4444', fontSize: 12.5 }}>{chatErr}</p>}
+              {chatMsg && <p style={{ color: '#16a34a', fontSize: 12.5, fontWeight: 600 }}>{chatMsg}</p>}
+              <button
+                onClick={openChat}
+                disabled={chatBusy}
+                style={{ ...buttonStyle('primary', { disabled: chatBusy }), alignSelf: 'flex-start' }}
+              >
+                {chatBusy ? '개설 중…' : '채팅방 개설'}
+              </button>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>채팅방 열기</div>
+                  <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2, lineHeight: 1.5 }}>
+                    {chatOpen ? '방문자가 메시지를 남길 수 있어요.' : '닫으면 방문자에게 채팅방이 보이지 않아요.'}
+                    {chatMsgCount > 0 && ` · 메시지 ${chatMsgCount}개`}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setChatOpen((v) => !v)}
+                  aria-pressed={chatOpen}
+                  aria-label="채팅방 열기"
+                  style={{ flexShrink: 0, width: 46, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative', background: chatOpen ? '#111827' : '#d1d5db', transition: 'background .15s' }}
+                >
+                  <span style={{ position: 'absolute', top: 3, left: chatOpen ? 21 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', transition: 'left .15s' }} />
+                </button>
+              </div>
+              <div>
+                <label style={labelStyle}>공지 (선택)</label>
+                <input
+                  value={chatNotice}
+                  onChange={(e) => setChatNotice(e.target.value)}
+                  maxLength={200}
+                  placeholder="예) 예약·문의는 채팅으로 남겨주세요"
+                  style={inputStyle}
+                />
+              </div>
+              {chatErr && <p style={{ color: '#ef4444', fontSize: 12.5 }}>{chatErr}</p>}
+              {chatMsg && <p style={{ color: '#16a34a', fontSize: 12.5, fontWeight: 600 }}>{chatMsg}</p>}
+              <button
+                onClick={saveChat}
+                disabled={chatBusy}
+                style={{ ...buttonStyle('primary', { disabled: chatBusy }), alignSelf: 'flex-start' }}
+              >
+                {chatBusy ? '저장 중…' : '저장하기'}
+              </button>
+            </>
+          )}
+        </Card>
+
+        {chatRoom && chatOpen && (
+          <Card style={{ padding: 0, marginTop: 10, overflow: 'hidden' }}>
+            <div style={{ height: 460 }}>
+              <ChatRoom
+                key={chatVersion}
+                spotId={id}
+                spotName={spot.name}
+                notice={chatNotice || null}
+                onClose={() => {}}
+                embedded
+                canModerate
+              />
+            </div>
+          </Card>
+        )}
+
+        {chatReports.length > 0 && (
+          <Card style={{ marginTop: 10, padding: 16 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#111827', marginBottom: 10 }}>
+              신고된 메시지 {chatReports.length}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {chatReports.map((r) => (
+                <div key={r.id} style={{ border: '1px solid #fee2e2', background: '#fff7f7', borderRadius: 10, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: '#991b1b', background: '#fee2e2', borderRadius: 5, padding: '1px 6px' }}>
+                      {REPORT_REASON[r.reason] ?? r.reason}
+                    </span>
+                    <span style={{ fontSize: 11, color: '#9ca3af' }}>{r.nickname}</span>
+                    <span style={{ fontSize: 11, color: '#d1d5db' }}>
+                      {new Date(r.created_at).toLocaleDateString('ko-KR')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#374151', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {r.deleted ? <span style={{ color: '#9ca3af' }}>(삭제된 메시지)</span> : r.body}
+                  </div>
+                  {r.detail && (
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>신고 상세: {r.detail}</div>
+                  )}
+                  {!r.deleted && (
+                    <button
+                      type="button"
+                      onClick={() => deleteReported(r.message_id)}
+                      style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: '#dc2626', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                    >
+                      메시지 삭제
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </section>
 
       {/* Edit */}

@@ -27,6 +27,7 @@ type Room = {
 export default function ChatEntry({ spotId, spotName }: Props) {
   const { user } = useUser();
   const [room, setRoom] = useState<Room | null>(null);
+  const [msgCount, setMsgCount] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [opening, setOpening] = useState(false);
@@ -40,6 +41,7 @@ export default function ChatEntry({ spotId, spotName }: Props) {
       .then((d) => {
         if (active) {
           setRoom(d.room ?? null);
+          setMsgCount(d.message_count ?? 0);
           setLoaded(true);
         }
       })
@@ -92,7 +94,15 @@ export default function ChatEntry({ spotId, spotName }: Props) {
 
   // open — 플로팅 런처. 패널 인라인 UI는 그리지 않는다.
   if (room && room.is_open) {
-    return <ChatLauncher spotId={spotId} spotName={spotName} notice={room.notice} />;
+    return (
+      <ChatLauncher
+        spotId={spotId}
+        spotName={spotName}
+        notice={room.notice}
+        initialCount={msgCount}
+        canModerate={isOwner}
+      />
+    );
   }
 
   return (

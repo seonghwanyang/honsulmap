@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import { useUser } from '@/lib/useUser';
+import Image from 'next/image';
 import LoginModal from '@/components/LoginModal';
+import ReportModal from '@/components/ReportModal';
 import type { ChatMessage } from '@/lib/types';
+import { chatNick, chatAvatar } from '@/lib/chatNick';
 
 // 가게별 채팅방(#6) 방 뷰 — 메시지 리스트 + 입력창 + Realtime 구독.
 // MapClient는 ChatEntry를 통해 spotId/spotName/notice만 넘긴다(설계 §6.2).
@@ -19,23 +22,34 @@ interface Props {
   embedded?: boolean;
   // 메시지 총수 변동 알림 — 런처 배지를 라이브로 유지(초기 로드/Realtime/전송).
   onCount?: (count: number) => void;
+  // 사장님이면 각 메시지에 '삭제' 노출(서버는 requireMember로 재검증).
+  canModerate?: boolean;
 }
 
-export default function ChatRoom({ spotId, spotName, notice, onClose, embedded = false, onCount }: Props) {
+export default function ChatRoom({
+  spotId,
+  spotName,
+  notice,
+  onClose,
+  embedded = false,
+  onCount,
+  canModerate = false,
+}: Props) {
   const { user, loading: userLoading } = useUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(true);
+  const [reportTarget, setReportTarget] = useState<string | null>(null);
 
   const listRef = useRef<HTMLDivElement | null>(null);
   // 이미 가진 메시지 id — Realtime 에코/POST 응답 중복 방지.
   const seenRef = useRef<Set<string>>(new Set());
-  // user_id → 표시명 캐시(Realtime 미해석 메시지의 이름 채우기용).
+  // user_id → 표시명/프사 캐시(Realtime 미해석 메시지 채우기용).
   const messagesNameCache = useRef<Map<string, string>>(new Map());
+  const messagesAvatarCache = useRef<Map<string, ChatMessage['avatar']>>(new Map());
 
   const scrollToBottom = useCallback(() => {
     const el = listRef.current;
@@ -86,7 +100,8 @@ export default function ChatRoom({ spotId, spotName, notice, onClose, embedded =
           if (seenRef.current.has(row.id)) return;
           seenRef.current.add(row.id);
           // 이름/배지는 raw payload에 없음 → 캐시에서 찾고, 없으면 GET으로 보강.
-          const known = messagesNameCache.current.get(row.user_id);
+          const knownName = messagesNameCache.current.get(row.user_id);
+          const knownAvatar = messagesAvatarCache.current.get(row.user_id);
           setMessages((prev) => [
             ...prev,
             {
@@ -94,11 +109,12 @@ export default function ChatRoom({ spotId, spotName, notice, onClose, embedded =
               user_id: row.user_id,
               body: row.body,
               created_at: row.created_at,
-              name: known ?? '…',
+              name: knownName ?? chatNick(row.user_id),
+              avatar: knownAvatar ?? chatAvatar(row.user_id),
               is_owner: false,
             },
           ]);
-          if (!known) void refresh();
+          if (!knownName) void refresh();
         },
       )
       .subscribe();
@@ -109,7 +125,8 @@ export default function ChatRoom({ spotId, spotName, notice, onClose, embedded =
 
   useEffect(() => {
     for (const m of messages) {
-      if (m.name && m.name !== '…') messagesNameCache.current.set(m.user_id, m.name);
+      messagesNameCache.current.set(m.user_id, m.name);
+      messagesAvatarCache.current.set(m.user_id, m.avatar);
     }
   }, [messages]);
 
@@ -118,34 +135,83 @@ export default function ChatRoom({ spotId, spotName, notice, onClose, embedded =
     if (!loading) onCount?.(messages.length);
   }, [messages.length, loading, onCount]);
 
-  const send = useCallback(async () => {
+  // 낙관적 전송: 보내는 즉시 내 화면에 '전송중'으로 띄우고, 서버 저장이 끝나면
+  // 진짜 메시지(실제 id·시각)로 교체한다. 실패하면 '다시 시도'로 남긴다.
+  const deliver = useCallback(
+    async (text: string) => {
+      if (!user) return;
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const optimistic: ChatMessage = {
+        id: tempId,
+        user_id: user.id,
+        body: text,
+        created_at: new Date().toISOString(),
+        name: chatNick(user.id),
+        avatar: chatAvatar(user.id),
+        is_owner: false,
+        pending: true,
+      };
+      seenRef.current.add(tempId);
+      setMessages((prev) => [...prev, optimistic]);
+      try {
+        const res = await fetch(`/api/chat/${spotId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: text }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? '전송에 실패했어요.');
+        const real: ChatMessage = data.message;
+        seenRef.current.add(real.id);
+        // temp → real 치환. Realtime 에코가 먼저 왔으면 그 중복은 제거.
+        setMessages((prev) =>
+          prev
+            .filter((m) => m.id !== real.id || m.id === tempId)
+            .map((m) => (m.id === tempId ? real : m)),
+        );
+      } catch (e) {
+        setErr((e as Error).message);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, pending: false, failed: true } : m)),
+        );
+      }
+    },
+    [user, spotId],
+  );
+
+  const send = useCallback(() => {
     const text = input.trim();
-    if (!text || sending) return;
-    setSending(true);
+    if (!text) return;
     setErr(null);
-    try {
-      const res = await fetch(`/api/chat/${spotId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: text }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErr(data.error ?? '전송에 실패했어요.');
-        return;
+    setInput('');
+    void deliver(text);
+  }, [input, deliver]);
+
+  const resend = useCallback(
+    (m: ChatMessage) => {
+      setErr(null);
+      seenRef.current.delete(m.id);
+      setMessages((prev) => prev.filter((x) => x.id !== m.id));
+      void deliver(m.body);
+    },
+    [deliver],
+  );
+
+  // 삭제(사장님만) — 낙관적으로 화면에서 제거, 실패하면 재조회로 복구.
+  const deleteMessage = useCallback(
+    async (id: string) => {
+      if (typeof window !== 'undefined' && !window.confirm('이 메시지를 삭제할까요?')) return;
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+      seenRef.current.delete(id);
+      try {
+        const res = await fetch(`/api/chat/${spotId}/messages/${id}`, { method: 'DELETE' });
+        if (!res.ok) void refresh();
+      } catch {
+        void refresh();
       }
-      const msg: ChatMessage = data.message;
-      if (!seenRef.current.has(msg.id)) {
-        seenRef.current.add(msg.id);
-        setMessages((prev) => [...prev, msg]);
-      }
-      setInput('');
-    } catch {
-      setErr('전송에 실패했어요.');
-    } finally {
-      setSending(false);
-    }
-  }, [input, sending, spotId]);
+    },
+    [spotId, refresh],
+  );
 
   return (
     <div
@@ -226,10 +292,30 @@ export default function ChatRoom({ spotId, spotName, notice, onClose, embedded =
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {messages.map((m) => {
+            {[...messages]
+              .sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0))
+              .map((m) => {
               const mine = m.user_id === user?.id;
               return (
-                <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`} style={{ gap: 6 }}>
+                  {!mine &&
+                    ('url' in m.avatar ? (
+                      <Image
+                        src={m.avatar.url}
+                        alt=""
+                        width={28}
+                        height={28}
+                        aria-hidden="true"
+                        style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }}
+                      />
+                    ) : (
+                      <div
+                        aria-hidden="true"
+                        style={{ width: 28, height: 28, borderRadius: '50%', background: m.avatar.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, lineHeight: 1, flexShrink: 0, alignSelf: 'flex-start' }}
+                      >
+                        {m.avatar.emoji}
+                      </div>
+                    ))}
                   <div style={{ maxWidth: '78%' }}>
                     {!mine && (
                       <div className="flex items-center gap-1 mb-0.5 px-1">
@@ -243,7 +329,7 @@ export default function ChatRoom({ spotId, spotName, notice, onClose, embedded =
                     )}
                     <div
                       style={{
-                        background: mine ? '#ea580c' : '#fff',
+                        background: mine ? '#111827' : '#fff',
                         color: mine ? '#fff' : '#111827',
                         border: mine ? 'none' : '1px solid #f0f0f0',
                         borderRadius: 14,
@@ -252,10 +338,51 @@ export default function ChatRoom({ spotId, spotName, notice, onClose, embedded =
                         lineHeight: 1.45,
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
+                        opacity: m.pending ? 0.55 : 1,
                       }}
                     >
                       {m.body}
                     </div>
+                    {m.failed && (
+                      <button
+                        type="button"
+                        onClick={() => resend(m)}
+                        style={{ display: 'block', marginLeft: 'auto', marginTop: 3, fontSize: 10.5, fontWeight: 700, color: '#dc2626', background: 'none', border: 'none', padding: '2px 1px', cursor: 'pointer' }}
+                      >
+                        전송 실패 · 다시 시도
+                      </button>
+                    )}
+                    {/* 운영 액션 — 실제 저장된 메시지에만(전송중/실패/temp 제외) */}
+                    {!m.pending && !m.failed && !m.id.startsWith('temp-') && (mine ? canModerate : true) && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 8,
+                          marginTop: 2,
+                          padding: '0 2px',
+                          justifyContent: mine ? 'flex-end' : 'flex-start',
+                        }}
+                      >
+                        {!mine && (
+                          <button
+                            type="button"
+                            onClick={() => setReportTarget(m.id)}
+                            style={{ fontSize: 10.5, color: '#9ca3af', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          >
+                            신고
+                          </button>
+                        )}
+                        {canModerate && (
+                          <button
+                            type="button"
+                            onClick={() => deleteMessage(m.id)}
+                            style={{ fontSize: 10.5, color: '#dc2626', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          >
+                            삭제
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -295,18 +422,18 @@ export default function ChatRoom({ spotId, spotName, notice, onClose, embedded =
             />
             <button
               type="button"
-              onClick={() => void send()}
-              disabled={sending || !input.trim()}
+              onClick={() => send()}
+              disabled={!input.trim()}
               style={{
                 flexShrink: 0,
-                background: sending || !input.trim() ? '#fdba74' : '#ea580c',
+                background: !input.trim() ? '#fdba74' : '#ea580c',
                 color: '#fff',
                 fontSize: 13,
                 fontWeight: 700,
                 border: 'none',
                 borderRadius: 12,
                 padding: '9px 16px',
-                cursor: sending || !input.trim() ? 'default' : 'pointer',
+                cursor: !input.trim() ? 'default' : 'pointer',
               }}
             >
               전송
@@ -319,6 +446,12 @@ export default function ChatRoom({ spotId, spotName, notice, onClose, embedded =
         open={loginOpen}
         onClose={() => setLoginOpen(false)}
         reason="채팅에 참여하려면 로그인이 필요해요"
+      />
+      <ReportModal
+        open={reportTarget !== null}
+        onClose={() => setReportTarget(null)}
+        targetType="chat_message"
+        targetId={reportTarget ?? ''}
       />
     </div>
   );

@@ -33,9 +33,18 @@ export async function PATCH(
     return NextResponse.json({ error: '신고를 찾을 수 없습니다.' }, { status: 404 });
 
   if (deleteTarget && status === 'resolved') {
-    const table = report.target_type === 'post' ? 'posts' : 'comments';
-    const { error: delErr } = await db.from(table).delete().eq('id', report.target_id);
-    if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+    if (report.target_type === 'chat_message') {
+      // 채팅은 소프트삭제(is_deleted) — 하드삭제하지 않는다.
+      const { error: delErr } = await db
+        .from('chat_messages')
+        .update({ is_deleted: true })
+        .eq('id', report.target_id);
+      if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+    } else {
+      const table = report.target_type === 'post' ? 'posts' : 'comments';
+      const { error: delErr } = await db.from(table).delete().eq('id', report.target_id);
+      if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+    }
   }
 
   const { data, error } = await db

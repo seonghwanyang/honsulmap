@@ -48,21 +48,17 @@ const ROOM_COLS = 'spot_id, is_open, notice, opened_by, created_at, updated_at';
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ spotId: string }> }) {
   const { spotId } = await params;
   const admin = supabaseAdmin();
-  const { data: room } = await admin
-    .from('chat_rooms')
-    .select(ROOM_COLS)
-    .eq('spot_id', spotId)
-    .maybeSingle<Room>();
-
-  let messageCount = 0;
-  if (room?.is_open) {
-    const { count } = await admin
+  // 방 조회와 메시지 수를 병렬로(순차 왕복 제거). count는 방이 열려있을 때만 노출.
+  const [roomRes, countRes] = await Promise.all([
+    admin.from('chat_rooms').select(ROOM_COLS).eq('spot_id', spotId).maybeSingle<Room>(),
+    admin
       .from('chat_messages')
       .select('id', { count: 'exact', head: true })
       .eq('spot_id', spotId)
-      .eq('is_deleted', false);
-    messageCount = count ?? 0;
-  }
+      .eq('is_deleted', false),
+  ]);
+  const room = roomRes.data;
+  const messageCount = room?.is_open ? countRes.count ?? 0 : 0;
 
   return NextResponse.json({ room: room ?? null, message_count: messageCount });
 }

@@ -44,7 +44,12 @@ export interface ChatMessage {
   body: string;
   created_at: string;
   name: string;
+  // 기본은 동물 이모지({emoji,color}), 직접 올린 프사가 있으면 사진({url}).
+  avatar: { emoji: string; color: string } | { url: string };
   is_owner: boolean;
+  // 클라 전용(낙관적 전송 표시) — 서버는 세팅하지 않음.
+  pending?: boolean;
+  failed?: boolean;
 }
 
 export interface NaverMenuItem {

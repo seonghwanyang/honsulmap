@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
+import { chatNick, chatAvatar } from '@/lib/chatNick';
 import type { ChatMessage } from '@/lib/types';
 
 // 가게별 채팅방(#6) — 메시지. 설계: docs/chat-design.md (체크포인트 ③).
-//   GET  open 방의 최근 메시지(삭제분 제외). 표시명은 서버가 해석해 내려줌.
+//   GET  open 방의 최근 메시지(삭제분 제외). 표시명·프사는 서버가 해석해 내려줌.
 //   POST 메시지 전송(로그인 필수, open + 미차단 + 길이검증 + 레이트리밋).
 //
-// 표시명은 chat_messages에 비정규화 저장하지 않는다(설계 §2.2). 작성자 이름은
-// auth metadata에서 해석 — 서비스롤(auth.admin)만 읽을 수 있으므로 여기서 해석해
-// 응답에 실어 보낸다. (Realtime로 도착하는 메시지의 이름도 클라가 이 GET으로 보강.)
+// 표시명/프사는 chat_messages에 저장하지 않는다(설계 §2.2). 카톡/구글 실명·프로필
+// 노출을 막기 위해 user_id에서 익명 닉(chatNick)+동물 프사(chatAvatar)를 결정적으로
+// 만들어 응답에 실어 보낸다. (나중에 /me에서 바꾼 값은 여기서 덮어쓸 자리.)
 
 const PAGE = 50;
 const MAX_LEN = 1000;
@@ -24,29 +25,33 @@ type Row = {
   created_at: string;
 };
 
-// auth metadata에서 표시명 (두 제품 결정 중 #1).
-function nameFromMeta(meta: Record<string, unknown> | undefined): string {
-  const name = meta?.name;
-  const full = meta?.full_name;
-  if (typeof name === 'string' && name.trim()) return name.trim();
-  if (typeof full === 'string' && full.trim()) return full.trim();
-  return '익명';
-}
+type Profile = { nickname: string | null; avatar_url: string | null };
 
-// user_id 집합 → { id: 표시명 }. getUserById를 유니크 id마다 1회(작은 N).
-async function resolveNames(
+// user_id 집합 → 직접 정한 프로필(없으면 기본값 사용). 서비스롤이라 RLS 무관.
+async function loadProfiles(
   admin: ReturnType<typeof supabaseAdmin>,
   userIds: string[],
-): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  const unique = [...new Set(userIds)];
-  await Promise.all(
-    unique.map(async (id) => {
-      const { data } = await admin.auth.admin.getUserById(id);
-      out.set(id, nameFromMeta(data.user?.user_metadata));
-    }),
-  );
+): Promise<Map<string, Profile>> {
+  const out = new Map<string, Profile>();
+  if (userIds.length === 0) return out;
+  const { data } = await admin
+    .from('user_profiles')
+    .select('user_id, nickname, avatar_url')
+    .in('user_id', userIds);
+  for (const p of (data ?? []) as ({ user_id: string } & Profile)[]) {
+    out.set(p.user_id, { nickname: p.nickname, avatar_url: p.avatar_url });
+  }
   return out;
+}
+
+// 직접 정한 닉/프사가 있으면 그것을, 없으면 기본 동물닉/이모지를 표시값으로.
+function resolveIdentity(
+  userId: string,
+  profile: Profile | undefined,
+): { name: string; avatar: ChatMessage['avatar'] } {
+  const name = profile?.nickname?.trim() || chatNick(userId);
+  const avatar = profile?.avatar_url ? { url: profile.avatar_url } : chatAvatar(userId);
+  return { name, avatar };
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ spotId: string }> }) {
@@ -76,7 +81,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const list = (rows ?? []) as Row[];
-  const names = await resolveNames(admin, list.map((r) => r.user_id));
+  const profiles = await loadProfiles(admin, [...new Set(list.map((r) => r.user_id))]);
 
   // 최신순으로 받아 오래된→최신으로 뒤집어 렌더.
   const messages: ChatMessage[] = list
@@ -85,7 +90,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       user_id: r.user_id,
       body: r.body,
       created_at: r.created_at,
-      name: names.get(r.user_id) ?? '익명',
+      ...resolveIdentity(r.user_id, profiles.get(r.user_id)),
       is_owner: r.user_id === room.opened_by,
     }))
     .reverse();
@@ -144,12 +149,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .single<Row>();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const { data: prof } = await admin
+    .from('user_profiles')
+    .select('nickname, avatar_url')
+    .eq('user_id', user.id)
+    .maybeSingle<Profile>();
+
   const message: ChatMessage = {
     id: inserted.id,
     user_id: inserted.user_id,
     body: inserted.body,
     created_at: inserted.created_at,
-    name: nameFromMeta(user.user_metadata),
+    ...resolveIdentity(inserted.user_id, prof ?? undefined),
     is_owner: inserted.user_id === room.opened_by,
   };
   return NextResponse.json({ message }, { status: 201 });

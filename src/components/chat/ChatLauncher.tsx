@@ -15,6 +15,10 @@ interface Props {
   spotId: string;
   spotName: string;
   notice: string | null;
+  // ChatEntry가 이미 조회한 메시지 수 — 런처가 다시 조회하지 않도록 시드값으로 받는다.
+  initialCount: number;
+  // 사장님이면 채팅창 안에서 메시지 삭제 가능.
+  canModerate: boolean;
 }
 
 // 큰 수는 99+로 — 배지 폭 고정.
@@ -22,29 +26,15 @@ function fmtCount(n: number): string {
   return n > 99 ? '99+' : String(n);
 }
 
-export default function ChatLauncher({ spotId, spotName, notice }: Props) {
+export default function ChatLauncher({ spotId, spotName, notice, initialCount, canModerate }: Props) {
   const { user } = useUser();
   const [open, setOpen] = useState(false);
-  const [count, setCount] = useState(0);
+  const [count, setCount] = useState(initialCount);
   // 윈도우 열림 여부의 최신값 — Realtime 콜백(클로저)에서 참조.
   const openRef = useRef(false);
   useEffect(() => {
     openRef.current = open;
   }, [open]);
-
-  // 마운트 시 1회 — 방 라우트가 message_count를 같이 내려줌(저렴한 head count).
-  useEffect(() => {
-    let active = true;
-    fetch(`/api/chat/${spotId}`)
-      .then((r) => r.json())
-      .then((d: { message_count?: number }) => {
-        if (active && typeof d.message_count === 'number') setCount(d.message_count);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [spotId]);
 
   // 윈도우가 닫혀 있을 때도 배지를 라이브로 — 이 방의 INSERT만 구독해 +1.
   // 로그인 유저만(RLS authenticated). 윈도우가 열려 있으면 ChatRoom의 onCount가
@@ -192,6 +182,7 @@ export default function ChatLauncher({ spotId, spotName, notice }: Props) {
               onClose={() => setOpen(false)}
               embedded
               onCount={handleCount}
+              canModerate={canModerate}
             />
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 interface ReportRow {
   id: string;
-  target_type: 'post' | 'comment';
+  target_type: 'post' | 'comment' | 'chat_message';
   target_id: string;
   reason: 'spam' | 'abuse' | 'illegal' | 'other';
   detail: string | null;
@@ -51,8 +51,9 @@ export default function AdminReportsPage() {
   }, [tab]);
 
   async function resolve(r: ReportRow, deleteTarget: boolean) {
+    const label = r.target_type === 'post' ? '게시글' : r.target_type === 'comment' ? '댓글' : '메시지';
     const confirmMsg = deleteTarget
-      ? `${r.target_type === 'post' ? '게시글' : '댓글'}을 삭제하고 신고를 해결 처리할까요? 되돌릴 수 없습니다.`
+      ? `${label}을 삭제하고 신고를 해결 처리할까요? 되돌릴 수 없습니다.`
       : '신고를 해결 처리할까요? (대상은 그대로 유지)';
     if (!confirm(confirmMsg)) return;
     const note = prompt('처리 메모 (선택):') || '';
@@ -145,7 +146,7 @@ export default function AdminReportsPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {r.target_type === 'post' ? '게시글' : '댓글'}
+                      {r.target_type === 'post' ? '게시글' : r.target_type === 'comment' ? '댓글' : '채팅'}
                     </span>
                     <span
                       style={{
@@ -225,6 +226,19 @@ export default function AdminReportsPage() {
                               style={{ color: '#6b7280', textDecoration: 'underline' }}
                             >
                               원문 열기
+                            </a>
+                          </>
+                        )}
+                        {r.target_type === 'chat_message' && r.target.spot && (
+                          <>
+                            {' · '}
+                            <a
+                              href={`/spot/${r.target.spot.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: '#6b7280', textDecoration: 'underline' }}
+                            >
+                              {r.target.spot.name} 열기
                             </a>
                           </>
                         )}
