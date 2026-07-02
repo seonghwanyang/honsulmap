@@ -46,6 +46,10 @@ export default function Footer() {
         <Link href="/privacy" style={{ color: '#6b7280', textDecoration: 'underline' }}>
           개인정보처리방침
         </Link>
+        {' · '}
+        <Link href="/account-deletion" style={{ color: '#6b7280', textDecoration: 'underline' }}>
+          계정 삭제
+        </Link>
       </div>
     </footer>
   );

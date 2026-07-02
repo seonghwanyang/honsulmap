@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import AccountDeleteButton from './AccountDeleteButton';
 
 export const metadata: Metadata = {
   title: '계정 및 데이터 삭제',
@@ -42,6 +43,8 @@ export default function AccountDeletionPage() {
         <p className="text-xs mb-8" style={{ color: '#9ca3af' }}>
           앱: 혼술맵 · 운영: 시냅틱(Synaptic) · 문의: contact@higgsi.com
         </p>
+
+        <AccountDeleteButton />
 
         <Section title="1. 계정 삭제를 요청하는 방법">
           <p className="mb-2">
