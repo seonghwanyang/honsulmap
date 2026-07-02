@@ -117,6 +117,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   themeColor: '#ffffff',
+  // iOS 노치까지 화면을 쓰고 env(safe-area-inset-*)를 활성화 (헤더 여백용).
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
