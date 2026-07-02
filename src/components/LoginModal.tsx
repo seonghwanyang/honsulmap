@@ -16,6 +16,7 @@ interface Props {
 export default function LoginModal({ open, onClose, reason }: Props) {
   const [mounted, setMounted] = useState(false);
   const [busy, setBusy] = useState<'kakao' | 'google' | 'apple' | null>(null);
+  const [err, setErr] = useState('');
   const [platform, setPlatform] = useState<'web' | 'ios' | 'android'>('web');
   useEffect(() => {
     setMounted(true);
@@ -27,6 +28,7 @@ export default function LoginModal({ open, onClose, reason }: Props) {
   const signIn = async (provider: 'kakao' | 'google' | 'apple') => {
     if (busy) return;
     setBusy(provider);
+    setErr('');
     track('login_started', { provider });
     try {
       // 네이티브 앱: 구글/애플은 웹뷰 OAuth가 막히므로 네이티브 플러그인으로.
@@ -48,8 +50,12 @@ export default function LoginModal({ open, onClose, reason }: Props) {
       });
       // On success the browser navigates away to the provider; only reach
       // here on an error (e.g. provider not configured yet).
-      if (error) setBusy(null);
-    } catch {
+      if (error) {
+        setErr(error.message);
+        setBusy(null);
+      }
+    } catch (e) {
+      setErr((e as Error)?.message || '로그인에 실패했어요. 다시 시도해주세요.');
       setBusy(null);
     }
   };
@@ -149,6 +155,11 @@ export default function LoginModal({ open, onClose, reason }: Props) {
             </button>
           )}
 
+          {err && (
+            <p style={{ color: '#ef4444', fontSize: 12, textAlign: 'center', marginTop: 2, lineHeight: 1.5 }}>
+              {err}
+            </p>
+          )}
           <p style={{ color: '#9ca3af', fontSize: 11, textAlign: 'center', marginTop: 6, lineHeight: 1.5 }}>
             로그인 시{' '}
             <a href="/terms" className="underline">이용약관</a> ·{' '}

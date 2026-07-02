@@ -83,12 +83,19 @@ export async function nativeSignIn(provider: 'google' | 'apple'): Promise<void> 
     });
     if (error) throw error;
   } else {
-    const res = await SocialLogin.login({ provider: 'apple', options: {} });
+    // 애플도 구글과 동일하게 nonce를 맞춘다: 플러그인엔 digest, Supabase엔 raw.
+    // (nonce 불일치 시 signInWithIdToken이 토큰을 거부 → 로그인 페이지로 튕김)
+    const { rawNonce, nonceDigest } = await getNonce();
+    const res = await SocialLogin.login({
+      provider: 'apple',
+      options: { nonce: nonceDigest },
+    });
     const idToken = (res.result as { idToken?: string }).idToken;
     if (!idToken) throw new Error('Apple idToken 없음');
     const { error } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
       token: idToken,
+      nonce: rawNonce,
     });
     if (error) throw error;
   }

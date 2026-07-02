@@ -24,6 +24,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>커뮤니티 글에 사진을 첨부할 때 카메라를 사용합니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>커뮤니티 글에 사진을 첨부할 때 사진 보관함에 접근합니다.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
