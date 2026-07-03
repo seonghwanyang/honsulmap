@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertAdmin } from '@/lib/adminAuth';
+import { chatNick } from '@/lib/chatNick';
 
 // List reports with minimal target previews (post title/content or comment
 // content + nickname) so the admin can triage without extra round-trips.
@@ -28,8 +29,11 @@ export async function GET(request: NextRequest) {
   const commentIds = Array.from(
     new Set((reports || []).filter((r) => r.target_type === 'comment').map((r) => r.target_id)),
   );
+  const chatIds = Array.from(
+    new Set((reports || []).filter((r) => r.target_type === 'chat_message').map((r) => r.target_id)),
+  );
 
-  const [postRes, commentRes] = await Promise.all([
+  const [postRes, commentRes, chatRes] = await Promise.all([
     postIds.length
       ? db.from('posts').select('id, title, content, nickname, spot_id').in('id', postIds)
       : Promise.resolve({ data: [], error: null }),
@@ -39,16 +43,39 @@ export async function GET(request: NextRequest) {
           .select('id, content, nickname, post_id, spot_id')
           .in('id', commentIds)
       : Promise.resolve({ data: [], error: null }),
+    chatIds.length
+      ? db.from('chat_messages').select('id, body, user_id, spot_id, is_deleted').in('id', chatIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   const postMap = new Map((postRes.data || []).map((p) => [p.id, p]));
   const commentMap = new Map((commentRes.data || []).map((c) => [c.id, c]));
+  // 채팅 메시지를 게시글/댓글과 같은 target 형태로 정규화(content/nickname).
+  const chatRows = (chatRes.data ?? []) as {
+    id: string;
+    body: string;
+    user_id: string;
+    spot_id: string;
+    is_deleted: boolean;
+  }[];
+  const chatMap = new Map(
+    chatRows.map((m) => [
+      m.id,
+      {
+        id: m.id,
+        content: m.is_deleted ? '(삭제된 메시지)' : m.body,
+        nickname: chatNick(m.user_id),
+        spot_id: m.spot_id,
+      },
+    ]),
+  );
 
   // Resolve spot slugs so the reports UI can link directly to /spot/<slug>
   // when a comment lives on a spot page instead of a post.
   const spotIds = new Set<string>();
   for (const p of postRes.data || []) if (p.spot_id) spotIds.add(p.spot_id);
   for (const c of commentRes.data || []) if (c.spot_id) spotIds.add(c.spot_id);
+  for (const m of chatRows) if (m.spot_id) spotIds.add(m.spot_id);
 
   const spotMap = new Map<string, { slug: string; name: string }>();
   if (spotIds.size > 0) {
@@ -63,7 +90,9 @@ export async function GET(request: NextRequest) {
     const target =
       r.target_type === 'post'
         ? postMap.get(r.target_id) || null
-        : commentMap.get(r.target_id) || null;
+        : r.target_type === 'comment'
+          ? commentMap.get(r.target_id) || null
+          : chatMap.get(r.target_id) || null;
     const spot = target?.spot_id ? spotMap.get(target.spot_id) || null : null;
     return { ...r, target: target ? { ...target, spot } : null };
   });

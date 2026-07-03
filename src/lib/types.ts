@@ -36,6 +36,22 @@ export type MediaType = 'image' | 'video';
 export type TargetType = 'spot' | 'post' | 'comment';
 export type MoodVoteType = 'up' | 'down';
 
+// 가게별 채팅(#6) 메시지 — API가 표시명/사장님 배지를 해석해 내려준 형태.
+// (chat_messages 자체엔 name/is_owner 컬럼이 없음 — 서버가 auth metadata로 해석.)
+export interface ChatMessage {
+  id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  name: string;
+  // 기본은 동물 이모지({emoji,color}), 직접 올린 프사가 있으면 사진({url}).
+  avatar: { emoji: string; color: string } | { url: string };
+  is_owner: boolean;
+  // 클라 전용(낙관적 전송 표시) — 서버는 세팅하지 않음.
+  pending?: boolean;
+  failed?: boolean;
+}
+
 export interface NaverMenuItem {
   name: string;
   price: string | null;
@@ -57,6 +73,10 @@ export interface Spot {
   phone: string | null;
   business_hours: string | null;
   memo: string | null;
+  benefit_title?: string | null;
+  benefit_detail?: string | null;
+  benefit_active?: boolean;
+  benefit_expires_at?: string | null;
   naver_place_id: string | null;
   naver_rating?: number | null;
   naver_review_count?: number | null;

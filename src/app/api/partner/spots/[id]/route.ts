@@ -35,7 +35,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     admin
       .from('spots')
       .select(
-        'id, name, slug, region, category, instagram_id, memo, business_hours, phone, vip_until, like_count, mood_up, mood_down',
+        'id, name, slug, region, category, instagram_id, memo, business_hours, phone, vip_until, like_count, mood_up, mood_down, benefit_title, benefit_detail, benefit_active, benefit_expires_at',
       )
       .eq('id', id)
       .maybeSingle(),
@@ -71,6 +71,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (typeof body.business_hours === 'string')
     patch.business_hours = body.business_hours.trim().slice(0, 100) || null;
   if (typeof body.phone === 'string') patch.phone = body.phone.trim().slice(0, 30) || null;
+  // 가게 혜택(#8): 인증 사장님만 등록/수정. active=true + title 있을 때 노출.
+  let benefitTouched = false;
+  if (typeof body.benefit_title === 'string') {
+    patch.benefit_title = body.benefit_title.trim().slice(0, 40) || null;
+    benefitTouched = true;
+  }
+  if (typeof body.benefit_detail === 'string') {
+    patch.benefit_detail = body.benefit_detail.trim().slice(0, 200) || null;
+    benefitTouched = true;
+  }
+  if (typeof body.benefit_active === 'boolean') {
+    patch.benefit_active = body.benefit_active;
+    benefitTouched = true;
+  }
+  if (typeof body.benefit_expires_at === 'string') {
+    patch.benefit_expires_at = body.benefit_expires_at;
+    benefitTouched = true;
+  } else if (body.benefit_expires_at === null) {
+    patch.benefit_expires_at = null;
+    benefitTouched = true;
+  }
+  if (benefitTouched) patch.benefit_updated_at = new Date().toISOString();
 
   if (Object.keys(patch).length === 0)
     return NextResponse.json({ error: '변경할 내용이 없습니다.' }, { status: 400 });
@@ -79,7 +101,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .from('spots')
     .update(patch)
     .eq('id', id)
-    .select('memo, business_hours, phone')
+    .select('memo, business_hours, phone, benefit_title, benefit_detail, benefit_active, benefit_expires_at')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);

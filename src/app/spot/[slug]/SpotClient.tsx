@@ -13,6 +13,8 @@ import { usePageDwell } from '@/lib/hooks/usePageDwell';
 import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
 import { useUser } from '@/lib/useUser';
 import LoginModal from '@/components/LoginModal';
+import FavoriteButton from '@/components/FavoriteButton';
+import { isFreeStorySpot, claimFreeStorySpot } from '@/lib/storyGate';
 
 function BackButton() {
   return (
@@ -71,76 +73,6 @@ function LikeButton({ targetType, targetId, initialCount }: { targetType: string
       <span>{liked ? '♥' : '♡'}</span>
       <span>{count}</span>
     </button>
-  );
-}
-
-function MoodVoteButton({ spotId, upCount, downCount }: { spotId: string; upCount: number; downCount: number }) {
-  const [voted, setVoted] = useState<'up' | 'down' | null>(null);
-  const [up, setUp] = useState(upCount);
-  const [down, setDown] = useState(downCount);
-
-  const handleVote = async (vote: 'up' | 'down') => {
-    try {
-      const { getFingerprint } = await import('@/lib/utils');
-      const res = await fetch(`/api/spots/${spotId}/mood`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vote, fingerprint: getFingerprint() }),
-      });
-      if (res.ok) {
-        track('mood_voted', { spot_id: spotId, vote });
-        if (voted === vote) {
-          setVoted(null);
-          vote === 'up' ? setUp((v) => v - 1) : setDown((v) => v - 1);
-        } else {
-          if (voted === 'up') setUp((v) => v - 1);
-          if (voted === 'down') setDown((v) => v - 1);
-          setVoted(vote);
-          vote === 'up' ? setUp((v) => v + 1) : setDown((v) => v + 1);
-        }
-      }
-    } catch (err) {
-      console.error('MoodVote error:', err);
-    }
-  };
-
-  const total = up + down;
-  const upPercent = total > 0 ? Math.round((up / total) * 100) : 50;
-  const downPercent = total > 0 ? 100 - upPercent : 50;
-
-  return (
-    <div className="w-full">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium" style={{ color: '#6b7280' }}>분위기 투표</span>
-        <span className="text-xs" style={{ color: '#9ca3af' }}>총 {total}표</span>
-      </div>
-      <div className="vote-bar">
-        <button
-          onClick={() => handleVote('up')}
-          className="vote-bar-up"
-          style={{
-            width: `${Math.max(upPercent, 15)}%`,
-            opacity: voted === 'down' ? 0.6 : 1,
-            cursor: 'pointer',
-            border: 'none',
-          }}
-        >
-          &#9650; {upPercent}% ({up})
-        </button>
-        <button
-          onClick={() => handleVote('down')}
-          className="vote-bar-down"
-          style={{
-            width: `${Math.max(downPercent, 15)}%`,
-            opacity: voted === 'up' ? 0.6 : 1,
-            cursor: 'pointer',
-            border: 'none',
-          }}
-        >
-          &#9660; {downPercent}% ({down})
-        </button>
-      </div>
-    </div>
   );
 }
 
@@ -402,6 +334,19 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
   useScrollDepth('spot', slug);
   const { user, loading: authLoading } = useUser();
   const [loginOpen, setLoginOpen] = useState(false);
+  const [freeSpot, setFreeSpot] = useState(false);
+  const [loginReason, setLoginReason] = useState<string | undefined>(undefined);
+
+  // Guests get ONE free spot per device: the first spot they open shows all
+  // its stories (and is claimed here); every other spot is gated. Logged-in
+  // users always see everything.
+  useEffect(() => {
+    if (user) return;
+    if (!spot) return;
+    const free = isFreeStorySpot(spot.id);
+    setFreeSpot(free);
+    if (free) claimFreeStorySpot(spot.id);
+  }, [user, spot?.id]);
 
   // Guest → pop the login modal over the blurred stories once auth resolves.
   // slug is in the deps so navigating spot→spot (same route, no remount)
@@ -465,6 +410,17 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spot?.id]);
 
+  // 게이트된 가게(무료 1곳 소진한 게스트): 블러 유지 + 로그인 모달 팝업.
+  // 훅은 반드시 early return 위에 둔다(안 그러면 로딩 중/후 훅 개수가 달라져
+  // "change in order of Hooks" 에러). 스토리 로드 뒤 발화되도록 내부에서 가드.
+  useEffect(() => {
+    if (!spot) return;
+    const showFullNow = !!user || freeSpot;
+    if (showFullNow || spot.stories.length === 0) return;
+    setLoginReason('로그인하시면 다른 가게의 현황을 더 볼 수 있어요');
+    setLoginOpen(true);
+  }, [user, freeSpot, spot]);
+
   if (loading) {
     return (
       <div
@@ -507,6 +463,10 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
   const instagramUrl = spot.instagram_id
     ? `https://www.instagram.com/${spot.instagram_id}/`
     : null;
+
+  // Free-spot guests AND logged-in users see all stories; gated-spot guests
+  // get a blurred teaser + login CTA.
+  const showFull = !!user || freeSpot;
 
   return (
     <div style={{ background: '#ffffff', minHeight: '100dvh' }}>
@@ -614,12 +574,48 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
             {spot.memo}
           </p>
         )}
+
+        {spot.benefit_active && spot.benefit_title && (!spot.benefit_expires_at || new Date(spot.benefit_expires_at) > new Date()) && (
+          <div
+            className="mt-3 flex items-center gap-3"
+            style={{
+              background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+              border: '1px solid #fed7aa',
+              borderRadius: 14,
+              padding: '12px 14px',
+              boxShadow: '0 2px 8px rgba(234, 88, 12, 0.10)',
+            }}
+          >
+            <div
+              className="flex-shrink-0 flex items-center justify-center"
+              style={{ width: 42, height: 42, background: '#111827', borderRadius: 12 }}
+              aria-hidden="true"
+            >
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 12 20 22 4 22 4 12" />
+                <rect x="2" y="7" width="20" height="5" />
+                <line x1="12" y1="22" x2="12" y2="7" />
+                <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <span style={{ display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: 0.4, color: '#ea580c', lineHeight: 1, marginBottom: 3 }}>오늘의 혜택</span>
+              <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: '#111827', lineHeight: 1.35 }}>{spot.benefit_title}</span>
+              {spot.benefit_detail && (
+                <span style={{ display: 'block', fontSize: 12, color: '#c2410c', marginTop: 3, lineHeight: 1.5 }}>
+                  {spot.benefit_detail}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Like button + Mood vote */}
-      <div className="px-4 mt-4 flex flex-col gap-3">
+      {/* Like + Favorite */}
+      <div className="px-4 mt-4 flex gap-2">
         <LikeButton targetType="spot" targetId={spot.slug} initialCount={spot.like_count} />
-        <MoodVoteButton spotId={spot.slug} upCount={spot.mood_up} downCount={spot.mood_down} />
+        <FavoriteButton spotId={spot.id} onNeedLogin={() => { setLoginReason(undefined); setLoginOpen(true); }} />
       </div>
 
       {/* Stories — 1-column full-width 9:16 cards, NativeCard after each except last */}
@@ -647,6 +643,39 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
                 인스타에서 확인
               </a>
             )}
+          </div>
+        ) : !showFull ? (
+          // Gated spot (guest who already used their one free spot): blur a
+          // teaser of every story behind a login CTA. Free-spot guests and
+          // logged-in users fall through to the full branch below.
+          <div className="relative" style={{ minHeight: 220 }}>
+            <div
+              className="flex flex-col gap-3"
+              style={{ filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' }}
+              aria-hidden="true"
+            >
+              {activeStories.slice(0, 2).map((story: Story) => (
+                <SpotPageStory key={`blur-${story.id}`} story={story} spot={spot} />
+              ))}
+            </div>
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-6 text-center"
+              style={{ background: 'linear-gradient(rgba(255,255,255,0.15), rgba(255,255,255,0.7))' }}
+            >
+              <button
+                onClick={() => {
+                  setLoginOpen(true);
+                  track('story_login_blocked', { spot_id: slug, surface: 'spot_page' });
+                }}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold"
+                style={{ background: '#111827', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
+              >
+                🔒 로그인하고 스토리 보기
+              </button>
+              <span className="text-xs" style={{ color: '#4b5563' }}>
+                로그인하시면 다른 가게의 현황을 더 볼 수 있어요
+              </span>
+            </div>
           </div>
         ) : (
           <div
@@ -890,7 +919,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
         <CommentSection spotId={spot.id} />
       </div>
 
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} reason={loginReason} />
     </div>
   );
 }
