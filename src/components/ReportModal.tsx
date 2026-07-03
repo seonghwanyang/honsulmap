@@ -7,7 +7,7 @@ import { blockNick } from '@/lib/blocklist';
 interface Props {
   open: boolean;
   onClose: () => void;
-  targetType: 'post' | 'comment';
+  targetType: 'post' | 'comment' | 'chat_message';
   targetId: string;
   // UGC 차단(App Store 1.2): 작성자 닉네임을 주면 "차단" 버튼이 표시됨.
   authorNickname?: string;

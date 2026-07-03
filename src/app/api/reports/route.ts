@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-const VALID_TYPES = ['post', 'comment'] as const;
+const VALID_TYPES = ['post', 'comment', 'chat_message'] as const;
 const VALID_REASONS = ['spam', 'abuse', 'illegal', 'other'] as const;
 
 export async function POST(request: NextRequest) {

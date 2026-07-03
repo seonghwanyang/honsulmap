@@ -10,6 +10,10 @@ import SpotRequestModal from '@/components/SpotRequestModal';
 import WelcomeModal from '@/components/WelcomeModal';
 import LoginModal from '@/components/LoginModal';
 import { useUser } from '@/lib/useUser';
+import FavoriteButton from '@/components/FavoriteButton';
+import LikeButton from '@/components/LikeButton';
+import ChatEntry from '@/components/chat/ChatEntry';
+import MarketingConsentPrompt from '@/components/MarketingConsentPrompt';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
@@ -20,6 +24,7 @@ import { INLINE_AD_UNITS } from '@/lib/ads/config';
 import { relativeTime, getCategoryLabel, getRegionLabel, getFingerprint, haversineMeters } from '@/lib/utils';
 import { track, joinVibes, shouldFireOnceForStory, type EntrySource } from '@/lib/analytics';
 import { useStoryImpression } from '@/lib/hooks/useStoryImpression';
+import { isFreeStorySpot, claimFreeStorySpot } from '@/lib/storyGate';
 
 // One-shot current position as a promise; resolves null on any failure (no
 // permission, timeout, unsupported). maximumAge lets a recent fix (e.g. the
@@ -316,6 +321,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [storyTotal, setStoryTotal] = useState<number | null>(null);
   const [storyLoading, setStoryLoading] = useState(false);
   const [storyLoadingMore, setStoryLoadingMore] = useState(false);
+  // Whether the currently-selected spot is this device's one free spot
+  // (guests view all of one spot's stories; every other spot is gated).
+  const [freeStorySpot, setFreeStorySpot] = useState(false);
 
   // "다녀왔어요" state for the currently-selected spot. `justVisited`
   // flips on tap and triggers the inline "후기를 남겨주세요" prompt.
@@ -375,11 +383,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       panelEntrySourceRef.current = entry_source;
       panelSpotIdRef.current = spot.id;
       setSelectedSpot(spot);
-      // Guest → pop the login modal over the (blurred) stories.
-      if (!user) {
-        setLoginOpen(true);
-        track('story_login_blocked', { spot_id: spot.id, surface: 'map_sheet' });
-      }
+      // Guest no longer gets a modal slammed on open — the first story is free,
+      // and the login gate (with story_login_blocked tracking) sits inline on the
+      // "나머지 스토리 보기" CTA below.
       track('spot_detail_entered', { spot_id: spot.id, entry_source });
       // Fire-and-forget view counter — failures are silent so the panel
       // open never blocks on this network call.
@@ -626,6 +632,19 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     setVisitSubmitting(false);
     setSpotPosts(null);
   }, [selectedSpot?.id]);
+
+  // Recompute the free-spot flag whenever the user taps a different marker.
+  // First spot a guest opens on this device is free (claimed here); every
+  // other spot is gated. Logged-in users always see everything.
+  useEffect(() => {
+    if (!selectedSpot || user) {
+      setFreeStorySpot(false);
+      return;
+    }
+    const free = isFreeStorySpot(selectedSpot.id);
+    setFreeStorySpot(free);
+    if (free) claimFreeStorySpot(selectedSpot.id);
+  }, [user, selectedSpot?.id]);
 
   // Fetch the community posts tied to the current spot. Capped at the
   // first 5 — the panel just shows a preview, full thread lives in
@@ -984,8 +1003,16 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // Purple story dot — fresh only. Stale spots had a story but it's
       // outside the 24h activity window, so we drop the dot/tipBadge to
       // signal "not active now".
-      const storyDot = isFresh ? `<span style="position:absolute;top:-1px;right:-1px;width:8px;height:8px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>` : '';
+      // 혜택(#8): 우상단 주황 배지 + 흰 태그 아이콘(이모지·흰배경 X).
+      // 스토리 보라점과 우상단이 겹치면 보라점을 좌상단으로 옮겨 둘 다 보이게.
+      const hasBenefit = !!(spot.benefit_active && spot.benefit_title && (!spot.benefit_expires_at || new Date(spot.benefit_expires_at) > new Date()));
+      const storyDot = isFresh
+        ? `<span style="position:absolute;top:-1px;${hasBenefit ? 'left:-1px' : 'right:-1px'};width:8px;height:8px;border-radius:50%;background:#7C3AED;border:1.5px solid #fff;"></span>`
+        : '';
       const tipBadge = isFresh ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#7C3AED;margin-left:4px;flex-shrink:0;"></span>` : '';
+      const benefitMark = hasBenefit
+        ? `<span style="position:absolute;top:-7px;right:-7px;width:16px;height:16px;border-radius:50%;background:#111827;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.35);"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg></span>`
+        : '';
 
       const content = `
         <div onclick="window.__selectSpot && window.__selectSpot('${spot.id}')"
@@ -1002,7 +1029,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             ${name}${tipBadge}
           </div>
           <div style="position:relative;width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};display:flex;align-items:center;justify-content:center;">
-            ${glassIcon}${storyDot}
+            ${glassIcon}${storyDot}${benefitMark}
           </div>
           <div style="width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${tailColor};margin-top:-1px;"></div>
         </div>
@@ -1344,6 +1371,20 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     ? `https://www.instagram.com/${selectedSpot.instagram_id}/`
     : null;
 
+  // Free-spot guests AND logged-in users see all stories; gated-spot guests
+  // get a blurred teaser + login CTA.
+  const showFullStories = !!user || freeStorySpot;
+
+  // Gated spot (guest who used their free spot): keep blur, AND pop the shared
+  // login modal with a story message — after stories load (so freeStorySpot has
+  // resolved → no race, and no pop on story-less spots).
+  useEffect(() => {
+    if (!selectedSpot || showFullStories) return;
+    if (isLoadingStories || activeStories.length === 0) return;
+    setLoginReason('로그인하시면 다른 가게의 현황을 더 볼 수 있어요');
+    setLoginOpen(true);
+  }, [selectedSpot?.id, showFullStories, isLoadingStories, activeStories.length]);
+
   return (
     <div className="relative w-full" style={{ height: '100dvh', background: '#f8f9fa' }}>
       {/* Header */}
@@ -1541,6 +1582,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         reason={loginReason}
       />
 
+      <MarketingConsentPrompt />
+
       {/* Bottom Sheet: Spot List */}
       <div
         className="absolute left-0 right-0 z-[25] overflow-hidden"
@@ -1647,16 +1690,57 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     {activeStories.length > 0 && ` · 스토리 ${activeStories.length}개`}
                   </p>
                 </div>
-                <button
-                  onClick={closeSpotPanel}
-                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
-                  style={{ color: '#9ca3af', background: '#f3f4f6', borderRadius: '50%' }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
+                <div className="flex-shrink-0 flex items-center gap-1.5">
+                  <LikeButton key={selectedSpot.id} targetType="spot" targetId={selectedSpot.slug} initialCount={selectedSpot.like_count} />
+                  <FavoriteButton spotId={selectedSpot.id} onNeedLogin={() => setLoginOpen(true)} variant="icon" />
+                  <button
+                    onClick={closeSpotPanel}
+                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
+                    style={{ color: '#9ca3af', background: '#f3f4f6', borderRadius: '50%' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
               </div>
+
+              {selectedSpot.memo && (
+                <p className="mt-2 text-[13px] leading-relaxed" style={{ color: '#374151' }}>
+                  {selectedSpot.memo}
+                </p>
+              )}
+
+              {selectedSpot.benefit_active && selectedSpot.benefit_title && (!selectedSpot.benefit_expires_at || new Date(selectedSpot.benefit_expires_at) > new Date()) && (
+                <div
+                  className="mt-3 flex items-center gap-3"
+                  style={{
+                    background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                    border: '1px solid #fed7aa',
+                    borderRadius: 14,
+                    padding: '10px 12px',
+                    boxShadow: '0 2px 8px rgba(234, 88, 12, 0.10)',
+                  }}
+                >
+                  <div
+                    className="flex-shrink-0 flex items-center justify-center"
+                    style={{ width: 38, height: 38, background: '#111827', borderRadius: 11 }}
+                    aria-hidden="true"
+                  >
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 12 20 22 4 22 4 12" />
+                      <rect x="2" y="7" width="20" height="5" />
+                      <line x1="12" y1="22" x2="12" y2="7" />
+                      <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                      <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0">
+                    <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, color: '#ea580c', lineHeight: 1, marginBottom: 3 }}>오늘의 혜택</span>
+                    <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: '#111827', lineHeight: 1.35 }}>{selectedSpot.benefit_title}</span>
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons — uniform gray pill + black text. Each
                   carries its brand mark so the row reads as "what is
@@ -1756,6 +1840,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 )}
               </div>
 
+              {/* 가게별 채팅(#6) — 엔트리. 상태/방 뷰는 ChatEntry가 소유. */}
+              <ChatEntry
+                key={selectedSpot.id}
+                spotId={selectedSpot.id}
+                spotName={selectedSpot.name}
+                onNeedLogin={() => setLoginOpen(true)}
+              />
+
               {/* Compact info bar — only renders when at least one fact is set */}
               {(selectedSpot.business_hours
                 || selectedSpot.naver_rating != null
@@ -1794,18 +1886,6 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 </div>
               )}
 
-              {/* Admin memo — short editorial note about the spot
-                  (e.g. "애월에서 제일 늦게까지 하는 혼술바"). Renders
-                  full-width below the info bar so a long sentence wraps
-                  cleanly instead of squeezing into the inline pill row. */}
-              {selectedSpot.memo && (
-                <p
-                  className="mt-2 text-[12px] leading-snug"
-                  style={{ color: '#4b5563' }}
-                >
-                  {selectedSpot.memo}
-                </p>
-              )}
             </div>
 
             {/* Stories Vertical Scroll — snap so each story takes one
@@ -1846,11 +1926,42 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     </a>
                   )}
                 </div>
+              ) : !showFullStories ? (
+                // Gated spot (guest who already used their one free spot): blur a
+                // teaser of every story behind a login CTA. Free-spot guests and
+                // logged-in users fall through to the full branch below.
+                <div className="flex flex-col px-4">
+                  <div className="relative" style={{ minHeight: 200 }}>
+                    <div
+                      style={{ filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' }}
+                      aria-hidden="true"
+                    >
+                      {activeStories.slice(0, 2).map((story: Story) => (
+                        <MapSheetStory key={`blur-${story.id}`} story={story} spot={selectedSpot} priority={false} />
+                      ))}
+                    </div>
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-6 text-center"
+                      style={{ background: 'linear-gradient(rgba(255,255,255,0.15), rgba(255,255,255,0.75))' }}
+                    >
+                      <button
+                        onClick={() => {
+                          setLoginOpen(true);
+                          track('story_login_blocked', { spot_id: selectedSpot.id, surface: 'map_sheet' });
+                        }}
+                        className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold"
+                        style={{ background: '#111827', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
+                      >
+                        🔒 로그인하고 스토리 보기
+                      </button>
+                      <span className="text-xs" style={{ color: '#4b5563' }}>
+                        로그인하시면 다른 가게의 현황을 더 볼 수 있어요
+                      </span>
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <div
-                  className="flex flex-col px-4"
-                  style={!user ? { filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' } : undefined}
-                >
+                <div className="flex flex-col px-4">
                   {(() => {
                     const items: React.ReactNode[] = [];
                     let adCount = 0;
