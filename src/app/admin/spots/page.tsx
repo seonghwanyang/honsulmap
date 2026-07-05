@@ -58,7 +58,7 @@ export default function AdminSpotsPage() {
       alert('삭제 실패');
       return;
     }
-    reload();
+    setSpots((prev) => prev.filter((s) => s.id !== spot.id));
   }
 
   const filtered = spots.filter((s) => {

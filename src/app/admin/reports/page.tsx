@@ -67,7 +67,7 @@ export default function AdminReportsPage() {
       }),
     });
     if (!res.ok) return alert('처리 실패');
-    reload();
+    setReports((prev) => prev.filter((x) => x.id !== r.id));
   }
 
   async function dismiss(r: ReportRow) {
@@ -79,7 +79,7 @@ export default function AdminReportsPage() {
       body: JSON.stringify({ status: 'dismissed', resolver_note: note }),
     });
     if (!res.ok) return alert('기각 실패');
-    reload();
+    setReports((prev) => prev.filter((x) => x.id !== r.id));
   }
 
   return (

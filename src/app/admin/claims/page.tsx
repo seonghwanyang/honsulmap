@@ -50,7 +50,7 @@ export default function AdminClaimsPage() {
       body: JSON.stringify({ status: 'approved' }),
     });
     if (!res.ok) return alert('승인 실패');
-    reload();
+    setClaims((prev) => prev.filter((x) => x.id !== c.id));
   }
 
   async function reject(c: SpotClaim) {
@@ -61,7 +61,7 @@ export default function AdminClaimsPage() {
       body: JSON.stringify({ status: 'rejected', reviewer_note: note }),
     });
     if (!res.ok) return alert('반려 실패');
-    reload();
+    setClaims((prev) => prev.filter((x) => x.id !== c.id));
   }
 
   // Revoke an already-approved claim: removes the spot_members grant (owner
@@ -80,14 +80,14 @@ export default function AdminClaimsPage() {
       body: JSON.stringify({ status: 'rejected', reviewer_note: note || '소유권 회수됨' }),
     });
     if (!res.ok) return alert('회수 실패');
-    reload();
+    setClaims((prev) => prev.filter((x) => x.id !== c.id));
   }
 
   async function remove(c: SpotClaim) {
     if (!confirm('신청을 영구 삭제할까요? 기록이 남지 않습니다.')) return;
     const res = await fetch(`/api/admin/spot-claims/${c.id}`, { method: 'DELETE' });
     if (!res.ok) return alert('삭제 실패');
-    reload();
+    setClaims((prev) => prev.filter((x) => x.id !== c.id));
   }
 
   async function issueCode(c: SpotClaim) {

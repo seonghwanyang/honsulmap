@@ -43,7 +43,7 @@ export default function AdminRequestsPage() {
       body: JSON.stringify({ status: 'approved' }),
     });
     if (!res.ok) return alert('승인 실패');
-    reload();
+    setRequests((prev) => prev.filter((x) => x.id !== req.id));
   }
 
   async function reject(req: SpotRequest) {
@@ -54,14 +54,14 @@ export default function AdminRequestsPage() {
       body: JSON.stringify({ status: 'rejected', reviewer_note: note }),
     });
     if (!res.ok) return alert('반려 실패');
-    reload();
+    setRequests((prev) => prev.filter((x) => x.id !== req.id));
   }
 
   async function remove(req: SpotRequest) {
     if (!confirm('요청을 영구 삭제할까요? 기록이 남지 않습니다.')) return;
     const res = await fetch(`/api/admin/spot-requests/${req.id}`, { method: 'DELETE' });
     if (!res.ok) return alert('삭제 실패');
-    reload();
+    setRequests((prev) => prev.filter((x) => x.id !== req.id));
   }
 
   return (
