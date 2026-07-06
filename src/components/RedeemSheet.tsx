@@ -36,9 +36,12 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [redeemedAt, setRedeemedAt] = useState<Date | null>(null);
-  const [now, setNow] = useState<Date>(new Date());
   const [remain, setRemain] = useState(SHOW_SECONDS);
+  // 이미 사용/혜택 없음 등 PIN으로도 해결 안 되는 에러면 PIN 버튼을 감춘다.
+  const [canPin, setCanPin] = useState(true);
   const startedRef = useRef(false);
+  // GPS 좌표 보관 — PIN 제출에도 동봉해 거리 기록(어트리뷰션)을 남긴다.
+  const coordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const submit = useCallback(
     async (payload: { lat?: number; lng?: number; pin?: string }) => {
@@ -57,9 +60,20 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
           setPhase('done');
           return;
         }
+        if (data.pin_required) {
+          // PIN 필수 가게(제품 결정) — 에러가 아니라 '직원 승인' 다음 단계.
+          setErr('');
+          setPhase('pin');
+          return;
+        }
         setErr(data.error ?? '사용 처리에 실패했어요.');
-        // PIN 제출이 틀린 경우엔 PIN 화면 유지(재입력), 그 외엔 pin_available 따라 분기.
-        setPhase(payload.pin || data.pin_available ? 'pin' : 'error');
+        if (payload.pin) {
+          // PIN 오입력 — 재입력할 수 있게 PIN 화면 유지.
+          setPhase('pin');
+          return;
+        }
+        setCanPin(data.code !== 'already_redeemed' && data.code !== 'no_benefit');
+        setPhase('error');
       } catch {
         setErr('사용 처리에 실패했어요.');
         setPhase('error');
@@ -77,24 +91,26 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
       setPhase('locating');
       setErr('');
       setPin('');
+      setCanPin(true);
       setRedeemedAt(null);
+      coordsRef.current = null;
       return;
     }
     if (startedRef.current) return;
     startedRef.current = true;
     void (async () => {
       const pos = await getPosition();
-      // 위치 실패면 빈 바디로 보냄 — 서버가 pin_available을 알려줘서
-      // PIN 있는 가게만 PIN 입력으로, 없는 가게는 안내 문구로 분기된다.
+      coordsRef.current = pos;
+      // 위치 실패여도 빈 바디로 보냄 — PIN 필수 가게는 서버가 pin_required로
+      // 직원 승인 단계로 보내고, PIN 없는 가게는 안내 문구로 분기된다.
       void submit(pos ?? {});
     })();
   }, [open, submit]);
 
-  // 제시 화면: 실시간 시계 + 카운트다운.
+  // 제시 화면: 닫히기까지 카운트다운(1초마다 갱신 — 스크린샷 방지 겸용).
   useEffect(() => {
     if (phase !== 'done') return;
     const t = setInterval(() => {
-      setNow(new Date());
       setRemain((r) => {
         if (r <= 1) {
           clearInterval(t);
@@ -155,13 +171,12 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
                 ✓ 사용 처리 완료 · {redeemedAt ? hhmmss(redeemedAt) : ''}
               </div>
               <div style={{ fontSize: 34, fontWeight: 900, fontVariantNumeric: 'tabular-nums', letterSpacing: 1, marginTop: 4 }}>
-                {hhmmss(now)}
+                {mmss(remain)}
               </div>
-              <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 2 }}>지금 시각 (실시간)</div>
+              <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 2 }}>후에 화면이 닫혀요</div>
             </div>
 
             <div style={{ fontSize: 14, fontWeight: 800, marginTop: 16 }}>직원에게 이 화면을 보여주세요</div>
-            <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 4 }}>이 화면은 {mmss(remain)} 후 닫혀요</div>
 
             <button
               type="button"
@@ -212,7 +227,7 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
                   <button
                     type="button"
                     disabled={pin.length !== 4 || submitting}
-                    onClick={() => void submit({ pin })}
+                    onClick={() => void submit({ pin, ...(coordsRef.current ?? {}) })}
                     style={{ marginTop: 10, width: '100%', height: 46, borderRadius: 11, background: pin.length === 4 && !submitting ? '#111827' : '#d1d5db', color: '#fff', fontSize: 14, fontWeight: 700, border: 'none', cursor: pin.length === 4 && !submitting ? 'pointer' : 'default' }}
                   >
                     {submitting ? '처리 중…' : '사용 처리'}
@@ -231,15 +246,16 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
             {phase === 'error' && (
               <div style={{ marginTop: 14 }}>
                 <p style={{ fontSize: 13, color: '#dc2626', lineHeight: 1.6 }}>{err}</p>
-                {/* PIN 버튼은 항상 노출 — 가게에 PIN이 없으면 서버가 거절하므로 안전.
-                    (pin_available에만 의존하면 GPS/기타 오류 시 입구가 사라짐) */}
-                <button
-                  type="button"
-                  onClick={() => setPhase('pin')}
-                  style={{ marginTop: 10, width: '100%', height: 44, borderRadius: 11, background: '#111827', color: '#fff', fontSize: 13.5, fontWeight: 700, border: 'none', cursor: 'pointer' }}
-                >
-                  가게 PIN으로 사용하기
-                </button>
+                {/* '이미 사용/혜택 없음'처럼 PIN으로 해결 안 되는 에러가 아니면 PIN 입구 제공 */}
+                {canPin && (
+                  <button
+                    type="button"
+                    onClick={() => setPhase('pin')}
+                    style={{ marginTop: 10, width: '100%', height: 44, borderRadius: 11, background: '#111827', color: '#fff', fontSize: 13.5, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                  >
+                    가게 PIN으로 사용하기
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onClose}

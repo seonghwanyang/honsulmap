@@ -1665,6 +1665,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             : 'translateY(100%)',
           transition: isDragging ? 'none' : 'transform 0.25s ease-out',
           boxShadow: selectedSpot ? '0 -4px 24px rgba(0,0,0,0.12)' : 'none',
+          // flex 컬럼: 헤더(가게정보+혜택카드)가 얼마나 커지든 스토리 영역이
+          // 정확히 남는 높이만 차지 — 고정 calc(140px)로 인한 하단 잘림 방지.
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         {selectedSpot && (
@@ -1918,7 +1922,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             <div
               className="overflow-y-auto"
               style={{
-                height: 'calc(92dvh - 140px)',
+                flex: '1 1 0%',
+                minHeight: 0,
                 scrollSnapType: 'y proximity',
                 scrollBehavior: 'smooth',
               }}

@@ -79,7 +79,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const spot = await loadSpot(slug);
   if (!spot) return NextResponse.json({ error: '가게를 찾을 수 없어요.' }, { status: 404 });
   if (!benefitLive(spot)) {
-    return NextResponse.json({ error: '지금 진행 중인 혜택이 없어요.' }, { status: 409 });
+    return NextResponse.json(
+      { error: '지금 진행 중인 혜택이 없어요.', code: 'no_benefit' },
+      { status: 409 },
+    );
   }
 
   const body = await request.json().catch(() => ({}));
@@ -87,34 +90,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const lng = typeof body.lng === 'number' ? body.lng : null;
   const pin = typeof body.pin === 'string' ? body.pin.trim() : '';
 
-  // 검증 경로 결정 — PIN이 오면 PIN 우선(가게측 승인), 아니면 GPS.
+  // 검증 규칙 (제품 결정 2026-07-06): PIN을 설정한 가게는 GPS가 통과해도
+  // 반드시 직원 PIN으로 최종 승인해야 처리된다(3중 구조 ③). GPS는 위치 확인
+  // 단계일 뿐 완료 수단이 아님. PIN 미설정 가게만 GPS 300m로 바로 완료.
   let method: 'gps' | 'pin';
-  let distance: number | null = null;
+  // 거리는 좌표가 있으면 항상 기록(PIN 경로 포함) — 어트리뷰션 데이터.
+  const distance =
+    lat != null && lng != null ? Math.round(haversineMeters(lat, lng, spot.lat, spot.lng)) : null;
 
   if (pin) {
     if (!spot.redeem_pin || pin !== spot.redeem_pin) {
       return NextResponse.json({ error: 'PIN이 올바르지 않아요.' }, { status: 403 });
     }
     method = 'pin';
-  } else if (lat != null && lng != null) {
-    const d = haversineMeters(lat, lng, spot.lat, spot.lng);
-    if (d > MAX_DISTANCE_M) {
+  } else if (spot.redeem_pin) {
+    // PIN 필수 가게 — GPS 결과와 무관하게 직원 승인 단계로 보낸다.
+    return NextResponse.json({ pin_required: true }, { status: 428 });
+  } else if (distance != null) {
+    if (distance > MAX_DISTANCE_M) {
       return NextResponse.json(
-        {
-          error: '가게 근처에서만 사용할 수 있어요.',
-          distance_m: Math.round(d),
-          pin_available: !!spot.redeem_pin,
-        },
+        { error: '가게 근처에서만 사용할 수 있어요.', distance_m: distance },
         { status: 403 },
       );
     }
     method = 'gps';
-    distance = Math.round(d);
   } else {
-    return NextResponse.json(
-      { error: '위치를 확인할 수 없어요.', pin_available: !!spot.redeem_pin },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: '위치를 확인할 수 없어요.' }, { status: 400 });
   }
 
   const admin = supabaseAdmin();
@@ -127,7 +128,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
   if (error) {
     if ((error as { code?: string }).code === '23505') {
-      return NextResponse.json({ error: '이미 사용하신 혜택이에요.' }, { status: 409 });
+      return NextResponse.json(
+        { error: '이미 사용하신 혜택이에요.', code: 'already_redeemed' },
+        { status: 409 },
+      );
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
