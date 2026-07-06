@@ -14,6 +14,7 @@ import FavoriteButton from '@/components/FavoriteButton';
 import LikeButton from '@/components/LikeButton';
 import ChatEntry from '@/components/chat/ChatEntry';
 import MarketingConsentPrompt from '@/components/MarketingConsentPrompt';
+import RedeemSheet from '@/components/RedeemSheet';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
@@ -305,6 +306,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const { user } = useUser();
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginReason, setLoginReason] = useState<string | undefined>(undefined);
+  const [redeemOpen, setRedeemOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
@@ -1576,6 +1578,17 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
 
       <MarketingConsentPrompt />
 
+      {selectedSpot?.benefit_title && (
+        <RedeemSheet
+          open={redeemOpen}
+          onClose={() => setRedeemOpen(false)}
+          spotSlug={selectedSpot.slug}
+          spotName={selectedSpot.name}
+          benefitTitle={selectedSpot.benefit_title}
+          benefitDetail={selectedSpot.benefit_detail}
+        />
+      )}
+
       {/* Bottom Sheet: Spot List */}
       <div
         className="absolute left-0 right-0 z-[25] overflow-hidden"
@@ -1705,7 +1718,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
 
               {selectedSpot.benefit_active && selectedSpot.benefit_title && (!selectedSpot.benefit_expires_at || new Date(selectedSpot.benefit_expires_at) > new Date()) && (
                 <div
-                  className="mt-3 flex items-center gap-3"
+                  className="mt-3"
                   style={{
                     background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
                     border: '1px solid #fed7aa',
@@ -1714,23 +1727,40 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     boxShadow: '0 2px 8px rgba(234, 88, 12, 0.10)',
                   }}
                 >
-                  <div
-                    className="flex-shrink-0 flex items-center justify-center"
-                    style={{ width: 38, height: 38, background: '#111827', borderRadius: 11 }}
-                    aria-hidden="true"
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex-shrink-0 flex items-center justify-center"
+                      style={{ width: 38, height: 38, background: '#111827', borderRadius: 11 }}
+                      aria-hidden="true"
+                    >
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 12 20 22 4 22 4 12" />
+                        <rect x="2" y="7" width="20" height="5" />
+                        <line x1="12" y1="22" x2="12" y2="7" />
+                        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, color: '#ea580c', lineHeight: 1, marginBottom: 3 }}>오늘의 혜택</span>
+                      <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: '#111827', lineHeight: 1.35 }}>{selectedSpot.benefit_title}</span>
+                    </div>
+                  </div>
+                  {/* 리딤(playbook §1.1) — 위치/PIN 검증은 RedeemSheet가 처리 */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!user) {
+                        setLoginReason('혜택을 사용하려면 로그인이 필요해요');
+                        setLoginOpen(true);
+                        return;
+                      }
+                      setRedeemOpen(true);
+                    }}
+                    style={{ marginTop: 9, width: '100%', height: 40, borderRadius: 10, background: '#111827', color: '#fff', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}
                   >
-                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 12 20 22 4 22 4 12" />
-                      <rect x="2" y="7" width="20" height="5" />
-                      <line x1="12" y1="22" x2="12" y2="7" />
-                      <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
-                      <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
-                    </svg>
-                  </div>
-                  <div className="min-w-0">
-                    <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, color: '#ea580c', lineHeight: 1, marginBottom: 3 }}>오늘의 혜택</span>
-                    <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: '#111827', lineHeight: 1.35 }}>{selectedSpot.benefit_title}</span>
-                  </div>
+                    가게에서 혜택 사용하기
+                  </button>
                 </div>
               )}
 

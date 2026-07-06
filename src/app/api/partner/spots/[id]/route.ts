@@ -35,7 +35,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     admin
       .from('spots')
       .select(
-        'id, name, slug, region, category, instagram_id, memo, business_hours, phone, vip_until, like_count, mood_up, mood_down, benefit_title, benefit_detail, benefit_active, benefit_expires_at',
+        'id, name, slug, region, category, instagram_id, memo, business_hours, phone, vip_until, like_count, mood_up, mood_down, benefit_title, benefit_detail, benefit_active, benefit_expires_at, redeem_pin',
       )
       .eq('id', id)
       .maybeSingle(),
@@ -92,6 +92,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     patch.benefit_expires_at = null;
     benefitTouched = true;
   }
+  // 리딤 PIN(playbook §1.1) — 4자리 숫자만, 빈 값이면 해제(GPS 전용).
+  if (typeof body.redeem_pin === 'string') {
+    const p = body.redeem_pin.trim();
+    if (p && !/^\d{4}$/.test(p)) {
+      return NextResponse.json({ error: 'PIN은 숫자 4자리로 입력해주세요.' }, { status: 400 });
+    }
+    patch.redeem_pin = p || null;
+  }
   if (benefitTouched) patch.benefit_updated_at = new Date().toISOString();
 
   if (Object.keys(patch).length === 0)
@@ -101,7 +109,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .from('spots')
     .update(patch)
     .eq('id', id)
-    .select('memo, business_hours, phone, benefit_title, benefit_detail, benefit_active, benefit_expires_at')
+    .select('memo, business_hours, phone, benefit_title, benefit_detail, benefit_active, benefit_expires_at, redeem_pin')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);

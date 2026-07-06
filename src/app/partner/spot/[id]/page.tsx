@@ -7,6 +7,7 @@ import AuthGate from '../../AuthGate';
 import { Card, Chip, PageHeader, Spinner, buttonStyle } from '../../ui';
 import { track } from '@/lib/analytics';
 import ChatRoom from '@/components/chat/ChatRoom';
+import NoticeBanner from '@/components/partner/NoticeBanner';
 
 interface RankInfo {
   rank: number;
@@ -21,6 +22,7 @@ interface StatsData {
   region: { name: string; label: string; size: number; ranks: CohortRanks | null };
   national: { label: string; size: number; ranks: CohortRanks | null };
   trend: { views7d: number; prev7d: number; pct: number | null };
+  redemptions: { total: number; d7: number };
 }
 
 interface ChatReport {
@@ -58,6 +60,7 @@ interface SpotData {
     benefit_detail: string | null;
     benefit_active: boolean;
     benefit_expires_at: string | null;
+    redeem_pin: string | null;
   };
   stats: { views: number; visits: number; likes: number; mood_up: number; mood_down: number };
 }
@@ -141,6 +144,7 @@ function SpotManageContent() {
     'forever' | '1h' | '1d' | '1w' | '1m' | 'custom'
   >('forever');
   const [benefitCustom, setBenefitCustom] = useState('');
+  const [redeemPin, setRedeemPin] = useState('');
   const [savingBenefit, setSavingBenefit] = useState(false);
   const [benefitMsg, setBenefitMsg] = useState('');
   const [benefitErr, setBenefitErr] = useState('');
@@ -178,6 +182,7 @@ function SpotManageContent() {
           setBenefitTitle(d.spot.benefit_title ?? '');
           setBenefitDetail(d.spot.benefit_detail ?? '');
           setBenefitActive(!!d.spot.benefit_active);
+          setRedeemPin(d.spot.redeem_pin ?? '');
           if (d.spot.benefit_expires_at) {
             setBenefitDuration('custom');
             setBenefitCustom(d.spot.benefit_expires_at.slice(0, 16));
@@ -321,6 +326,7 @@ function SpotManageContent() {
           benefit_detail: benefitDetail,
           benefit_active: benefitActive,
           benefit_expires_at,
+          redeem_pin: redeemPin,
         }),
       });
       if (!res.ok) {
@@ -371,6 +377,7 @@ function SpotManageContent() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <NoticeBanner />
       <PageHeader
         title={
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -415,12 +422,22 @@ function SpotManageContent() {
                 </p>
               </Card>
             )}
-            <Card style={{ padding: '14px 16px' }}>
-              <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>이번 주 조회 추세</div>
-              <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: trendColor }}>
-                {trendText}
-              </div>
-            </Card>
+            <div className="grid grid-cols-2" style={{ gap: 10 }}>
+              <Card style={{ padding: '14px 16px' }}>
+                <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>이번 주 조회 추세</div>
+                <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: trendColor }}>
+                  {trendText}
+                </div>
+              </Card>
+              {/* 혜택 사용 = "혼술맵이 보낸 손님" — 어트리뷰션 카운터 (playbook) */}
+              <Card style={{ padding: '14px 16px' }}>
+                <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>혜택 사용 (방문 인증)</div>
+                <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: '#111827' }}>
+                  {statsData.redemptions.total}건
+                </div>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>이번 주 {statsData.redemptions.d7}건</div>
+              </Card>
+            </div>
           </div>
         )}
       </section>
@@ -519,6 +536,21 @@ function SpotManageContent() {
               {spot.benefit_expires_at
                 ? `${spot.benefit_expires_at.slice(0, 10)} ${spot.benefit_expires_at.slice(11, 16)} 까지`
                 : '상시'}
+            </div>
+          </div>
+          {/* 리딤 PIN — 가게측 최종 승인(악용 방지). 비우면 GPS 확인만으로 사용 처리. */}
+          <div>
+            <label style={labelStyle}>사용 확인 PIN (선택)</label>
+            <input
+              value={redeemPin}
+              onChange={(e) => setRedeemPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              inputMode="numeric"
+              placeholder="숫자 4자리 (예: 1234)"
+              style={inputStyle}
+            />
+            <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 6, lineHeight: 1.5 }}>
+              설정하면 손님이 혜택을 쓸 때 직원이 이 PIN을 입력해야 처리돼요 (중복·허위 사용 방지).
+              비워두면 위치(가게 300m) 확인만으로 처리돼요.
             </div>
           </div>
           {benefitErr && <p style={{ color: '#ef4444', fontSize: 12.5 }}>{benefitErr}</p>}
