@@ -126,7 +126,7 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
 
       <div
         className="w-full max-w-sm"
-        style={{ borderRadius: '18px 18px 0 0', overflow: 'hidden' }}
+        style={{ borderRadius: 18, overflow: 'hidden', margin: '0 14px 18px' }}
         onClick={(e) => e.stopPropagation()}
       >
         {phase === 'done' ? (

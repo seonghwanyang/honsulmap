@@ -134,8 +134,8 @@ export default function BenefitsPage() {
           <div className="flex" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 11, overflow: 'hidden', height: 42 }}>
             {(
               [
-                ['deadline', '마감임박'],
-                ['new', '신규'],
+                ['deadline', '마감임박순'],
+                ['new', '최신순'],
               ] as const
             ).map(([k, lbl]) => (
               <button

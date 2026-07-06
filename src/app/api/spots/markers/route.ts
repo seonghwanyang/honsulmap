@@ -40,7 +40,9 @@ export async function GET() {
     latest_story_at: latestBySpot.get(spot.id) ?? null,
   }));
 
+  // 60s: 사장님이 혜택을 저장하면 지도에 1분 내 반영되도록 (기존 5분은 "껐다켜야
+  // 바뀌나?" 혼란을 유발). 마커는 여전히 CDN 캐시로 보호됨.
   return NextResponse.json(out, {
-    headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
+    headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
   });
 }
