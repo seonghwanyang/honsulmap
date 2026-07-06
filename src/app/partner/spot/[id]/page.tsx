@@ -363,6 +363,32 @@ function SpotManageContent() {
   }
 
   const { spot } = data;
+
+  // 시작 가이드(playbook 온보딩) — 사장님이 해야 할 3가지와 완료 여부.
+  const guideSteps = [
+    {
+      label: '혜택 등록하기',
+      desc: '지도에 🎁 표시돼 손님 발길을 만듭니다',
+      done: benefitActive && !!benefitTitle.trim(),
+      target: 'guide-benefit',
+    },
+    {
+      label: '사용 확인 PIN 설정하기',
+      desc: '직원 승인으로 혜택 중복·허위 사용을 막아요',
+      done: redeemPin.length === 4,
+      target: 'guide-benefit',
+    },
+    {
+      label: '채팅방 열기',
+      desc: '손님 문의·예약을 바로 받는 창구예요',
+      done: !!chatRoom && chatOpen,
+      target: 'guide-chat',
+    },
+  ];
+  const guideDone = guideSteps.filter((s) => s.done).length;
+  const scrollToGuide = (target: string) =>
+    document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   const trend = statsData?.trend;
   let trendText = '—';
   let trendColor = '#111827';
@@ -394,6 +420,82 @@ function SpotManageContent() {
           </Link>
         }
       />
+
+      {/* 시작 가이드 — 뭘 하면 되는지 3단계. 전부 완료하면 한 줄 축하로 축소 */}
+      {guideDone === guideSteps.length ? (
+        <Card style={{ padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
+            className="flex-shrink-0 flex items-center justify-center"
+            style={{ width: 26, height: 26, borderRadius: '50%', background: '#dcfce7' }}
+            aria-hidden="true"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>
+            기본 설정 완료! 손님 맞을 준비가 됐어요 🎉
+          </span>
+        </Card>
+      ) : (
+        <Card style={{ padding: 18 }}>
+          <div className="flex items-center justify-between">
+            <div style={{ fontSize: 14.5, fontWeight: 800, color: '#111827', letterSpacing: '-0.2px' }}>
+              시작 가이드
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#6b7280' }}>
+              {guideDone}/{guideSteps.length} 완료
+            </span>
+          </div>
+          <div style={{ marginTop: 10, height: 6, background: '#f3f4f6', borderRadius: 999, overflow: 'hidden' }}>
+            <div
+              style={{ width: `${(guideDone / guideSteps.length) * 100}%`, height: '100%', background: '#ea580c', borderRadius: 999, transition: 'width .3s' }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 12 }}>
+            {guideSteps.map((s, i) => (
+              <div key={s.label} className="flex items-center gap-3" style={{ padding: '7px 0' }}>
+                <span
+                  className="flex-shrink-0 flex items-center justify-center"
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    background: s.done ? '#dcfce7' : '#f3f4f6',
+                    color: s.done ? '#16a34a' : '#9ca3af',
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                  }}
+                  aria-hidden="true"
+                >
+                  {s.done ? (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    i + 1
+                  )}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: s.done ? '#9ca3af' : '#111827', textDecoration: s.done ? 'line-through' : 'none' }}>
+                    {s.label}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 1 }}>{s.desc}</div>
+                </div>
+                {!s.done && (
+                  <button
+                    type="button"
+                    onClick={() => scrollToGuide(s.target)}
+                    style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#ea580c', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '6px 11px', cursor: 'pointer' }}
+                  >
+                    하러 가기
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* 통계 — 상대평가(상위%) + 주간 추세 */}
       <section>
@@ -443,7 +545,7 @@ function SpotManageContent() {
       </section>
 
       {/* 혜택 */}
-      <section>
+      <section id="guide-benefit" style={{ scrollMarginTop: 72 }}>
         <h2 style={sectionLabel}>혜택</h2>
         <Card style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -566,7 +668,7 @@ function SpotManageContent() {
       </section>
 
       {/* 채팅방 */}
-      <section>
+      <section id="guide-chat" style={{ scrollMarginTop: 72 }}>
         <h2 style={sectionLabel}>채팅방</h2>
         <Card style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {!chatLoaded ? (

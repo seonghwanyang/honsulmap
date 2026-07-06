@@ -10,6 +10,7 @@ import {
   ACCENT_SOFT,
   GridIcon,
   StoreIcon,
+  BellIcon,
   MegaphoneIcon,
   LogoutIcon,
 } from './ui';
@@ -32,6 +33,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: '/partner/dashboard', label: '대시보드', icon: <GridIcon /> },
   { href: '/partner/claim', label: '가게 등록', icon: <StoreIcon /> },
+  { href: '/partner/notices', label: '공지사항', icon: <BellIcon /> },
   { href: '#', label: '홍보', icon: <MegaphoneIcon />, soon: true },
 ];
 

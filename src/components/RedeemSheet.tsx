@@ -36,6 +36,9 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [redeemedAt, setRedeemedAt] = useState<Date | null>(null);
+  // 어떤 경로로 완료됐나 — pin(직원이 이미 승인)은 간단 확인만, gps는 직원에게
+  // 보여줄 증표가 없으므로 주황 제시 화면 + 카운트다운을 띄운다.
+  const [method, setMethod] = useState<'gps' | 'pin' | null>(null);
   const [remain, setRemain] = useState(SHOW_SECONDS);
   // 이미 사용/혜택 없음 등 PIN으로도 해결 안 되는 에러면 PIN 버튼을 감춘다.
   const [canPin, setCanPin] = useState(true);
@@ -56,6 +59,7 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
         const data = await res.json();
         if (res.ok) {
           setRedeemedAt(new Date(data.redeemed_at));
+          setMethod(data.method === 'pin' ? 'pin' : 'gps');
           setRemain(SHOW_SECONDS);
           setPhase('done');
           return;
@@ -93,6 +97,7 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
       setPin('');
       setCanPin(true);
       setRedeemedAt(null);
+      setMethod(null);
       coordsRef.current = null;
       return;
     }
@@ -107,9 +112,9 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
     })();
   }, [open, submit]);
 
-  // 제시 화면: 닫히기까지 카운트다운(1초마다 갱신 — 스크린샷 방지 겸용).
+  // 제시 화면(gps 완료)에만 카운트다운 — pin 완료는 직원이 이미 확인했으므로 불필요.
   useEffect(() => {
-    if (phase !== 'done') return;
+    if (phase !== 'done' || method !== 'gps') return;
     const t = setInterval(() => {
       setRemain((r) => {
         if (r <= 1) {
@@ -143,8 +148,34 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
         style={{ borderRadius: 18, overflow: 'hidden', margin: '0 14px 18px' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {phase === 'done' ? (
-          // ===== 직원 제시 화면 =====
+        {phase === 'done' && method === 'pin' ? (
+          // ===== PIN 완료 — 직원이 이미 승인했으므로 간단 확인만 =====
+          <div style={{ background: '#fff', padding: '30px 22px 22px', textAlign: 'center' }}>
+            <div
+              className="mx-auto flex items-center justify-center"
+              style={{ width: 56, height: 56, borderRadius: '50%', background: '#dcfce7' }}
+              aria-hidden="true"
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#111827', marginTop: 14 }}>사용 처리 완료</div>
+            <div style={{ fontSize: 13, color: '#6b7280', marginTop: 6, lineHeight: 1.6 }}>
+              {spotName} · {benefitTitle}
+              <br />
+              {redeemedAt ? hhmmss(redeemedAt) : ''} · 직원 확인 완료
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ marginTop: 18, width: '100%', height: 46, borderRadius: 12, background: '#111827', color: '#fff', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+            >
+              닫기
+            </button>
+          </div>
+        ) : phase === 'done' ? (
+          // ===== GPS 완료 — 직원에게 보여줄 제시 화면 (카운트다운) =====
           <div
             style={{
               background: 'linear-gradient(120deg, #ea580c, #f59e0b, #ea580c)',
