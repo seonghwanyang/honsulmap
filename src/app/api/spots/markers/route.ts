@@ -40,9 +40,9 @@ export async function GET() {
     latest_story_at: latestBySpot.get(spot.id) ?? null,
   }));
 
-  // 60s: 사장님이 혜택을 저장하면 지도에 1분 내 반영되도록 (기존 5분은 "껐다켜야
-  // 바뀌나?" 혼란을 유발). 마커는 여전히 CDN 캐시로 보호됨.
+  // no-store: 사장님이 혜택/정보를 저장하고 새로고침하면 즉시 반영돼야 한다
+  // (제품 결정 2026-07-06). 현 트래픽 규모에선 CDN 캐시 이득보다 혼란 비용이 큼.
   return NextResponse.json(out, {
-    headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+    headers: { 'Cache-Control': 'no-store' },
   });
 }

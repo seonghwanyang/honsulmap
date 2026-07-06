@@ -33,7 +33,6 @@ function getPosition(): Promise<{ lat: number; lng: number } | null> {
 export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefitTitle, benefitDetail }: Props) {
   const [phase, setPhase] = useState<Phase>('locating');
   const [err, setErr] = useState('');
-  const [pinAvailable, setPinAvailable] = useState(false);
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [redeemedAt, setRedeemedAt] = useState<Date | null>(null);
@@ -58,9 +57,9 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
           setPhase('done');
           return;
         }
-        setPinAvailable(!!data.pin_available);
         setErr(data.error ?? '사용 처리에 실패했어요.');
-        setPhase(data.pin_available ? 'pin' : 'error');
+        // PIN 제출이 틀린 경우엔 PIN 화면 유지(재입력), 그 외엔 pin_available 따라 분기.
+        setPhase(payload.pin || data.pin_available ? 'pin' : 'error');
       } catch {
         setErr('사용 처리에 실패했어요.');
         setPhase('error');
@@ -78,7 +77,6 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
       setPhase('locating');
       setErr('');
       setPin('');
-      setPinAvailable(false);
       setRedeemedAt(null);
       return;
     }
@@ -187,6 +185,14 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
                   {submitting ? '사용 처리 중…' : '가게 확인을 위해 위치를 확인하고 있어요…'}
                 </div>
                 <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 6 }}>매장에서만 열 수 있어요</div>
+                {/* GPS 대기 없이 바로 PIN 경로로 — 위치 프롬프트 무시/거부해도 안 막힘 */}
+                <button
+                  type="button"
+                  onClick={() => setPhase('pin')}
+                  style={{ marginTop: 14, fontSize: 12.5, fontWeight: 700, color: '#6b7280', background: '#f3f4f6', border: 'none', borderRadius: 9, padding: '9px 14px', cursor: 'pointer' }}
+                >
+                  가게 PIN으로 입력할게요
+                </button>
               </div>
             )}
 
@@ -225,15 +231,15 @@ export default function RedeemSheet({ open, onClose, spotSlug, spotName, benefit
             {phase === 'error' && (
               <div style={{ marginTop: 14 }}>
                 <p style={{ fontSize: 13, color: '#dc2626', lineHeight: 1.6 }}>{err}</p>
-                {pinAvailable && (
-                  <button
-                    type="button"
-                    onClick={() => setPhase('pin')}
-                    style={{ marginTop: 10, width: '100%', height: 44, borderRadius: 11, background: '#111827', color: '#fff', fontSize: 13.5, fontWeight: 700, border: 'none', cursor: 'pointer' }}
-                  >
-                    가게 PIN으로 사용하기
-                  </button>
-                )}
+                {/* PIN 버튼은 항상 노출 — 가게에 PIN이 없으면 서버가 거절하므로 안전.
+                    (pin_available에만 의존하면 GPS/기타 오류 시 입구가 사라짐) */}
+                <button
+                  type="button"
+                  onClick={() => setPhase('pin')}
+                  style={{ marginTop: 10, width: '100%', height: 44, borderRadius: 11, background: '#111827', color: '#fff', fontSize: 13.5, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                >
+                  가게 PIN으로 사용하기
+                </button>
                 <button
                   type="button"
                   onClick={onClose}

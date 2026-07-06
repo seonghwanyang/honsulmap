@@ -22,8 +22,6 @@ export async function GET() {
     (s) => !s.benefit_expires_at || new Date(s.benefit_expires_at).getTime() > now,
   );
 
-  return NextResponse.json(
-    { benefits },
-    { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } },
-  );
+  // no-store: 혜택 저장 → 새로고침 즉시 반영 (markers와 동일한 제품 결정).
+  return NextResponse.json({ benefits }, { headers: { 'Cache-Control': 'no-store' } });
 }

@@ -1599,7 +1599,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           borderTop: '1px solid #e5e7eb',
           borderRadius: '16px 16px 0 0',
           transform: sheetOpen && !selectedSpot ? 'translateY(0)' : 'translateY(100%)',
-          transition: 'transform 0.3s ease',
+          // visibility까지 꺼야 완전히 사라짐 — iOS 오버스크롤(바운스) 때 화면 밖으로
+          // 밀어둔 시트 상단이 패널 아래로 삐죽 보이던 문제 방지.
+          visibility: sheetOpen && !selectedSpot ? 'visible' : 'hidden',
+          transition: 'transform 0.3s ease, visibility 0.3s',
           boxShadow: sheetOpen ? '0 -4px 20px rgba(0,0,0,0.08)' : 'none',
         }}
       >
