@@ -217,24 +217,32 @@ export default function PartnerShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <a
-            href="mailto:contact@higgsi.com"
+          <div
             style={{
-              display: 'block',
               padding: '12px 13px',
               borderRadius: 12,
               background: '#f8f9fa',
               border: '1px solid #f0f1f3',
-              textDecoration: 'none',
             }}
           >
             <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', letterSpacing: '-0.2px' }}>
               도움이 필요하신가요?
             </span>
-            <span style={{ display: 'block', fontSize: 11.5, color: '#6b7280', marginTop: 3 }}>
+            <a
+              href="mailto:contact@higgsi.com"
+              style={{ display: 'block', fontSize: 11.5, color: '#6b7280', marginTop: 3, textDecoration: 'none' }}
+            >
               contact@higgsi.com
-            </span>
-          </a>
+            </a>
+            <a
+              href="https://www.instagram.com/honsulmap/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'block', fontSize: 11.5, color: '#6b7280', marginTop: 2, textDecoration: 'none' }}
+            >
+              인스타 @honsulmap DM
+            </a>
+          </div>
           <AccountBox />
         </div>
       </aside>
