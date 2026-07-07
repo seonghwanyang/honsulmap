@@ -96,6 +96,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const prev7d = cPrev ?? 0;
   const trendPct = prev7d > 0 ? Math.round(((views7d - prev7d) / prev7d) * 100) : null;
 
+  // 혜택 사용(리딤) — "혼술맵이 보낸 손님" 카운터 (playbook §1.1).
+  const [{ count: rTotal }, { count: r7 }] = await Promise.all([
+    admin
+      .from('benefit_redemptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('spot_id', id),
+    admin
+      .from('benefit_redemptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('spot_id', id)
+      .gte('redeemed_at', d7),
+  ]);
+
   const cityLabel = spot.city === 'seoul' ? '서울' : '제주';
   const cat = getCategoryLabel(spot.category);
 
@@ -112,5 +125,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       ranks: ranksFor(nationalIds),
     },
     trend: { views7d, prev7d, pct: trendPct },
+    redemptions: { total: rTotal ?? 0, d7: r7 ?? 0 },
   });
 }

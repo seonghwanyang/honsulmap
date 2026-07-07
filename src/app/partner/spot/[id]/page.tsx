@@ -7,6 +7,7 @@ import AuthGate from '../../AuthGate';
 import { Card, Chip, PageHeader, Spinner, buttonStyle } from '../../ui';
 import { track } from '@/lib/analytics';
 import ChatRoom from '@/components/chat/ChatRoom';
+import NoticeBanner from '@/components/partner/NoticeBanner';
 
 interface RankInfo {
   rank: number;
@@ -21,6 +22,7 @@ interface StatsData {
   region: { name: string; label: string; size: number; ranks: CohortRanks | null };
   national: { label: string; size: number; ranks: CohortRanks | null };
   trend: { views7d: number; prev7d: number; pct: number | null };
+  redemptions: { total: number; d7: number };
 }
 
 interface ChatReport {
@@ -58,6 +60,7 @@ interface SpotData {
     benefit_detail: string | null;
     benefit_active: boolean;
     benefit_expires_at: string | null;
+    redeem_pin: string | null;
   };
   stats: { views: number; visits: number; likes: number; mood_up: number; mood_down: number };
 }
@@ -141,6 +144,7 @@ function SpotManageContent() {
     'forever' | '1h' | '1d' | '1w' | '1m' | 'custom'
   >('forever');
   const [benefitCustom, setBenefitCustom] = useState('');
+  const [redeemPin, setRedeemPin] = useState('');
   const [savingBenefit, setSavingBenefit] = useState(false);
   const [benefitMsg, setBenefitMsg] = useState('');
   const [benefitErr, setBenefitErr] = useState('');
@@ -178,6 +182,7 @@ function SpotManageContent() {
           setBenefitTitle(d.spot.benefit_title ?? '');
           setBenefitDetail(d.spot.benefit_detail ?? '');
           setBenefitActive(!!d.spot.benefit_active);
+          setRedeemPin(d.spot.redeem_pin ?? '');
           if (d.spot.benefit_expires_at) {
             setBenefitDuration('custom');
             setBenefitCustom(d.spot.benefit_expires_at.slice(0, 16));
@@ -321,6 +326,7 @@ function SpotManageContent() {
           benefit_detail: benefitDetail,
           benefit_active: benefitActive,
           benefit_expires_at,
+          redeem_pin: redeemPin,
         }),
       });
       if (!res.ok) {
@@ -357,6 +363,32 @@ function SpotManageContent() {
   }
 
   const { spot } = data;
+
+  // 시작 가이드(playbook 온보딩) — 사장님이 해야 할 3가지와 완료 여부.
+  const guideSteps = [
+    {
+      label: '혜택 등록하기',
+      desc: '지도에 🎁 표시돼 손님 발길을 만듭니다',
+      done: benefitActive && !!benefitTitle.trim(),
+      target: 'guide-benefit',
+    },
+    {
+      label: '사용 확인 PIN 설정하기',
+      desc: '직원 승인으로 혜택 중복·허위 사용을 막아요',
+      done: redeemPin.length === 4,
+      target: 'guide-benefit',
+    },
+    {
+      label: '채팅방 열기',
+      desc: '손님 문의·예약을 바로 받는 창구예요',
+      done: !!chatRoom && chatOpen,
+      target: 'guide-chat',
+    },
+  ];
+  const guideDone = guideSteps.filter((s) => s.done).length;
+  const scrollToGuide = (target: string) =>
+    document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   const trend = statsData?.trend;
   let trendText = '—';
   let trendColor = '#111827';
@@ -371,6 +403,7 @@ function SpotManageContent() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <NoticeBanner />
       <PageHeader
         title={
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -387,6 +420,82 @@ function SpotManageContent() {
           </Link>
         }
       />
+
+      {/* 시작 가이드 — 뭘 하면 되는지 3단계. 전부 완료하면 한 줄 축하로 축소 */}
+      {guideDone === guideSteps.length ? (
+        <Card style={{ padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
+            className="flex-shrink-0 flex items-center justify-center"
+            style={{ width: 26, height: 26, borderRadius: '50%', background: '#dcfce7' }}
+            aria-hidden="true"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>
+            기본 설정 완료! 손님 맞을 준비가 됐어요 🎉
+          </span>
+        </Card>
+      ) : (
+        <Card style={{ padding: 18 }}>
+          <div className="flex items-center justify-between">
+            <div style={{ fontSize: 14.5, fontWeight: 800, color: '#111827', letterSpacing: '-0.2px' }}>
+              시작 가이드
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#6b7280' }}>
+              {guideDone}/{guideSteps.length} 완료
+            </span>
+          </div>
+          <div style={{ marginTop: 10, height: 6, background: '#f3f4f6', borderRadius: 999, overflow: 'hidden' }}>
+            <div
+              style={{ width: `${(guideDone / guideSteps.length) * 100}%`, height: '100%', background: '#ea580c', borderRadius: 999, transition: 'width .3s' }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 12 }}>
+            {guideSteps.map((s, i) => (
+              <div key={s.label} className="flex items-center gap-3" style={{ padding: '7px 0' }}>
+                <span
+                  className="flex-shrink-0 flex items-center justify-center"
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    background: s.done ? '#dcfce7' : '#f3f4f6',
+                    color: s.done ? '#16a34a' : '#9ca3af',
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                  }}
+                  aria-hidden="true"
+                >
+                  {s.done ? (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    i + 1
+                  )}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: s.done ? '#9ca3af' : '#111827', textDecoration: s.done ? 'line-through' : 'none' }}>
+                    {s.label}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 1 }}>{s.desc}</div>
+                </div>
+                {!s.done && (
+                  <button
+                    type="button"
+                    onClick={() => scrollToGuide(s.target)}
+                    style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#ea580c', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '6px 11px', cursor: 'pointer' }}
+                  >
+                    하러 가기
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* 통계 — 상대평가(상위%) + 주간 추세 */}
       <section>
@@ -415,18 +524,28 @@ function SpotManageContent() {
                 </p>
               </Card>
             )}
-            <Card style={{ padding: '14px 16px' }}>
-              <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>이번 주 조회 추세</div>
-              <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: trendColor }}>
-                {trendText}
-              </div>
-            </Card>
+            <div className="grid grid-cols-2" style={{ gap: 10 }}>
+              <Card style={{ padding: '14px 16px' }}>
+                <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>이번 주 조회 추세</div>
+                <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: trendColor }}>
+                  {trendText}
+                </div>
+              </Card>
+              {/* 혜택 사용 = "혼술맵이 보낸 손님" — 어트리뷰션 카운터 (playbook) */}
+              <Card style={{ padding: '14px 16px' }}>
+                <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>혜택 사용 (방문 인증)</div>
+                <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: '#111827' }}>
+                  {statsData.redemptions.total}건
+                </div>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>이번 주 {statsData.redemptions.d7}건</div>
+              </Card>
+            </div>
           </div>
         )}
       </section>
 
       {/* 혜택 */}
-      <section>
+      <section id="guide-benefit" style={{ scrollMarginTop: 72 }}>
         <h2 style={sectionLabel}>혜택</h2>
         <Card style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -521,6 +640,21 @@ function SpotManageContent() {
                 : '상시'}
             </div>
           </div>
+          {/* 리딤 PIN — 가게측 최종 승인(악용 방지). 비우면 GPS 확인만으로 사용 처리. */}
+          <div>
+            <label style={labelStyle}>사용 확인 PIN (선택)</label>
+            <input
+              value={redeemPin}
+              onChange={(e) => setRedeemPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              inputMode="numeric"
+              placeholder="숫자 4자리 (예: 1234)"
+              style={inputStyle}
+            />
+            <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 6, lineHeight: 1.5 }}>
+              설정하면 손님이 혜택을 쓸 때 직원이 이 PIN을 입력해야 처리돼요 (중복·허위 사용 방지).
+              비워두면 위치(가게 300m) 확인만으로 처리돼요.
+            </div>
+          </div>
           {benefitErr && <p style={{ color: '#ef4444', fontSize: 12.5 }}>{benefitErr}</p>}
           {benefitMsg && <p style={{ color: '#16a34a', fontSize: 12.5, fontWeight: 600 }}>{benefitMsg}</p>}
           <button
@@ -534,7 +668,7 @@ function SpotManageContent() {
       </section>
 
       {/* 채팅방 */}
-      <section>
+      <section id="guide-chat" style={{ scrollMarginTop: 72 }}>
         <h2 style={sectionLabel}>채팅방</h2>
         <Card style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {!chatLoaded ? (

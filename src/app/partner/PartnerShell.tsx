@@ -10,6 +10,7 @@ import {
   ACCENT_SOFT,
   GridIcon,
   StoreIcon,
+  BellIcon,
   MegaphoneIcon,
   LogoutIcon,
 } from './ui';
@@ -32,6 +33,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: '/partner/dashboard', label: '대시보드', icon: <GridIcon /> },
   { href: '/partner/claim', label: '가게 등록', icon: <StoreIcon /> },
+  { href: '/partner/notices', label: '공지사항', icon: <BellIcon /> },
   { href: '#', label: '홍보', icon: <MegaphoneIcon />, soon: true },
 ];
 
@@ -215,24 +217,60 @@ export default function PartnerShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <a
-            href="mailto:contact@higgsi.com"
-            style={{
-              display: 'block',
-              padding: '12px 13px',
-              borderRadius: 12,
-              background: '#f8f9fa',
-              border: '1px solid #f0f1f3',
-              textDecoration: 'none',
-            }}
-          >
-            <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', letterSpacing: '-0.2px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#9ca3af', letterSpacing: '-0.1px', padding: '0 2px' }}>
               도움이 필요하신가요?
             </span>
-            <span style={{ display: 'block', fontSize: 11.5, color: '#6b7280', marginTop: 3 }}>
-              contact@higgsi.com
-            </span>
-          </a>
+            <a
+              href="mailto:contact@higgsi.com"
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#f8f9fa', border: '1px solid #eef0f2', textDecoration: 'none' }}
+            >
+              <span
+                className="flex-shrink-0 flex items-center justify-center"
+                style={{ width: 30, height: 30, borderRadius: 9, background: '#fff', border: '1px solid #eceef0', color: '#6b7280' }}
+                aria-hidden="true"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#374151', letterSpacing: '-0.2px' }}>
+                  이메일 문의
+                </span>
+                <span className="block truncate" style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
+                  contact@higgsi.com
+                </span>
+              </span>
+            </a>
+            <a
+              href="https://www.instagram.com/honsulmap/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#f8f9fa', border: '1px solid #eef0f2', textDecoration: 'none' }}
+            >
+              <span
+                className="flex-shrink-0 flex items-center justify-center"
+                style={{ width: 30, height: 30, borderRadius: 9, background: 'linear-gradient(45deg, #f58529, #dd2a7b, #8134af)', color: '#fff' }}
+                aria-hidden="true"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                </svg>
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#374151', letterSpacing: '-0.2px' }}>
+                  인스타 DM
+                </span>
+                <span className="block truncate" style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
+                  @honsulmap
+                </span>
+              </span>
+            </a>
+          </div>
           <AccountBox />
         </div>
       </aside>

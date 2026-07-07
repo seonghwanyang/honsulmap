@@ -20,10 +20,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
           <nav className="flex items-center gap-1 text-xs">
             <AdminNavLink href="/admin">대시보드</AdminNavLink>
+            <AdminNavLink href="/admin/performance">성과</AdminNavLink>
             <AdminNavLink href="/admin/spots">가게</AdminNavLink>
             <AdminNavLink href="/admin/requests">요청</AdminNavLink>
             <AdminNavLink href="/admin/claims">사장님</AdminNavLink>
             <AdminNavLink href="/admin/reports">신고</AdminNavLink>
+            <AdminNavLink href="/admin/notices">공지</AdminNavLink>
           </nav>
         </div>
         <div className="flex items-center gap-3">

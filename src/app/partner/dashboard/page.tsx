@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthGate from '../AuthGate';
 import { CopyButton } from '../CopyButton';
+import NoticeBanner from '@/components/partner/NoticeBanner';
 import {
   ACCENT,
   ACCENT_DARK,
@@ -232,6 +233,7 @@ function DashboardContent() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <NoticeBanner />
       <PageHeader
         title="대시보드"
         subtitle="내 가게의 정보 · 통계 · 홍보를 한곳에서 관리하세요."

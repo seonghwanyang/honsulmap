@@ -40,7 +40,9 @@ export async function GET() {
     latest_story_at: latestBySpot.get(spot.id) ?? null,
   }));
 
+  // no-store: 사장님이 혜택/정보를 저장하고 새로고침하면 즉시 반영돼야 한다
+  // (제품 결정 2026-07-06). 현 트래픽 규모에선 CDN 캐시 이득보다 혼란 비용이 큼.
   return NextResponse.json(out, {
-    headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
+    headers: { 'Cache-Control': 'no-store' },
   });
 }
