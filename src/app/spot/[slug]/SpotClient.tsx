@@ -14,6 +14,7 @@ import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
 import { useUser } from '@/lib/useUser';
 import LoginModal from '@/components/LoginModal';
 import FavoriteButton from '@/components/FavoriteButton';
+import RedeemSheet from '@/components/RedeemSheet';
 import { isFreeStorySpot, claimFreeStorySpot } from '@/lib/storyGate';
 
 function BackButton() {
@@ -332,10 +333,11 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
 
   usePageDwell('spot', slug);
   useScrollDepth('spot', slug);
-  const { user, loading: authLoading } = useUser();
+  const { user } = useUser();
   const [loginOpen, setLoginOpen] = useState(false);
   const [freeSpot, setFreeSpot] = useState(false);
   const [loginReason, setLoginReason] = useState<string | undefined>(undefined);
+  const [redeemOpen, setRedeemOpen] = useState(false);
 
   // Guests get ONE free spot per device: the first spot they open shows all
   // its stories (and is claimed here); every other spot is gated. Logged-in
@@ -347,16 +349,6 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
     setFreeSpot(free);
     if (free) claimFreeStorySpot(spot.id);
   }, [user, spot?.id]);
-
-  // Guest → pop the login modal over the blurred stories once auth resolves.
-  // slug is in the deps so navigating spot→spot (same route, no remount)
-  // re-opens it for each new spot.
-  useEffect(() => {
-    if (!authLoading && !user) {
-      setLoginOpen(true);
-      track('story_login_blocked', { spot_id: slug, surface: 'spot_page' });
-    }
-  }, [authLoading, user, slug]);
 
   useEffect(() => {
     const fetchSpot = async () => {
@@ -577,7 +569,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
 
         {spot.benefit_active && spot.benefit_title && (!spot.benefit_expires_at || new Date(spot.benefit_expires_at) > new Date()) && (
           <div
-            className="mt-3 flex items-center gap-3"
+            className="mt-3"
             style={{
               background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
               border: '1px solid #fed7aa',
@@ -586,28 +578,45 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
               boxShadow: '0 2px 8px rgba(234, 88, 12, 0.10)',
             }}
           >
-            <div
-              className="flex-shrink-0 flex items-center justify-center"
-              style={{ width: 42, height: 42, background: '#111827', borderRadius: 12 }}
-              aria-hidden="true"
+            <div className="flex items-center gap-3">
+              <div
+                className="flex-shrink-0 flex items-center justify-center"
+                style={{ width: 42, height: 42, background: '#111827', borderRadius: 12 }}
+                aria-hidden="true"
+              >
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 12 20 22 4 22 4 12" />
+                  <rect x="2" y="7" width="20" height="5" />
+                  <line x1="12" y1="22" x2="12" y2="7" />
+                  <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                  <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <span style={{ display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: 0.4, color: '#ea580c', lineHeight: 1, marginBottom: 3 }}>오늘의 혜택</span>
+                <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: '#111827', lineHeight: 1.35 }}>{spot.benefit_title}</span>
+                {spot.benefit_detail && (
+                  <span style={{ display: 'block', fontSize: 12, color: '#c2410c', marginTop: 3, lineHeight: 1.5 }}>
+                    {spot.benefit_detail}
+                  </span>
+                )}
+              </div>
+            </div>
+            {/* 리딤(#playbook §1.1) — 매장 도착 후 직원에게 제시. 위치/PIN 검증은 시트가 처리. */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!user) {
+                  setLoginReason('혜택을 사용하려면 로그인이 필요해요');
+                  setLoginOpen(true);
+                  return;
+                }
+                setRedeemOpen(true);
+              }}
+              style={{ marginTop: 10, width: '100%', height: 42, borderRadius: 11, background: '#111827', color: '#fff', fontSize: 13.5, fontWeight: 700, border: 'none', cursor: 'pointer' }}
             >
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 12 20 22 4 22 4 12" />
-                <rect x="2" y="7" width="20" height="5" />
-                <line x1="12" y1="22" x2="12" y2="7" />
-                <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
-                <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <span style={{ display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: 0.4, color: '#ea580c', lineHeight: 1, marginBottom: 3 }}>오늘의 혜택</span>
-              <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: '#111827', lineHeight: 1.35 }}>{spot.benefit_title}</span>
-              {spot.benefit_detail && (
-                <span style={{ display: 'block', fontSize: 12, color: '#c2410c', marginTop: 3, lineHeight: 1.5 }}>
-                  {spot.benefit_detail}
-                </span>
-              )}
-            </div>
+              가게에서 혜택 사용하기
+            </button>
           </div>
         )}
       </div>
@@ -678,10 +687,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
             </div>
           </div>
         ) : (
-          <div
-            className="flex flex-col gap-3"
-            style={!user ? { filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' } : undefined}
-          >
+          <div className="flex flex-col gap-3">
             {(() => {
               const items: React.ReactNode[] = [];
               let adCount = 0;
@@ -920,6 +926,16 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
       </div>
 
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} reason={loginReason} />
+      {spot.benefit_title && (
+        <RedeemSheet
+          open={redeemOpen}
+          onClose={() => setRedeemOpen(false)}
+          spotSlug={spot.slug}
+          spotName={spot.name}
+          benefitTitle={spot.benefit_title}
+          benefitDetail={spot.benefit_detail}
+        />
+      )}
     </div>
   );
 }
