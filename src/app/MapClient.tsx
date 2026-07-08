@@ -1424,8 +1424,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           rest — request banner, search box, hot strip — float over the
           map as individual cards so the map is visible between them. */}
       <div className="absolute z-20 left-0 right-0" style={{ top: 'calc(3.5rem + env(safe-area-inset-top))' }}>
+        {/* 한 줄 배치: [지역 선택][가게 검색(가변)][제보]. 검색창은 별도 줄이던 걸
+            지역 선택과 같은 y축으로 올림 (2026-07-09). */}
         <div className="relative z-40 bg-white/95 backdrop-blur-sm border-b border-[#F0F0F0] flex items-start">
-          <div className="flex-1 min-w-0">
+          <div className="flex-shrink-0">
             <LocationPicker
               city={city === 'all' ? null : city}
               region={region === 'all' ? null : (region as Region)}
@@ -1433,36 +1435,73 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               onChange={handleLocationChange}
             />
           </div>
+          {!selectedSpot && !requestOpen ? (
+            <div className="flex-1 min-w-0" style={{ padding: '6px 8px 6px 0' }}>
+              <SpotSearchBox
+                spots={regionFilteredSpots}
+                onPick={(spot) => {
+                  // Pan/zoom first so the user sees where the spot actually is
+                  // on the map. After a short beat, slide the detail panel up
+                  // so they can read the stories in context. The 700ms delay
+                  // is intentional — it lets the camera move register before
+                  // the panel covers the pin.
+                  if (mapInstanceRef.current && window.naver?.maps) {
+                    mapInstanceRef.current.morph(
+                      new window.naver.maps.LatLng(spot.lat, spot.lng),
+                      16,
+                    );
+                  }
+                  setSelectedSpot(null);
+                  setSheetOpen(false);
+                  setTimeout(() => {
+                    openSpotPanel(spot, 'search');
+                  }, 700);
+                }}
+              />
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
           <div className="flex-shrink-0 pr-3" style={{ paddingTop: 9 }}>
             <SpotRequestButton variant="compact" />
           </div>
         </div>
-        {!selectedSpot && !requestOpen && (
-          <div className="px-3 pt-2 pb-1">
-            <SpotSearchBox
-              spots={regionFilteredSpots}
-              onPick={(spot) => {
-                // Pan/zoom first so the user sees where the spot actually is
-                // on the map. After a short beat, slide the detail panel up
-                // so they can read the stories in context. The 700ms delay
-                // is intentional — it lets the camera move register before
-                // the panel covers the pin.
-                if (mapInstanceRef.current && window.naver?.maps) {
-                  mapInstanceRef.current.morph(
-                    new window.naver.maps.LatLng(spot.lat, spot.lng),
-                    16,
-                  );
-                }
-                setSelectedSpot(null);
-                setSheetOpen(false);
-                setTimeout(() => {
-                  openSpotPanel(spot, 'search');
-                }, 700);
-              }}
-            />
-          </div>
-        )}
         <HotSpotCarousel />
+        {/* 광고 배너 — 실시간 근황 아래. 현재 게재: 지문인식 혼술바(제주).
+            탭하면 해당 가게 패널을 연다(우리 지도 안 가게 광고라 내부 이동).
+            maxWidth 480: 지도 세로는 고정인데 폭만 늘면 배너 높이가 계속 커져
+            지도를 가리므로, 보기 좋던 480px 뷰포트 시점에서 성장 정지(이후 중앙 정렬). */}
+        <div style={{ padding: '2px 12px 8px', maxWidth: 480, margin: '0 auto' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const ad = spots.find((s) => s.instagram_id === 'jimuninsik_jeju');
+              if (ad) {
+                openSpotPanel(ad, 'map');
+                setSheetOpen(false);
+              }
+            }}
+            aria-label="지문인식 혼술바 광고 — 가게 보기"
+            style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {/* banner3(1206x843) 실측: '지문인식' 타이틀 y[338..447] + '혼술바'
+                서브타이틀 y[473..498]. 두 줄 포함 y[320..510] 밴드(높이 190px)로
+                세로 크롭 — aspectRatio W/190 + objectPosition 320/(843-190)=49.0%. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/ads/jimuninsik_banner3.jpg"
+              alt="지문인식 혼술바 광고"
+              style={{ width: '100%', aspectRatio: '1206 / 190', objectFit: 'cover', objectPosition: 'center 49%', borderRadius: 12, display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
+            />
+            <span
+              aria-hidden="true"
+              style={{ position: 'absolute', top: 6, right: 8, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, color: 'rgba(255,255,255,0.85)', background: 'rgba(17,24,39,0.55)', borderRadius: 5, padding: '2px 5px' }}
+            >
+              AD
+            </span>
+          </button>
+        </div>
       </div>
 
 
