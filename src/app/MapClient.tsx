@@ -1483,14 +1483,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {/* banner3(1206x843)에서 '지문인식' 타이틀 행은 y[338..447] (실측).
-                상하 여백 포함 y[320..466] 밴드(높이 146px)만 세로 크롭 —
-                aspectRatio W/146 + objectPosition 320/(843-146)=45.9%. */}
+            {/* banner3(1206x843) 실측: '지문인식' 타이틀 y[338..447] + '혼술바'
+                서브타이틀 y[473..498]. 두 줄 포함 y[320..510] 밴드(높이 190px)로
+                세로 크롭 — aspectRatio W/190 + objectPosition 320/(843-190)=49.0%. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/ads/jimuninsik_banner3.jpg"
               alt="지문인식 혼술바 광고"
-              style={{ width: '100%', aspectRatio: '1206 / 146', objectFit: 'cover', objectPosition: 'center 45.9%', borderRadius: 12, display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
+              style={{ width: '100%', aspectRatio: '1206 / 190', objectFit: 'cover', objectPosition: 'center 49%', borderRadius: 12, display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
             />
             <span
               aria-hidden="true"
