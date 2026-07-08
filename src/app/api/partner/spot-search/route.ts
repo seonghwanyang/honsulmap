@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
   const raw = new URL(request.url).searchParams.get('q')?.trim() ?? '';
   // Strip characters that would break the PostgREST or()/ilike filter syntax.
   const q = raw.replace(/[,()%_*]/g, ' ').trim();
-  if (q.length < 2) return NextResponse.json({ spots: [] });
+  // 1글자부터 허용 — '곁'처럼 한 글자 상호가 실제로 있다 (claim 타입어헤드).
+  if (q.length < 1) return NextResponse.json({ spots: [] });
 
   const { data } = await supabaseAdmin()
     .from('spots')

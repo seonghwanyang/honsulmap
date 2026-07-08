@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthGate from '../AuthGate';
 import { CopyButton } from '../CopyButton';
@@ -61,21 +61,39 @@ function ClaimContent() {
   const [done, setDone] = useState(false);
   const [code, setCode] = useState('');
 
-  const search = async () => {
-    if (q.trim().length < 2 || searching) return;
-    setSearching(true);
-    setError('');
-    try {
-      const res = await fetch(`/api/partner/spot-search?q=${encodeURIComponent(q.trim())}`);
-      const data = await res.json();
-      setResults(data.spots ?? []);
-      setSearched(true);
-    } catch {
-      setError('검색에 실패했어요. 다시 시도해주세요.');
-    } finally {
+  // 타입어헤드(인크리멘털 서치) — 지도 검색창처럼 글자 칠 때마다 목록 갱신.
+  // 250ms 디바운스 + AbortController로 늦게 온 이전 응답이 덮어쓰는 것 방지.
+  // 1글자부터 검색 ('곁' 같은 한 글자 상호 대응).
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 1) {
+      setResults([]);
+      setSearched(false);
       setSearching(false);
+      return;
     }
-  };
+    setSearching(true);
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/partner/spot-search?q=${encodeURIComponent(term)}`, {
+          signal: ctrl.signal,
+        });
+        const data = await res.json();
+        setResults(data.spots ?? []);
+        setSearched(true);
+        setError('');
+      } catch (e) {
+        if ((e as Error).name !== 'AbortError') setError('검색에 실패했어요. 다시 시도해주세요.');
+      } finally {
+        if (!ctrl.signal.aborted) setSearching(false);
+      }
+    }, 250);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [q]);
 
   const submit = async () => {
     if (!selected || submitting) return;
@@ -188,42 +206,24 @@ function ClaimContent() {
               </span>
               가게 찾기
             </label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', display: 'inline-flex' }}>
-                  <SearchIcon size={17} />
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', display: 'inline-flex' }}>
+                <SearchIcon size={17} />
+              </span>
+              <input
+                style={{ ...inputStyle, paddingLeft: 40, paddingRight: searching ? 80 : 16 }}
+                placeholder="가게 이름 또는 인스타 아이디 — 치는 대로 찾아드려요"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              {searching && (
+                <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#9ca3af' }}>
+                  검색 중…
                 </span>
-                <input
-                  style={{ ...inputStyle, paddingLeft: 40 }}
-                  placeholder="가게 이름 또는 인스타 아이디"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && search()}
-                />
-              </div>
-              <button
-                onClick={search}
-                disabled={searching || q.trim().length < 2}
-                style={{
-                  flexShrink: 0,
-                  height: 48,
-                  padding: '0 22px',
-                  borderRadius: 12,
-                  background: ACCENT,
-                  color: '#fff',
-                  fontSize: 14.5,
-                  fontWeight: 700,
-                  letterSpacing: '-0.2px',
-                  border: 'none',
-                  cursor: searching || q.trim().length < 2 ? 'default' : 'pointer',
-                  opacity: searching || q.trim().length < 2 ? 0.5 : 1,
-                }}
-              >
-                {searching ? '검색…' : '검색'}
-              </button>
+              )}
             </div>
 
-            {searched && results.length === 0 && (
+            {searched && !searching && results.length === 0 && (
               <div style={{ marginTop: 14, padding: '18px 14px', background: '#f8f9fa', borderRadius: 12, textAlign: 'center' }}>
                 <p style={{ color: '#6b7280', fontSize: 13, lineHeight: 1.6 }}>
                   일치하는 가게가 없어요.
