@@ -210,7 +210,7 @@ function ClaimContent() {
               </span>
               <input
                 style={{ ...inputStyle, paddingLeft: 40, paddingRight: searching ? 80 : 16 }}
-                placeholder="가게 이름 또는 인스타 아이디 — 치는 대로 찾아드려요"
+                placeholder="가게 이름 또는 인스타 아이디"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
