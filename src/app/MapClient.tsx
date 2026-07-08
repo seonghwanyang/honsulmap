@@ -1479,10 +1479,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
+            {/* 원본(1206x830)은 위아래 201px 검은 레터박스 — 실제 콘텐츠 밴드는
+                1206x428(2.82:1). 컨테이너를 그 비율로 잡고 cover+center 하면
+                검은 띠가 정확히 잘려나가고 디자인된 배너만 보인다. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/ads/jimuninsik_banner2.jpg"
               alt="지문인식 혼술바 — 12시 이전 방문 고객 취할 때까지 서비스"
-              style={{ width: '100%', height: 72, objectFit: 'cover', objectPosition: 'center 62%', borderRadius: 12, display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
+              style={{ width: '100%', aspectRatio: '1206 / 428', objectFit: 'cover', objectPosition: 'center', borderRadius: 12, display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
             />
             <span
               aria-hidden="true"
