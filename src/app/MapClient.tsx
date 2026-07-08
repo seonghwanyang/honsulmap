@@ -1469,9 +1469,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         <HotSpotCarousel />
         {/* 광고 배너 — 실시간 근황 아래. 현재 게재: 지문인식 혼술바(제주).
             탭하면 해당 가게 패널을 연다(우리 지도 안 가게 광고라 내부 이동).
-            maxWidth 725: 지도 세로는 고정인데 폭만 늘면 배너 높이가 계속 커져
-            지도를 가리므로, 보기 좋던 725px 시점에서 성장 정지(이후 중앙 정렬). */}
-        <div style={{ padding: '2px 12px 8px', maxWidth: 725, margin: '0 auto' }}>
+            maxWidth 480: 지도 세로는 고정인데 폭만 늘면 배너 높이가 계속 커져
+            지도를 가리므로, 보기 좋던 480px 뷰포트 시점에서 성장 정지(이후 중앙 정렬). */}
+        <div style={{ padding: '2px 12px 8px', maxWidth: 480, margin: '0 auto' }}>
           <button
             type="button"
             onClick={() => {
