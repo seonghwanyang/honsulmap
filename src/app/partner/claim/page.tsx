@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AuthGate from '../AuthGate';
 import { CopyButton } from '../CopyButton';
@@ -52,48 +52,46 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
 
 function ClaimContent() {
   const [q, setQ] = useState('');
-  const [results, setResults] = useState<SpotHit[]>([]);
-  const [searched, setSearched] = useState(false);
-  const [searching, setSearching] = useState(false);
+  const [allSpots, setAllSpots] = useState<SpotHit[] | null>(null);
   const [selected, setSelected] = useState<SpotHit | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [code, setCode] = useState('');
 
-  // 타입어헤드(인크리멘털 서치) — 지도 검색창처럼 글자 칠 때마다 목록 갱신.
-  // 250ms 디바운스 + AbortController로 늦게 온 이전 응답이 덮어쓰는 것 방지.
-  // 1글자부터 검색 ('곁' 같은 한 글자 상호 대응).
+  // 지도 검색창과 같은 방식: 마운트 때 전체 가게(가벼운 4필드)를 1회 받아두고
+  // 타이핑마다 메모리에서 즉시 필터 — 서버 왕복 없이 글자당 0ms.
   useEffect(() => {
-    const term = q.trim();
-    if (term.length < 1) {
-      setResults([]);
-      setSearched(false);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    const ctrl = new AbortController();
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/partner/spot-search?q=${encodeURIComponent(term)}`, {
-          signal: ctrl.signal,
-        });
-        const data = await res.json();
-        setResults(data.spots ?? []);
-        setSearched(true);
-        setError('');
-      } catch (e) {
-        if ((e as Error).name !== 'AbortError') setError('검색에 실패했어요. 다시 시도해주세요.');
-      } finally {
-        if (!ctrl.signal.aborted) setSearching(false);
-      }
-    }, 250);
+    let alive = true;
+    fetch('/api/partner/spot-search')
+      .then((r) => (r.ok ? r.json() : { spots: [] }))
+      .then((d) => {
+        if (alive) setAllSpots(d.spots ?? []);
+      })
+      .catch(() => {
+        if (alive) {
+          setAllSpots([]);
+          setError('가게 목록을 불러오지 못했어요. 새로고침해주세요.');
+        }
+      });
     return () => {
-      clearTimeout(t);
-      ctrl.abort();
+      alive = false;
     };
-  }, [q]);
+  }, []);
+
+  const term = q.trim().toLowerCase();
+  const results = useMemo(() => {
+    if (!allSpots || term.length < 1) return [];
+    return allSpots
+      .filter(
+        (s) =>
+          s.name.toLowerCase().includes(term) ||
+          (s.instagram_id ?? '').toLowerCase().includes(term),
+      )
+      .slice(0, 10);
+  }, [allSpots, term]);
+  const searching = term.length >= 1 && allSpots === null;
+  const searched = term.length >= 1 && allSpots !== null;
 
   const submit = async () => {
     if (!selected || submitting) return;

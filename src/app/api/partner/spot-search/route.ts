@@ -15,8 +15,17 @@ export async function GET(request: NextRequest) {
   const raw = new URL(request.url).searchParams.get('q')?.trim() ?? '';
   // Strip characters that would break the PostgREST or()/ilike filter syntax.
   const q = raw.replace(/[,()%_*]/g, ' ').trim();
-  // 1글자부터 허용 — '곁'처럼 한 글자 상호가 실제로 있다 (claim 타입어헤드).
-  if (q.length < 1) return NextResponse.json({ spots: [] });
+
+  // q 없이 부르면 전체 목록(가벼운 4필드)을 내려준다 — claim 페이지가 마운트 시
+  // 1회 받아서 지도 검색창처럼 로컬 필터(타이핑마다 서버 왕복 없이 즉시).
+  if (q.length < 1) {
+    const { data } = await supabaseAdmin()
+      .from('spots')
+      .select('id, name, slug, region, instagram_id')
+      .order('name')
+      .limit(1000);
+    return NextResponse.json({ spots: data ?? [] });
+  }
 
   const { data } = await supabaseAdmin()
     .from('spots')
