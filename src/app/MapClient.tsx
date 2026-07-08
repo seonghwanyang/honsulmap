@@ -1463,6 +1463,35 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           </div>
         )}
         <HotSpotCarousel />
+        {/* 광고 배너 — 실시간 근황 아래. 현재 게재: 지문인식 혼술바(제주).
+            탭하면 해당 가게 패널을 연다(우리 지도 안 가게 광고라 내부 이동). */}
+        <div style={{ padding: '2px 12px 8px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const ad = spots.find((s) => s.instagram_id === 'jimuninsik_jeju');
+              if (ad) {
+                openSpotPanel(ad, 'map');
+                setSheetOpen(false);
+              }
+            }}
+            aria-label="지문인식 혼술바 광고 — 가게 보기"
+            style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/ads/jimuninsik_banner2.jpg"
+              alt="지문인식 혼술바 — 12시 이전 방문 고객 취할 때까지 서비스"
+              style={{ width: '100%', height: 72, objectFit: 'cover', objectPosition: 'center 62%', borderRadius: 12, display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
+            />
+            <span
+              aria-hidden="true"
+              style={{ position: 'absolute', top: 6, right: 8, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, color: 'rgba(255,255,255,0.85)', background: 'rgba(17,24,39,0.55)', borderRadius: 5, padding: '2px 5px' }}
+            >
+              AD
+            </span>
+          </button>
+        </div>
       </div>
 
 
