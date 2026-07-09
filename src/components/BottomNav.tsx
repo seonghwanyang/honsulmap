@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import AppDownloadBanner from '@/components/AppDownloadBanner';
 
 const NAV_ITEMS = [
   {
@@ -57,6 +58,9 @@ export default function BottomNav() {
   if (pathname.startsWith('/partner')) return null;
 
   return (
+    <>
+    {/* 앱 다운로드 배너 — 소비자 화면 전역(파트너 제외)에서 네비와 함께 마운트 */}
+    <AppDownloadBanner />
     <nav className="fixed bottom-1 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1 px-2 py-1.5 bg-white/97 backdrop-blur-2xl rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-black/5">
       {NAV_ITEMS.map((item) => {
         const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
@@ -76,5 +80,6 @@ export default function BottomNav() {
         );
       })}
     </nav>
+    </>
   );
 }
