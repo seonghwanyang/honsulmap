@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 
 // 앱 다운로드 칩 — 지도 헤더 우측(내 정보 옆)에 붙는 컴팩트 버튼.
-// 현재 iOS만 출시라 iOS 브라우저에서만 노출. 숨김: ① 네이티브 앱 안(웹뷰,
-// window.Capacitor) ② 홈화면 PWA(standalone). 안드로이드 출시 시 스토어 분기.
+// PC·iOS에서 노출. 숨김: ① 네이티브 앱 안(웹뷰, window.Capacitor)
+// ② 홈화면 PWA(standalone) ③ 안드로이드(설치 불가한 앱스토어 링크라 —
+// 플레이스토어 출시되면 스토어 분기로 전환).
 
 const APP_STORE_URL = 'https://apps.apple.com/kr/app/id6781643324';
 
@@ -13,12 +14,12 @@ export default function AppDownloadBanner() {
 
   useEffect(() => {
     try {
-      const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isAndroid = /Android/i.test(navigator.userAgent);
       const inApp = !!(window as unknown as { Capacitor?: unknown }).Capacitor;
       const standalone =
         window.matchMedia('(display-mode: standalone)').matches ||
         !!(navigator as unknown as { standalone?: boolean }).standalone;
-      setShow(isIos && !inApp && !standalone);
+      setShow(!isAndroid && !inApp && !standalone);
     } catch {
       /* ignore */
     }
