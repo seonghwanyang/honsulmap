@@ -15,6 +15,7 @@ import LikeButton from '@/components/LikeButton';
 import ChatEntry from '@/components/chat/ChatEntry';
 import MarketingConsentPrompt from '@/components/MarketingConsentPrompt';
 import RedeemSheet from '@/components/RedeemSheet';
+import AppDownloadBanner from '@/components/AppDownloadBanner';
 import HotSpotCarousel from '@/components/HotSpotCarousel';
 import SpotRequestButton from '@/components/SpotRequestButton';
 import SpotSearchBox from '@/components/SpotSearchBox';
@@ -1393,7 +1394,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             전국 혼술바 실시간
           </span>
         </div>
-        <div className="ml-auto flex items-center">
+        <div className="ml-auto flex items-center gap-1.5">
+          {/* iOS 웹 방문자에게 앱스토어 칩 (앱 안·PWA에선 자동 숨김) */}
+          <AppDownloadBanner />
           {user ? (
             <Link
               href="/me"

@@ -4,8 +4,10 @@ import './globals.css';
 import BottomNav from '@/components/BottomNav';
 import Footer from '@/components/Footer';
 import ClarityScript from '@/components/analytics/ClarityScript';
+import AdSenseScript from '@/components/ads/AdSenseScript';
 import AddToHomePrompt from '@/components/AddToHomePrompt';
 import PushRegistration from '@/components/PushRegistration';
+import { jsonLdScript } from '@/lib/utils';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
@@ -162,7 +164,7 @@ export default function RootLayout({
       <body className="max-w-screen-md mx-auto bg-white">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
         />
         <main>{children}</main>
         <Footer />
@@ -170,6 +172,7 @@ export default function RootLayout({
         <AddToHomePrompt />
         <PushRegistration />
         <ClarityScript />
+        <AdSenseScript />
       </body>
       {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
     </html>
