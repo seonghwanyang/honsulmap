@@ -1726,13 +1726,16 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               <div style={{ width: '36px', height: '4px', background: '#d1d5db', borderRadius: '2px' }} />
             </div>
 
-            {/* Spot Info — also acts as extended drag target */}
+            {/* 시트 본문 전체가 하나의 스크롤 컨테이너 — 헤더(가게정보·혜택·버튼)부터
+                스토리·후기까지 함께 스크롤된다. 드래그로 닫기는 위 핸들에서만. */}
+            <div
+              className="overflow-y-auto"
+              style={{ flex: '1 1 0%', minHeight: 0, scrollSnapType: 'y proximity', scrollBehavior: 'smooth' }}
+            >
+            {/* Spot Info */}
             <div
               className="px-4 pt-1 pb-3"
-              style={{ borderBottom: '1px solid #f3f4f6', touchAction: 'none' }}
-              onTouchStart={handleDragStart}
-              onTouchMove={handleDragMove}
-              onTouchEnd={handleDragEnd}
+              style={{ borderBottom: '1px solid #f3f4f6' }}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
@@ -1813,13 +1816,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                 </div>
               )}
 
-              {/* Action Buttons — uniform gray pill + black text. Each
-                  carries its brand mark so the row reads as "what is
-                  this link" by icon, not by color. */}
-              <div className="flex gap-2 mt-3">
+              {/* Action Buttons — 한 줄 보장: overflow-x-auto + 버튼 nowrap.
+                  각 버튼은 브랜드 마크 + 짧은 라벨. */}
+              <div className="flex gap-1.5 mt-3 overflow-x-auto hide-scrollbar">
                 <Link
                   href={`/spot/${selectedSpot.slug}`}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
+                  className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium whitespace-nowrap"
                   style={{ background: '#f3f4f6', color: '#111827', borderRadius: '8px', textDecoration: 'none' }}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1827,7 +1829,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     <path d="M10 14 21 3" />
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                   </svg>
-                  상세보기
+                  상세
                 </Link>
                 {instagramUrl && (
                   <a
@@ -1842,7 +1844,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                         surface: 'map_sheet_action',
                       });
                     }}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
+                    className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium whitespace-nowrap"
                     style={{ background: '#f3f4f6', color: '#111827', borderRadius: '8px', textDecoration: 'none' }}
                   >
                     {/* Official Instagram glyph (public-domain SVG saved
@@ -1864,7 +1866,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                     : `https://map.naver.com/v5/search/${encodeURIComponent(selectedSpot.name)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
+                  className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium whitespace-nowrap"
                   style={{ background: '#f3f4f6', color: '#111827', borderRadius: '8px', textDecoration: 'none' }}
                 >
                   {/* Naver brand mark — green-on-white "N" square */}
@@ -1886,7 +1888,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   >
                     N
                   </span>
-                  네이버지도
+                  네이버
                 </a>
                 {/* 후기 jump-link — visible whenever this spot has posts.
                     Tapping smooth-scrolls the panel down to the posts
@@ -1900,7 +1902,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                         block: 'start',
                       })
                     }
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium"
+                    className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium whitespace-nowrap"
                     style={{ background: '#f3f4f6', color: '#111827', borderRadius: '8px', border: 'none' }}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1959,17 +1961,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
 
             </div>
 
-            {/* Stories Vertical Scroll — snap so each story takes one
-                panel viewport, like flipping through IG stories. */}
-            <div
-              className="overflow-y-auto"
-              style={{
-                flex: '1 1 0%',
-                minHeight: 0,
-                scrollSnapType: 'y proximity',
-                scrollBehavior: 'smooth',
-              }}
-            >
+            {/* Stories — 스냅 포인트는 부모(합쳐진 스크롤 컨테이너)가 소유. */}
+            <div>
               {isLoadingStories ? (
                 <div className="flex flex-col px-4">
                   <StorySkeleton />
@@ -2139,6 +2132,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                   </ul>
                 </div>
               )}
+            </div>
             </div>
 
             {/* "다녀왔어요" pill — fixed to the viewport so it sits
