@@ -54,9 +54,9 @@ html {
   -webkit-touch-callout: none;
 }
 
-/* Bottom nav safe area */
+/* Bottom nav safe area (홈 인디케이터만큼 여유) */
 main {
-  padding-bottom: 80px;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 /* iOS 노치/상태바 안전영역: 상단 고정 헤더(뒤로+제목 바)가 노치에 가려지지
