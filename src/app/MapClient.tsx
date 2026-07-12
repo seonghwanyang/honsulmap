@@ -347,6 +347,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartYRef = useRef<number>(0);
   const dragStartTimeRef = useRef<number>(0);
+  const sheetScrollRef = useRef<HTMLDivElement>(null);
 
   // Panel-dwell instrumentation: capture open timestamp + entry source so
   // we can flush spot_panel_dwell on every close path.
@@ -434,6 +435,24 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // Spring back
       setDragY(0);
     }
+  };
+
+  // 스크롤 컨테이너에서도 "최상단에서 아래로 당기면 닫기". 콘텐츠가 top(scrollTop<=0)
+  // 일 때만 시트 드래그로 전환하고, 그 외엔 일반 스크롤에 맡긴다.
+  const handleSheetTouchStart = (e: React.TouchEvent) => {
+    if ((sheetScrollRef.current?.scrollTop ?? 0) > 0) return;
+    handleDragStart(e);
+  };
+  const handleSheetTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const delta = e.touches[0].clientY - dragStartYRef.current;
+    if (delta <= 0 || (sheetScrollRef.current?.scrollTop ?? 0) > 0) {
+      // 위로 스크롤하려는 제스처 → 드래그 취소하고 일반 스크롤에 넘김
+      setIsDragging(false);
+      setDragY(0);
+      return;
+    }
+    setDragY(delta);
   };
 
   // Re-render every 30s to keep relative times accurate
@@ -1726,11 +1745,15 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               <div style={{ width: '36px', height: '4px', background: '#d1d5db', borderRadius: '2px' }} />
             </div>
 
-            {/* 시트 본문 전체가 하나의 스크롤 컨테이너 — 헤더(가게정보·혜택·버튼)부터
-                스토리·후기까지 함께 스크롤된다. 드래그로 닫기는 위 핸들에서만. */}
+            {/* 시트 본문 전체가 하나의 스크롤 컨테이너 — 헤더부터 스토리·후기까지 함께
+                스크롤. 최상단에서 아래로 당기면 핸들 없이도 시트가 닫힌다. */}
             <div
+              ref={sheetScrollRef}
               className="overflow-y-auto"
-              style={{ flex: '1 1 0%', minHeight: 0, scrollSnapType: 'y proximity', scrollBehavior: 'smooth' }}
+              style={{ flex: '1 1 0%', minHeight: 0, scrollSnapType: 'y proximity', scrollBehavior: 'smooth', overscrollBehavior: 'contain' }}
+              onTouchStart={handleSheetTouchStart}
+              onTouchMove={handleSheetTouchMove}
+              onTouchEnd={handleDragEnd}
             >
             {/* Spot Info */}
             <div
