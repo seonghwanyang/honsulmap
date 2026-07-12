@@ -54,9 +54,17 @@ html {
   -webkit-touch-callout: none;
 }
 
-/* Bottom nav safe area (홈 인디케이터만큼 여유) */
+/* Bottom nav safe area (홈 인디케이터만큼 여유) — env 미지원 대비 fallback 우선 */
 main {
+  padding-bottom: 80px;
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
+}
+
+/* 하단 네비 위치 — env 미지원/0 웹뷰에서도 안 사라지게 fallback(20px) 우선 선언.
+   env 지원 기기(iOS 홈바·안드로이드 제스처바)는 그 위로 자동 배치, 최소 20px 보장. */
+.app-bottom-nav {
+  bottom: 20px;
+  bottom: max(20px, calc(env(safe-area-inset-bottom) + 8px));
 }
 
 /* iOS 노치/상태바 안전영역: 상단 고정 헤더(뒤로+제목 바)가 노치에 가려지지
