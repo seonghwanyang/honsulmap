@@ -58,8 +58,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1 px-2 py-1.5 bg-white/97 backdrop-blur-2xl rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-black/5"
-      style={{ bottom: 'calc(8px + env(safe-area-inset-bottom))' }}
+      className="app-bottom-nav fixed left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1 px-2 py-1.5 bg-white/97 backdrop-blur-2xl rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-black/5"
     >
       {NAV_ITEMS.map((item) => {
         const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
