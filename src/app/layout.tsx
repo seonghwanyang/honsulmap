@@ -7,6 +7,7 @@ import ClarityScript from '@/components/analytics/ClarityScript';
 import AdSenseScript from '@/components/ads/AdSenseScript';
 import AddToHomePrompt from '@/components/AddToHomePrompt';
 import PushRegistration from '@/components/PushRegistration';
+import AndroidBackHandler from '@/components/AndroidBackHandler';
 import { jsonLdScript } from '@/lib/utils';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -169,6 +170,7 @@ export default function RootLayout({
         <BottomNav />
         <AddToHomePrompt />
         <PushRegistration />
+        <AndroidBackHandler />
         <ClarityScript />
         <AdSenseScript />
       </body>

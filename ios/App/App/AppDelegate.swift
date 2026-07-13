@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import WebKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -46,4 +47,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 
+}
+
+// iOS 좌측 엣지 스와이프 뒤로가기 활성화 — WKWebView의 네이티브 기능이라
+// 웹/CSS로는 못 켠다. (모달·시트는 웹 useBackClose 훅이 히스토리 연동으로 닫음)
+class MainViewController: CAPBridgeViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        webView?.allowsBackForwardNavigationGestures = true
+    }
 }
