@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Capacitor } from '@capacitor/core';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import { track } from '@/lib/analytics';
+import { useBackClose } from '@/lib/useBackClose';
 
 interface Props {
   open: boolean;
@@ -22,6 +23,8 @@ export default function LoginModal({ open, onClose, reason }: Props) {
     setMounted(true);
     setPlatform(Capacitor.getPlatform() as 'web' | 'ios' | 'android');
   }, []);
+
+  useBackClose(open, onClose);
 
   if (!open || !mounted) return null;
 

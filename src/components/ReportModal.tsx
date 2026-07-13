@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getFingerprint } from '@/lib/utils';
 import { blockNick } from '@/lib/blocklist';
+import { useBackClose } from '@/lib/useBackClose';
 
 interface Props {
   open: boolean;
@@ -37,6 +38,8 @@ export default function ReportModal({ open, onClose, targetType, targetId, autho
       setSubmitting(false);
     }
   }, [open]);
+
+  useBackClose(open, onClose);
 
   if (!open) return null;
 

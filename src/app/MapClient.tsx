@@ -9,6 +9,7 @@ import CategoryFilter, { CategoryFilterValue } from '@/components/CategoryFilter
 import SpotRequestModal from '@/components/SpotRequestModal';
 import WelcomeModal from '@/components/WelcomeModal';
 import LoginModal from '@/components/LoginModal';
+import { useBackClose } from '@/lib/useBackClose';
 import { useUser } from '@/lib/useUser';
 import FavoriteButton from '@/components/FavoriteButton';
 import LikeButton from '@/components/LikeButton';
@@ -401,6 +402,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     flushPanelDwell();
     setSelectedSpot(null);
   }, [flushPanelDwell]);
+
+  // 뒤로가기(iOS 엣지 스와이프 / 안드 백 / 브라우저 back)로 상세 시트 닫기
+  useBackClose(!!selectedSpot, closeSpotPanel);
 
   const handleDragStart = (e: React.TouchEvent) => {
     dragStartYRef.current = e.touches[0].clientY;
