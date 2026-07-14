@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, Suspense } from 'react';
+import { useEffect, useRef, useState, useCallback, Suspense, type CSSProperties } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Script from 'next/script';
@@ -31,6 +31,102 @@ import { isFreeStorySpot, claimFreeStorySpot } from '@/lib/storyGate';
 // One-shot current position as a promise; resolves null on any failure (no
 // permission, timeout, unsupported). maximumAge lets a recent fix (e.g. the
 // on-load request) return instantly so the 다녀왔어요 tap stays snappy.
+// 광고 배너 목록 — 모든 배너는 동일 슬롯 사이즈(1206×190 비율)로 노출.
+// 로테이션 스펙: docs/banner-ads.md — 랜덤 시작, HOLD 정지 후 SLIDE 슬라이드 전환.
+const AD_ROTATE_HOLD_MS = 5000; // 배너 정지 노출 시간 (접근성 가이드 하한 5s, 커머스 앱 3~5s)
+const AD_ROTATE_SLIDE_MS = 400; // 슬라이드 전환 시간 (업계 300~400ms — 짧으면 뚝 끊겨 보임)
+// Material 3 "emphasized decelerate": 최고 속도로 출발해 끝에서 부드럽게 감속.
+// 롤링 배너 표준 체감 — CSS 기본 `ease`는 출발이 느려 짧은 슬라이드에서 굼떠 보인다.
+const AD_ROTATE_EASING = 'cubic-bezier(0.05, 0.7, 0.1, 1)';
+const AD_BANNERS: { ig: string; src: string; alt: string; imgStyle?: CSSProperties }[] = [
+  {
+    ig: 'jimuninsik_jeju',
+    src: '/ads/jimuninsik_banner3.jpg',
+    alt: '지문인식 혼술바 광고',
+    // banner3(1206x843) 실측: '지문인식' 타이틀 y[338..447] + '혼술바' 서브타이틀
+    // y[473..498]. 두 줄 포함 y[320..510] 밴드(높이 190px)로 세로 크롭 —
+    // objectPosition 320/(843-190)=49.0%.
+    imgStyle: { objectPosition: 'center 49%' },
+  },
+  {
+    ig: 'the_editor_jeju',
+    src: '/ads/the_editor_seogwipo.jpg',
+    alt: '서귀포 혼술바 엮은이 광고',
+    // 원본 상하 흰 여백 제거 후 크림 배경 1206×190 캔버스로 재조판한 파일.
+  },
+];
+
+function AdBannerSlot({
+  spots,
+  onOpen,
+}: {
+  spots: SpotWithStories[];
+  onOpen: (spot: SpotWithStories) => void;
+}) {
+  // 캐러셀식 상시 이동이 아니라 "정지 → 짧은 슬라이드" 반복.
+  // 무한 루프용 클론: 트랙 끝에 첫 배너를 붙이고, 클론 도착 시 무전환 점프로 0번 복귀.
+  // SSR/hydration 불일치를 피하려고 첫 렌더는 0번 고정, 마운트 후 랜덤 시작.
+  const [idx, setIdx] = useState(0);
+  const [anim, setAnim] = useState(true);
+  const n = AD_BANNERS.length;
+  useEffect(() => {
+    if (n < 2) return;
+    setIdx(Math.floor(Math.random() * n));
+    const t = setInterval(() => {
+      if (document.hidden) return; // 백그라운드 탭에선 진행 정지 (transitionEnd 유실 방지)
+      setAnim(true);
+      setIdx((i) => (i >= n ? 1 : i + 1)); // transitionEnd 유실 시에도 트랙 밖으로 안 나가게
+    }, AD_ROTATE_HOLD_MS + AD_ROTATE_SLIDE_MS);
+    return () => clearInterval(t);
+  }, [n]);
+  const track = n > 1 ? [...AD_BANNERS, AD_BANNERS[0]] : AD_BANNERS;
+  const current = AD_BANNERS[idx % n];
+  return (
+    <div style={{ padding: '2px 12px 8px', maxWidth: 480, margin: '0 auto' }}>
+      <button
+        type="button"
+        onClick={() => {
+          const spot = spots.find((s) => s.instagram_id === current.ig);
+          if (spot) onOpen(spot);
+        }}
+        aria-label={`${current.alt} — 가게 보기`}
+        style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', overflow: 'hidden', borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            transform: `translateX(-${idx * 100}%)`,
+            transition: anim ? `transform ${AD_ROTATE_SLIDE_MS}ms ${AD_ROTATE_EASING}` : 'none',
+            willChange: 'transform',
+          }}
+          onTransitionEnd={() => {
+            if (idx >= n) {
+              setAnim(false);
+              setIdx(0);
+            }
+          }}
+        >
+          {track.map((ad, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={`${ad.ig}-${i}`}
+              src={ad.src}
+              alt={ad.alt}
+              style={{ width: '100%', flexShrink: 0, aspectRatio: '1206 / 190', objectFit: 'cover', display: 'block', ...ad.imgStyle }}
+            />
+          ))}
+        </div>
+        <span
+          aria-hidden="true"
+          style={{ position: 'absolute', top: 6, right: 8, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, color: 'rgba(255,255,255,0.85)', background: 'rgba(17,24,39,0.55)', borderRadius: 5, padding: '2px 5px' }}
+        >
+          AD
+        </span>
+      </button>
+    </div>
+  );
+}
+
 function getCurrentPositionSafe(): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
@@ -1493,41 +1589,16 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           </div>
         </div>
         <HotSpotCarousel />
-        {/* 광고 배너 — 실시간 근황 아래. 현재 게재: 지문인식 혼술바(제주).
-            탭하면 해당 가게 패널을 연다(우리 지도 안 가게 광고라 내부 이동).
+        {/* 광고 배너 — 실시간 근황 아래. 게재 중: 지문인식(제주) · 엮은이(서귀포) 로테이션.
             maxWidth 480: 지도 세로는 고정인데 폭만 늘면 배너 높이가 계속 커져
             지도를 가리므로, 보기 좋던 480px 뷰포트 시점에서 성장 정지(이후 중앙 정렬). */}
-        <div style={{ padding: '2px 12px 8px', maxWidth: 480, margin: '0 auto' }}>
-          <button
-            type="button"
-            onClick={() => {
-              const ad = spots.find((s) => s.instagram_id === 'jimuninsik_jeju');
-              if (ad) {
-                openSpotPanel(ad, 'map');
-                setSheetOpen(false);
-              }
-            }}
-            aria-label="지문인식 혼술바 광고 — 가게 보기"
-            style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {/* banner3(1206x843) 실측: '지문인식' 타이틀 y[338..447] + '혼술바'
-                서브타이틀 y[473..498]. 두 줄 포함 y[320..510] 밴드(높이 190px)로
-                세로 크롭 — aspectRatio W/190 + objectPosition 320/(843-190)=49.0%. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/ads/jimuninsik_banner3.jpg"
-              alt="지문인식 혼술바 광고"
-              style={{ width: '100%', aspectRatio: '1206 / 190', objectFit: 'cover', objectPosition: 'center 49%', borderRadius: 12, display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
-            />
-            <span
-              aria-hidden="true"
-              style={{ position: 'absolute', top: 6, right: 8, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, color: 'rgba(255,255,255,0.85)', background: 'rgba(17,24,39,0.55)', borderRadius: 5, padding: '2px 5px' }}
-            >
-              AD
-            </span>
-          </button>
-        </div>
+        <AdBannerSlot
+          spots={spots}
+          onOpen={(spot) => {
+            openSpotPanel(spot, 'map');
+            setSheetOpen(false);
+          }}
+        />
       </div>
 
 
