@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, Suspense } from 'react';
+import { useEffect, useRef, useState, useCallback, Suspense, type CSSProperties } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Script from 'next/script';
@@ -31,6 +31,68 @@ import { isFreeStorySpot, claimFreeStorySpot } from '@/lib/storyGate';
 // One-shot current position as a promise; resolves null on any failure (no
 // permission, timeout, unsupported). maximumAge lets a recent fix (e.g. the
 // on-load request) return instantly so the 다녀왔어요 tap stays snappy.
+// 광고 배너 목록 — 마운트 시 랜덤 1개 노출(광고주 간 균등 노출). 탭하면 해당 가게 패널.
+// imgStyle: 포스터형 원본은 CSS 세로 크롭(aspectRatio+objectPosition), 배너형은 원비율.
+const AD_BANNERS: { ig: string; src: string; alt: string; imgStyle: CSSProperties }[] = [
+  {
+    ig: 'jimuninsik_jeju',
+    src: '/ads/jimuninsik_banner3.jpg',
+    alt: '지문인식 혼술바 광고',
+    // banner3(1206x843) 실측: '지문인식' 타이틀 y[338..447] + '혼술바' 서브타이틀
+    // y[473..498]. 두 줄 포함 y[320..510] 밴드(높이 190px)로 세로 크롭 —
+    // aspectRatio W/190 + objectPosition 320/(843-190)=49.0%.
+    imgStyle: { aspectRatio: '1206 / 190', objectPosition: 'center 49%' },
+  },
+  {
+    ig: 'the_editor_jeju',
+    src: '/ads/the_editor_seogwipo.jpg',
+    alt: '서귀포 혼술바 엮은이 광고',
+    // 원본(1206x629)의 상하 흰 여백 149px씩을 잘라낸 1206x331 파일 — 원비율 노출.
+    imgStyle: { aspectRatio: '1206 / 331' },
+  },
+];
+
+function AdBannerSlot({
+  spots,
+  onOpen,
+}: {
+  spots: SpotWithStories[];
+  onOpen: (spot: SpotWithStories) => void;
+}) {
+  // SSR/hydration 불일치를 피하려고 첫 렌더는 0번 고정, 마운트 후 랜덤 선택.
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    setIdx(Math.floor(Math.random() * AD_BANNERS.length));
+  }, []);
+  const ad = AD_BANNERS[idx];
+  return (
+    <div style={{ padding: '2px 12px 8px', maxWidth: 480, margin: '0 auto' }}>
+      <button
+        type="button"
+        onClick={() => {
+          const spot = spots.find((s) => s.instagram_id === ad.ig);
+          if (spot) onOpen(spot);
+        }}
+        aria-label={`${ad.alt} — 가게 보기`}
+        style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={ad.src}
+          alt={ad.alt}
+          style={{ width: '100%', objectFit: 'cover', borderRadius: 12, display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.18)', ...ad.imgStyle }}
+        />
+        <span
+          aria-hidden="true"
+          style={{ position: 'absolute', top: 6, right: 8, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, color: 'rgba(255,255,255,0.85)', background: 'rgba(17,24,39,0.55)', borderRadius: 5, padding: '2px 5px' }}
+        >
+          AD
+        </span>
+      </button>
+    </div>
+  );
+}
+
 function getCurrentPositionSafe(): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
@@ -1493,41 +1555,16 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           </div>
         </div>
         <HotSpotCarousel />
-        {/* 광고 배너 — 실시간 근황 아래. 현재 게재: 지문인식 혼술바(제주).
-            탭하면 해당 가게 패널을 연다(우리 지도 안 가게 광고라 내부 이동).
+        {/* 광고 배너 — 실시간 근황 아래. 게재 중: 지문인식(제주) · 엮은이(서귀포) 로테이션.
             maxWidth 480: 지도 세로는 고정인데 폭만 늘면 배너 높이가 계속 커져
             지도를 가리므로, 보기 좋던 480px 뷰포트 시점에서 성장 정지(이후 중앙 정렬). */}
-        <div style={{ padding: '2px 12px 8px', maxWidth: 480, margin: '0 auto' }}>
-          <button
-            type="button"
-            onClick={() => {
-              const ad = spots.find((s) => s.instagram_id === 'jimuninsik_jeju');
-              if (ad) {
-                openSpotPanel(ad, 'map');
-                setSheetOpen(false);
-              }
-            }}
-            aria-label="지문인식 혼술바 광고 — 가게 보기"
-            style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {/* banner3(1206x843) 실측: '지문인식' 타이틀 y[338..447] + '혼술바'
-                서브타이틀 y[473..498]. 두 줄 포함 y[320..510] 밴드(높이 190px)로
-                세로 크롭 — aspectRatio W/190 + objectPosition 320/(843-190)=49.0%. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/ads/jimuninsik_banner3.jpg"
-              alt="지문인식 혼술바 광고"
-              style={{ width: '100%', aspectRatio: '1206 / 190', objectFit: 'cover', objectPosition: 'center 49%', borderRadius: 12, display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
-            />
-            <span
-              aria-hidden="true"
-              style={{ position: 'absolute', top: 6, right: 8, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, color: 'rgba(255,255,255,0.85)', background: 'rgba(17,24,39,0.55)', borderRadius: 5, padding: '2px 5px' }}
-            >
-              AD
-            </span>
-          </button>
-        </div>
+        <AdBannerSlot
+          spots={spots}
+          onOpen={(spot) => {
+            openSpotPanel(spot, 'map');
+            setSheetOpen(false);
+          }}
+        />
       </div>
 
 
