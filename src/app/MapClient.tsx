@@ -34,7 +34,10 @@ import { isFreeStorySpot, claimFreeStorySpot } from '@/lib/storyGate';
 // 광고 배너 목록 — 모든 배너는 동일 슬롯 사이즈(1206×190 비율)로 노출.
 // 로테이션 스펙: docs/banner-ads.md — 랜덤 시작, HOLD 정지 후 SLIDE 슬라이드 전환.
 const AD_ROTATE_HOLD_MS = 4000; // 배너 정지 노출 시간
-const AD_ROTATE_SLIDE_MS = 250; // 슬라이드 전환 시간 (0.1s는 뚝 끊겨 보여 모바일 표준 250ms)
+const AD_ROTATE_SLIDE_MS = 400; // 슬라이드 전환 시간 (업계 300~400ms — 짧으면 뚝 끊겨 보임)
+// Material 3 "emphasized decelerate": 최고 속도로 출발해 끝에서 부드럽게 감속.
+// 롤링 배너 표준 체감 — CSS 기본 `ease`는 출발이 느려 짧은 슬라이드에서 굼떠 보인다.
+const AD_ROTATE_EASING = 'cubic-bezier(0.05, 0.7, 0.1, 1)';
 const AD_BANNERS: { ig: string; src: string; alt: string; imgStyle?: CSSProperties }[] = [
   {
     ig: 'jimuninsik_jeju',
@@ -70,8 +73,9 @@ function AdBannerSlot({
     if (n < 2) return;
     setIdx(Math.floor(Math.random() * n));
     const t = setInterval(() => {
+      if (document.hidden) return; // 백그라운드 탭에선 진행 정지 (transitionEnd 유실 방지)
       setAnim(true);
-      setIdx((i) => i + 1);
+      setIdx((i) => (i >= n ? 1 : i + 1)); // transitionEnd 유실 시에도 트랙 밖으로 안 나가게
     }, AD_ROTATE_HOLD_MS + AD_ROTATE_SLIDE_MS);
     return () => clearInterval(t);
   }, [n]);
@@ -92,7 +96,8 @@ function AdBannerSlot({
           style={{
             display: 'flex',
             transform: `translateX(-${idx * 100}%)`,
-            transition: anim ? `transform ${AD_ROTATE_SLIDE_MS}ms ease` : 'none',
+            transition: anim ? `transform ${AD_ROTATE_SLIDE_MS}ms ${AD_ROTATE_EASING}` : 'none',
+            willChange: 'transform',
           }}
           onTransitionEnd={() => {
             if (idx >= n) {
