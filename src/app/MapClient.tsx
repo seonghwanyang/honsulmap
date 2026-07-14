@@ -33,7 +33,7 @@ import { isFreeStorySpot, claimFreeStorySpot } from '@/lib/storyGate';
 // on-load request) return instantly so the 다녀왔어요 tap stays snappy.
 // 광고 배너 목록 — 모든 배너는 동일 슬롯 사이즈(1206×190 비율)로 노출.
 // 로테이션 스펙: docs/banner-ads.md — 랜덤 시작, HOLD 정지 후 SLIDE 슬라이드 전환.
-const AD_ROTATE_HOLD_MS = 4000; // 배너 정지 노출 시간
+const AD_ROTATE_HOLD_MS = 5000; // 배너 정지 노출 시간 (접근성 가이드 하한 5s, 커머스 앱 3~5s)
 const AD_ROTATE_SLIDE_MS = 400; // 슬라이드 전환 시간 (업계 300~400ms — 짧으면 뚝 끊겨 보임)
 // Material 3 "emphasized decelerate": 최고 속도로 출발해 끝에서 부드럽게 감속.
 // 롤링 배너 표준 체감 — CSS 기본 `ease`는 출발이 느려 짧은 슬라이드에서 굼떠 보인다.
