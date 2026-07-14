@@ -268,7 +268,10 @@ CREATE POLICY "mood_votes_delete_anon"
 -- CONTRIBUTION RANKINGS VIEW
 -- ============================================================
 
-CREATE OR REPLACE VIEW contribution_rankings AS
+-- security_invoker: 뷰가 조회자(anon) 권한으로 실행 — Supabase advisor
+-- "Security Definer View" 경고 해결 (anon은 posts를 직접 읽을 수 있어 결과 동일).
+CREATE OR REPLACE VIEW contribution_rankings
+WITH (security_invoker = on) AS
 SELECT
   p.nickname,
   COUNT(*)                                          AS post_count,
