@@ -32,7 +32,9 @@ import { isFreeStorySpot, claimFreeStorySpot } from '@/lib/storyGate';
 // permission, timeout, unsupported). maximumAge lets a recent fix (e.g. the
 // on-load request) return instantly so the 다녀왔어요 tap stays snappy.
 // 광고 배너 목록 — 모든 배너는 동일 슬롯 사이즈(1206×190 비율)로 노출.
-// 랜덤 순서로 시작해 10초마다 순환(로테이션) — 광고주 간 노출 균등.
+// 로테이션 스펙: docs/banner-ads.md — 랜덤 시작, HOLD 정지 후 SLIDE 슬라이드 전환.
+const AD_ROTATE_HOLD_MS = 4000; // 배너 정지 노출 시간
+const AD_ROTATE_SLIDE_MS = 250; // 슬라이드 전환 시간 (0.1s는 뚝 끊겨 보여 모바일 표준 250ms)
 const AD_BANNERS: { ig: string; src: string; alt: string; imgStyle?: CSSProperties }[] = [
   {
     ig: 'jimuninsik_jeju',
@@ -58,31 +60,57 @@ function AdBannerSlot({
   spots: SpotWithStories[];
   onOpen: (spot: SpotWithStories) => void;
 }) {
-  // SSR/hydration 불일치를 피하려고 첫 렌더는 0번 고정, 마운트 후 랜덤 시작 + 10초 순환.
+  // 캐러셀식 상시 이동이 아니라 "정지 → 짧은 슬라이드" 반복.
+  // 무한 루프용 클론: 트랙 끝에 첫 배너를 붙이고, 클론 도착 시 무전환 점프로 0번 복귀.
+  // SSR/hydration 불일치를 피하려고 첫 렌더는 0번 고정, 마운트 후 랜덤 시작.
   const [idx, setIdx] = useState(0);
+  const [anim, setAnim] = useState(true);
+  const n = AD_BANNERS.length;
   useEffect(() => {
-    setIdx(Math.floor(Math.random() * AD_BANNERS.length));
-    const t = setInterval(() => setIdx((i) => (i + 1) % AD_BANNERS.length), 10000);
+    if (n < 2) return;
+    setIdx(Math.floor(Math.random() * n));
+    const t = setInterval(() => {
+      setAnim(true);
+      setIdx((i) => i + 1);
+    }, AD_ROTATE_HOLD_MS + AD_ROTATE_SLIDE_MS);
     return () => clearInterval(t);
-  }, []);
-  const ad = AD_BANNERS[idx];
+  }, [n]);
+  const track = n > 1 ? [...AD_BANNERS, AD_BANNERS[0]] : AD_BANNERS;
+  const current = AD_BANNERS[idx % n];
   return (
     <div style={{ padding: '2px 12px 8px', maxWidth: 480, margin: '0 auto' }}>
       <button
         type="button"
         onClick={() => {
-          const spot = spots.find((s) => s.instagram_id === ad.ig);
+          const spot = spots.find((s) => s.instagram_id === current.ig);
           if (spot) onOpen(spot);
         }}
-        aria-label={`${ad.alt} — 가게 보기`}
-        style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+        aria-label={`${current.alt} — 가게 보기`}
+        style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', overflow: 'hidden', borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={ad.src}
-          alt={ad.alt}
-          style={{ width: '100%', aspectRatio: '1206 / 190', objectFit: 'cover', borderRadius: 12, display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.18)', ...ad.imgStyle }}
-        />
+        <div
+          style={{
+            display: 'flex',
+            transform: `translateX(-${idx * 100}%)`,
+            transition: anim ? `transform ${AD_ROTATE_SLIDE_MS}ms ease` : 'none',
+          }}
+          onTransitionEnd={() => {
+            if (idx >= n) {
+              setAnim(false);
+              setIdx(0);
+            }
+          }}
+        >
+          {track.map((ad, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={`${ad.ig}-${i}`}
+              src={ad.src}
+              alt={ad.alt}
+              style={{ width: '100%', flexShrink: 0, aspectRatio: '1206 / 190', objectFit: 'cover', display: 'block', ...ad.imgStyle }}
+            />
+          ))}
+        </div>
         <span
           aria-hidden="true"
           style={{ position: 'absolute', top: 6, right: 8, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, color: 'rgba(255,255,255,0.85)', background: 'rgba(17,24,39,0.55)', borderRadius: 5, padding: '2px 5px' }}
