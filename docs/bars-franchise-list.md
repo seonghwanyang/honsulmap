@@ -1,24 +1,25 @@
 # 혼술바 프랜차이즈 / 단독 가게 목록
 
-**기준일:** 2026-07-14 · **총 혼술바 197곳** = 체인 21개 브랜드 123지점 + 단독 74곳
-(2호점 이상 = 프랜차이즈로 간주 · 헤르츠 중복 의심 1행 포함 · 지역코드 SQL 실행 후 11곳 추가 등록 대기 → **208곳**)
+**기준일:** 2026-07-15 · **총 혼술바 211곳** = 체인 22개 브랜드 139지점 + 단독 72곳
+(2호점 이상 = 프랜차이즈로 간주 · 지역코드 11종 반영·등록 대기분 전부 등록·헤르츠 중복 제거 완료)
 
 > 7/8 문서 대비: 제주 34곳 제거, 신규 44곳 등록(제주아홉 17 · 제주연 4 포함), IG 핸들 교정·오등록 수정 다수 — 하단 [변경 이력](#변경-이력-78--711) 참고.
 
 ---
 
-## 🏢 프랜차이즈 (21개 브랜드 · 123지점, SQL 후 134지점)
+## 🏢 프랜차이즈 (22개 브랜드 · 139지점)
 
 | 브랜드 | 지점 수 | 커버 지역 | 본사/대표 IG |
 |---|---|---|---|
-| **제주아홉** | **41 (+8 대기)** | 서울 17 · 경기 12 · 인천 2 · 부산 2 · 대구·대전·광주·전주·청주 2 · 제주 2 | @9_jeju (금능 본점) |
-| **야화** | **22 (+2 대기)** | 서울 13 · 경기 8+2 (수원 3·동탄·모란·오산·양주·의정부 + 구리·다산 대기) · 전주 | @yahwa.bar_official (논현) |
+| **제주아홉** | **49** | 서울 17 · 경기 18 · 인천 4 · 부산 2 · 대구·대전·광주·전주·청주 2 · 제주 2 | @9_jeju (금능 본점) |
+| **야화** | **24** | 서울 13 · 경기 10 (수원 3·동탄·모란·오산·양주·의정부·구리·다산) · 전주 | @yahwa.bar_official (논현) |
 | **블렌딩바** | **7** | 망원 · 연남 · 광안리 · 서면 · 대구 · 대전 봉명 · 전주 | @blending_bar (망원) |
 | **고도** | **6** | 마곡나루 · 연남 · 이태원 · 잠실 · 부천 · 서귀포 | @godo_jeju |
 | **곁 (제주곁)** | **4** | 제주 탑동 · 홍대 · 상봉 · 부산 광안리 | @gyut_jeju (탑동) |
 | **자작 (제주)** | **4** | 연동 본점·2호 · 이자카야 3호 · 탑동 4호 | @jeju_jajac (본점) |
 | **자유의지** | **4** | 제주본점 · 서귀포 · 부산 광안리 · 부산 전포 | @freewill.1_jeju |
-| **제주연** | **4 (+1 대기)** | 신림 · 천호 · 수유 · 잠실 · 구리(대기) — 신규 발견 프차 | @jeju_ye0n_sillim |
+| **제주연** | **5** | 신림 · 천호 · 수유 · 잠실 · 구리 — 신규 발견 프차 | @jeju_ye0n_sillim |
+| **헤르츠** | **5** | 광주 상무 · 부평 · 구월 · 의정부 · 평택역 — 단독→프차 승격 | @hertzbar_official (구월) |
 | **미열** | 3 | 영등포 · 을지로 · 잠실새내 | @miyeol_euljiro |
 | **내잔** | 3 | 신림 · 성수 · 망원 | @naejan_sillim |
 | **도란** | 3 | 구디 · 홍대 · 잠실 | @doran_gurodigital |
@@ -35,19 +36,18 @@
 
 ### 지점 상세
 
-**제주아홉 (41 등록 + 8 대기 = 49지점)**
-서울 17: 강남 @9_jeju33 · 구로디지털단지 @9_jeju15 · 노원 @9_jeju37 · 마곡나루 @9_jeju12 · 문래 @9_jeju26 (교정) · 사당 @9_jeju24 · 상봉 @9_jeju65 · 성수 @9_jeju5 · 성신여대 @9_jeju28_ (교정) · 신림 @9_jeju8 · 신촌 (IG 미확인) · 연신내 @9_jeju22 · 을지로 @9_jeju10 · 이태원 @9_jeju30 · 잠실 @9_jeju20 · 천호 @junseok2ok (신규 확인) · 홍대 @9_jeju4
-경기 12: 일산라페스타 @9_jeju14 · 부천 신중동 @9_jeju21 · 수원 망포 @9_jeju40 · 수원 인계 @9_jeju19 · 수원역 @9__jeju44 · 동탄북광장 @9_jeju36 · 동탄역 @9_jeju59 · 성남모란 @9_jeju25 · 안산중앙 @9__jeju38 · 안양일번가 @9_jeju68 · 안양 범계 @9__jeju39 · 의정부 @9_jeju53
-인천 2: 구월 @9.jeju13 · 부평 @9_jeju23
+**제주아홉 (49)**
+서울 17: 강남 @9_jeju33 · 구로디지털단지 @9_jeju15 · 노원 @9_jeju37 · 마곡나루 @9_jeju12 · 문래 @9_jeju26 (교정) · 사당 @9_jeju24 · 상봉 @9_jeju65 · 성수 @9_jeju5 · 성신여대 @9_jeju28_ (교정) · 신림 @9_jeju8 · 신촌 @9_jeju41 · 연신내 @9_jeju22 · 을지로 @9_jeju10 · 이태원 @9_jeju30 · 잠실 @9_jeju20 · 천호 @junseok2ok · 홍대 @9_jeju4
+경기 18: 일산라페스타 @9_jeju14 · 부천 신중동 @9_jeju21 · 수원 망포 @9_jeju40 · 수원 인계 @9_jeju19 · 수원역 @9__jeju44 · 동탄북광장 @9_jeju36 · 동탄역 @9_jeju59 · 성남모란 @9_jeju25 · 안산중앙 @9__jeju38 · 안양일번가 @9_jeju68 · 안양 범계 @9__jeju39 · 의정부 @9_jeju53 · 평택역 @9_jeju42 · 평택소사벌 @9_jeju62 · 용인 보정 @9_jeju32 · 하남미사 @9___jeju51 · 김포구래 @9_jeju67 · 파주야당 @9_jeju70
+인천 4: 구월 @9.jeju13 · 부평 @9_jeju23 · 송도 @9.jeju50 · 검단 아라역 @9_jeju71
 부산 2: 광안리 @9_jeju6 · 전포 @9_jeju16
 지방 6: 대구 @9_jeju11 · 대전 @9_jeju7 · 광주 동명 @9_jeju29 · 청주 @9_jeju3 · 청주 지웰시티 @9_jeju52 · 전주 @9_jeju27
 제주 2: 서귀포 올레시장 @9_jeju2 · 금능 본점(협재) @9_jeju
-**등록 대기 8 (지역코드 SQL 실행 후)**: 평택역 @9_jeju42 · 평택소사벌 @9_jeju62 · 용인 보정 @9_jeju32 · 하남미사 @9___jeju51 · 김포구래 (IG 미확인) · 파주야당 @9_jeju70 · 인천송도 @9.jeju50 · 인천검단 아라역 @9_jeju71
 
 **야화 (22)** — 서울 13: 강남 @yahwa.bar_gangnamstation · 건대 @yahwa.bar_kondae · 구로 @yahwa.bar_gurodigital · 노원 @yahwa.bar_nowon__ · 논현(본점) @yahwa.bar_official · 마곡발산 @yahwa.bar_balsan · 사당이수 @yahwa.bar_sadang · 서울대입구역 @yahwa.bar_seoul.staff · 신림 @yahwa.bar_sillim · 을지로 @yahwa.bar_euljiro · 이태원 @yahwa.bar_itaewon · 잠실 @yahwa.bar_jamsilsaenae · 합정 @yahwa.bar_hongdae
 경기 8: 동탄 @yahwa.bar_dongtanstation · 성남모란 @yahwa.bar_moran · 수원역1호 @yahwa.bar_suwon · 수원역2호 @yahwa.bar_suwon2 · 수원인계 @yahwa.bar_ingye · 오산 @yahwa.bar_osan · 양주옥정 @yahwa.bar_yj · 의정부 @yahwa.bar_uijeongbu
+경기 +2: 구리수택 @yahwa.bar_guri · 다산신도시 @yahwabar_dasan (⚠️ 점 없는 변형 핸들)
 지방 1: 전주 웨리단길 @yahwa.bar_jeonju
-**등록 대기 2 (지역코드 SQL 후)**: 구리수택 @yahwa.bar_guri (형 제보 → 전용 계정 실존 확인) · 다산신도시 (IG 미확인 — 플레이스는 본사 계정만 링크)
 
 **블렌딩바 (7)**: 망원 @blending_bar · 연남 @blending_bar_yeonnam · 광안리 @blending_bar_gwanganri · 서면 @blending_bar_seomyeon · 대구 @blending_bar_daegu · 대전 봉명 @blending_bar_bongmyeong · 전주 @blending_bar_jeonju
 
@@ -59,7 +59,9 @@
 
 **자유의지 (4)**: 제주본점 @freewill.1_jeju · 서귀포 @freewill.2_jeju · 부산광안리 @freewill.3_gwanganri · 부산전포 @freewill.4_jeonpo
 
-**제주연 (4 + 구리 대기)**: 신림 @jeju_ye0n_sillim · 천호 @jeju_ye0n_chunho · 수유 @jeju_ye0n_suyu · 잠실 @jeju_ye0n_jamsil · 구리(대기) @jeju_ye0n_guri
+**제주연 (5)**: 신림 @jeju_ye0n_sillim · 천호 @jeju_ye0n_chunho · 수유 @jeju_ye0n_suyu · 잠실 @jeju_ye0n_jamsil · 구리 @jeju_ye0n_guri
+
+**헤르츠 (5)**: 광주상무 @hertzbar_gwangju · 부평 @hertzbar_bupyeong · 구월 @hertzbar_official · 의정부 @hertzbar_uijeongbu · 평택역 @hertzbar_pyeongtaek
 
 **미열 (3)**: 영등포 @miyeol_ydp · 을지로 @miyeol_euljiro · 잠실새내 @miyeol_jamsilsaenae
 **내잔 (3)**: 신림 @naejan_sillim · 성수 @naejan_seongsu · 망원 @naejan_mangwon
@@ -77,7 +79,7 @@
 
 ---
 
-## 🍶 단독 가게 (74곳)
+## 🍶 단독 가게 (73곳)
 
 ### 서울 (29)
 | 가게 | 지역 | IG |
@@ -129,8 +131,8 @@
 ### 경기·인천 (4)
 이리(안산) @iri_ansan · 흔들(부천) @heundle.bar · 수원 혼술남녀 @hon.sley · 다수결(부평) @majority_rule_
 
-### 그 외 지방 (4)
-심심미학(광주) @simsimmihak · 헤르츠(광주 상무) @hertzbar_gwangju ⚠️중복 2행 · 자유의견_Bar(청주) @free_cocktails
+### 그 외 지방 (2)
+심심미학(광주) @simsimmihak · 자유의견_Bar(청주) @free_cocktails
 
 ---
 
@@ -147,14 +149,16 @@
 
 ## 미해결 (보류 중)
 
-- **11곳 등록 대기**: `2026-07-13_more_regions.sql` 실행 → `npx tsx scripts/_apply_9jeju_pending.ts` (제주아홉 8 + 야화 구리/다산 + 제주연 구리, 야화 오산/양주 region 수정 + 구리 제보 2건 approved 처리 포함)
-- **야화 다산신도시점 IG**: 미확인 (yahwa.bar_dasan 등 후보 dead, 플레이스는 본사 계정만) — IG 없이 등록 예정
-- **제주아홉 신촌점·김포구래점**: 네이버 플레이스에 IG 링크 없음 — 핸들 미확인
-- **제주아홉 번호 관측 최대 @9_jeju71**: 미발견·오픈예정 지점이 더 있을 수 있음 (다음 스윕 때 재확인)
-- **홀로 구디점** @holo_bar_gudi: 플레이스에 링크는 있으나 IG 접속 불가(폐쇄/개명 추정) → 미등록
-- **도란 잠실점 좌표**: 네이버 지도 미등록 신규 매장 → 방이동 근사 좌표 (IG 태깅: 잠실·방이·석촌)
-- **헤르츠 중복**: `hertz-gwangju`(city=gwangju)와 `hertzbar-gwangju`(city=jeju) 같은 가게 2행 — **하나 삭제 필요 (형 컨펌 대기)**
+- **도란 잠실점 좌표**: 네이버 지도 미등록 (형 교차확인 완료) → 방이동 근사 좌표 유지, 스토리 위치태그/네이버 등록 시 정밀화
 - **날걷**: IG 타이틀이 "날걷 제주본점" — 다른 지점 존재 가능성 (추후 확인)
+- **인스타 검색 전수 재스윕**: 비로그인으론 IG 검색 API가 막혀 있어 "이름 치면 나오는" 검색을 못 함 → 못 찾는(false negative) 구멍 존재. 로그인 세션으로 전 브랜드 전수 크로스체크 예정 (별도 세션 인계)
+- **헤르츠 제주애월점**: 네이버 플레이스가 @sigonggan.jeju(기등록 시공간)를 링크 — 같은 가게 개명인지 확인 필요
+
+### 종결
+- ~~헤르츠 중복~~ → `hertzbar-gwangju`(city=jeju 오류 행) 삭제 완료 (딸린 스토리 114건 정리, 본체 행 유지)
+- ~~신촌·김포구래·다산 IG~~ → 형 제보로 확정: @9_jeju41 · @9_jeju67 · @yahwabar_dasan (전건 og:title 검증 후 반영)
+- ~~홀로 구디점~~ → IG 계정 사망 확정 (형 교차확인) — 미등록 유지
+- ~~제주아홉 추가 지점~~ → 네이버 등록 지점은 전수 커버 완료. 계정 번호 갭(최대 71)은 폐점·오픈준비·개인계정 전환분
 
 ## 참고 메모
 
@@ -163,4 +167,4 @@
 
 ## DM 캠페인 관점 한 줄
 
-체인 21곳 본사만 뚫으면 **123지점(전체의 62%)** 커버 (SQL 후 134지점/64%). 우선순위: 제주아홉(49) > 야화(24) > 블렌딩바(7) > 고도(6) > 제주연(5) > 곁·자작·자유의지(각 4).
+체인 22곳 본사만 뚫으면 **139지점(전체의 66%)** 커버. 우선순위: 제주아홉(49) > 야화(24) > 블렌딩바(7) > 고도(6) > 제주연·헤르츠(각 5) > 곁·자작·자유의지(각 4).
