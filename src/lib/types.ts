@@ -33,6 +33,7 @@ export type Region =
   | 'gyeonggi_hwaseong' | 'gyeonggi_seongnam' | 'gyeonggi_uijeongbu'
   | 'gyeonggi_pyeongtaek' | 'gyeonggi_yongin' | 'gyeonggi_hanam' | 'gyeonggi_gimpo'
   | 'gyeonggi_paju' | 'gyeonggi_osan' | 'gyeonggi_yangju' | 'gyeonggi_guri' | 'gyeonggi_namyangju'
+  | 'gyeonggi_siheung' | 'gyeonggi_gwangju'
   | 'chungbuk_cheongju' | 'jeonbuk_jeonju';
 export type PostCategory = 'status' | 'review' | 'tip' | 'free';
 export type MediaType = 'image' | 'video';
@@ -281,6 +282,8 @@ export const REGIONS: { value: Region | 'all'; label: string; city?: City }[] = 
   { value: 'gyeonggi_yangju', label: '양주', city: 'gyeonggi' },
   { value: 'gyeonggi_guri', label: '구리', city: 'gyeonggi' },
   { value: 'gyeonggi_namyangju', label: '남양주/다산', city: 'gyeonggi' },
+  { value: 'gyeonggi_siheung', label: '시흥/배곧', city: 'gyeonggi' },
+  { value: 'gyeonggi_gwangju', label: '경기광주', city: 'gyeonggi' },
   // Chungbuk / Jeonbuk
   { value: 'chungbuk_cheongju', label: '청주', city: 'chungbuk' },
   { value: 'jeonbuk_jeonju', label: '전주', city: 'jeonbuk' },
@@ -326,6 +329,7 @@ export const VALID_REGIONS = [
   'gyeonggi_hwaseong', 'gyeonggi_seongnam', 'gyeonggi_uijeongbu',
   'gyeonggi_pyeongtaek', 'gyeonggi_yongin', 'gyeonggi_hanam', 'gyeonggi_gimpo',
   'gyeonggi_paju', 'gyeonggi_osan', 'gyeonggi_yangju', 'gyeonggi_guri', 'gyeonggi_namyangju',
+  'gyeonggi_siheung', 'gyeonggi_gwangju',
   'chungbuk_cheongju', 'jeonbuk_jeonju',
 ] as const satisfies readonly Region[];
 
