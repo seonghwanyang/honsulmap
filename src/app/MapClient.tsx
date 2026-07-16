@@ -164,6 +164,7 @@ interface NaverMap {
   setCenter(latlng: NaverLatLng): void;
   panTo(latlng: NaverLatLng): void;
   getZoom(): number;
+  getSize(): { width: number; height: number };
   setZoom(zoom: number, animate?: boolean): void;
   morph(latlng: NaverLatLng, zoom: number, transitionOptions?: object): void;
   getBounds(): NaverBounds;
@@ -501,6 +502,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
 
   // 뒤로가기(iOS 엣지 스와이프 / 안드 백 / 브라우저 back)로 상세 시트 닫기
   useBackClose(!!selectedSpot, closeSpotPanel);
+
+  // 마커를 눌러 시트가 열리면 항상 최상단부터 — 가게명·상세·인스타·네이버 링크가
+  // 먼저 보이게. (스토리 비동기 로드 후 scroll-snap이 스토리로 당기는 것도 방지)
+  useEffect(() => {
+    if (selectedSpot && sheetScrollRef.current) sheetScrollRef.current.scrollTop = 0;
+  }, [selectedSpot?.id]);
 
   const handleDragStart = (e: React.TouchEvent) => {
     dragStartYRef.current = e.touches[0].clientY;
@@ -1089,7 +1096,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       return `${svgOpen}<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
     };
 
-    const renderSpotMarker = (spot: SpotWithStories) => {
+    const renderSpotMarker = (spot: SpotWithStories, showLabel = false) => {
       const freshness = getFreshness(spot);
       const hasStory = freshness !== 'none';
       const isFresh = freshness === 'fresh';
@@ -1116,6 +1123,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
         : 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))';
       const name = esc(spot.name);
+      // Persistent name label to the right of the pin (Kakao-style), shown
+      // only when the zoom-tiered collision pass (below) selected this spot.
+      // White halo via text-shadow keeps it legible over the map, no bg box.
+      const rightLabel = showLabel
+        ? `<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:600;color:#111827;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff;pointer-events:none;">${name}</span>`
+        : '';
       // Purple story dot — fresh only. Stale spots had a story but it's
       // outside the 24h activity window, so we drop the dot/tipBadge to
       // signal "not active now".
@@ -1145,7 +1158,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             ${name}${tipBadge}
           </div>
           <div style="position:relative;width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};display:flex;align-items:center;justify-content:center;">
-            ${glassIcon}${storyDot}${benefitMark}
+            ${glassIcon}${storyDot}${benefitMark}${rightLabel}
           </div>
           <div style="width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${tailColor};margin-top:-1px;"></div>
         </div>
@@ -1185,8 +1198,48 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       : filteredSpots;
 
     if (currentZoom >= CLUSTER_ZOOM) {
+      // Name-label decluttering: all markers render, but only non-overlapping
+      // labels show, chosen by priority. Zoom tiers widen eligibility as you
+      // zoom in (12: 혜택+fresh · 13: +stale · 14+: 전체). Collision then thins
+      // within the eligible set so the highest-priority names survive.
+      const labelSet = new Set<string>();
+      const size = mapInstanceRef.current.getSize();
+      if (viewBounds && size.width && size.height) {
+        const { minLat, maxLat, minLng, maxLng } = viewBounds;
+        const dLng = maxLng - minLng || 1e-9;
+        const dLat = maxLat - minLat || 1e-9;
+        const W = size.width, H = size.height, cx = W / 2, cy = H / 2;
+        const maxRank = currentZoom >= 14 ? 3 : currentZoom >= 13 ? 2 : 1;
+        const rankOf = (s: SpotWithStories) => {
+          const benefit = !!(s.benefit_active && s.benefit_title &&
+            (!s.benefit_expires_at || new Date(s.benefit_expires_at) > new Date()));
+          if (benefit) return 0;
+          const f = getFreshness(s);
+          return f === 'fresh' ? 1 : f === 'stale' ? 2 : 3;
+        };
+        type Box = { x0: number; y0: number; x1: number; y1: number };
+        const boxes: Box[] = [];
+        const hit = (a: Box, b: Box) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+        visibleSpots
+          .map((s) => ({
+            s,
+            x: ((s.lng - minLng) / dLng) * W,
+            y: ((maxLat - s.lat) / dLat) * H,
+            rank: rankOf(s),
+          }))
+          .filter((c) => c.rank <= maxRank && c.x > -40 && c.x < W + 40 && c.y > -40 && c.y < H + 40)
+          .sort((a, b) => a.rank - b.rank ||
+            (Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy)))
+          .forEach((c) => {
+            const w = Math.min(c.s.name.length, 12) * 11 + 8;
+            const box: Box = { x0: c.x + 16, y0: c.y - 28, x1: c.x + 16 + w, y1: c.y - 8 };
+            if (boxes.some((o) => hit(o, box))) return;
+            boxes.push(box);
+            labelSet.add(c.s.id);
+          });
+      }
       visibleSpots.forEach((spot) => {
-        overlaysRef.current.push(renderSpotMarker(spot));
+        overlaysRef.current.push(renderSpotMarker(spot, labelSet.has(spot.id)));
       });
     } else {
       const clusters = clusterByGrid(visibleSpots, currentZoom);
@@ -1831,9 +1884,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               onTouchEnd={handleDragEnd}
             >
             {/* Spot Info */}
+            {/* scrollSnapAlign: 시트 최상단(가게명·상세·인스타·네이버)을 스냅 지점으로
+                만들어, 열 때 proximity 스냅이 큰 스토리 카드로 당겨 내려가지 않게 한다. */}
             <div
               className="px-4 pt-1 pb-3"
-              style={{ borderBottom: '1px solid #f3f4f6' }}
+              style={{ borderBottom: '1px solid #f3f4f6', scrollSnapAlign: 'start' }}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
