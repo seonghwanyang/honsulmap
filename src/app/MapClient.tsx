@@ -1869,13 +1869,13 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           <>
             {/* Drag handle — touch target for swipe-down-to-dismiss */}
             <div
-              className="flex justify-center pt-2 pb-1"
+              className="flex justify-center pt-2.5 pb-2"
               style={{ cursor: 'grab', touchAction: 'none' }}
               onTouchStart={handleDragStart}
               onTouchMove={handleDragMove}
               onTouchEnd={handleDragEnd}
             >
-              <div style={{ width: '36px', height: '4px', background: '#d1d5db', borderRadius: '2px' }} />
+              <div style={{ width: '44px', height: '5px', background: '#9ca3af', borderRadius: '3px' }} />
             </div>
 
             {/* 시트 본문 전체가 하나의 스크롤 컨테이너 — 헤더부터 스토리·후기까지 함께
