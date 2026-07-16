@@ -226,7 +226,6 @@ function StorySkeleton() {
         height: STORY_SLOT_HEIGHT,
         borderRadius: '14px',
         background: '#e5e7eb',
-        scrollSnapAlign: 'start',
       }}
     >
       <div
@@ -284,7 +283,7 @@ function MapSheetStory({
     <div
       ref={ref}
       className="relative w-full"
-      style={{ height: STORY_SLOT_HEIGHT, borderRadius: '14px', overflow: 'hidden', background: '#000', scrollSnapAlign: 'start' }}
+      style={{ height: STORY_SLOT_HEIGHT, borderRadius: '14px', overflow: 'hidden', background: '#000' }}
     >
       {story.media_type === 'video' ? (
         <video
@@ -504,7 +503,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   useBackClose(!!selectedSpot, closeSpotPanel);
 
   // 마커를 눌러 시트가 열리면 항상 최상단부터 — 가게명·상세·인스타·네이버 링크가
-  // 먼저 보이게. (스토리 비동기 로드 후 scroll-snap이 스토리로 당기는 것도 방지)
+  // 먼저 보이게 (이전 가게의 스크롤 위치가 남지 않도록 리셋).
   useEffect(() => {
     if (selectedSpot && sheetScrollRef.current) sheetScrollRef.current.scrollTop = 0;
   }, [selectedSpot?.id]);
@@ -1851,7 +1850,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         className="absolute left-0 right-0 z-[25] overflow-hidden"
         style={{
           bottom: 0,
-          height: '92dvh',
+          // 앱/PWA(viewport-fit=cover)는 상태바 밑까지 렌더되므로 시트 상단(핸들)이
+          // 상태바에 물리지 않게 safe-area-inset-top 만큼 최대 높이를 줄인다. 웹은 0이라 무변화.
+          height: 'min(92dvh, calc(100dvh - env(safe-area-inset-top) - 8px))',
           background: '#ffffff',
           borderRadius: '16px 16px 0 0',
           transform: selectedSpot
@@ -1883,17 +1884,15 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             <div
               ref={sheetScrollRef}
               className="overflow-y-auto"
-              style={{ flex: '1 1 0%', minHeight: 0, scrollSnapType: 'y proximity', scrollBehavior: 'smooth', overscrollBehavior: 'contain' }}
+              style={{ flex: '1 1 0%', minHeight: 0, scrollBehavior: 'smooth', overscrollBehavior: 'contain' }}
               onTouchStart={handleSheetTouchStart}
               onTouchMove={handleSheetTouchMove}
               onTouchEnd={handleDragEnd}
             >
             {/* Spot Info */}
-            {/* scrollSnapAlign: 시트 최상단(가게명·상세·인스타·네이버)을 스냅 지점으로
-                만들어, 열 때 proximity 스냅이 큰 스토리 카드로 당겨 내려가지 않게 한다. */}
             <div
               className="px-4 pt-1 pb-3"
-              style={{ borderBottom: '1px solid #f3f4f6', scrollSnapAlign: 'start' }}
+              style={{ borderBottom: '1px solid #f3f4f6' }}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
