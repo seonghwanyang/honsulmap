@@ -1,7 +1,16 @@
--- 지역코드 2개 추가: 시흥/배곧(gyeonggi_siheung) · 경기광주(gyeonggi_gwangju)
--- 야화 배곧점·경기광주점 등록용 (src/lib/types.ts와 동기).
--- spots / spot_requests 두 CHECK를 전체 목록으로 재생성. Run in Supabase SQL Editor.
+-- 지역 확장: 경기 시흥/배곧(gyeonggi_siheung) · 경기광주(gyeonggi_gwangju)
+--            + 전남 순천(city 'jeonnam' + region 'jeonnam_suncheon')
+-- 야화 배곧·경기광주·순천점 등록용 (src/lib/types.ts와 동기).
+-- spots_city_check + spots/spot_requests_region_check 를 전체 목록으로 재생성. Run in SQL Editor.
 
+-- 1) city 제약에 jeonnam 추가
+ALTER TABLE spots DROP CONSTRAINT IF EXISTS spots_city_check;
+ALTER TABLE spots ADD CONSTRAINT spots_city_check CHECK (city IN (
+  'jeju', 'seoul', 'busan', 'incheon', 'daejeon',
+  'gwangju', 'daegu', 'gyeonggi', 'chungbuk', 'jeonbuk', 'jeonnam'
+));
+
+-- 2) region 제약 (spots)
 ALTER TABLE spots DROP CONSTRAINT IF EXISTS spots_region_check;
 ALTER TABLE spots
   ADD CONSTRAINT spots_region_check
@@ -25,9 +34,10 @@ ALTER TABLE spots
     'gyeonggi_pyeongtaek', 'gyeonggi_yongin', 'gyeonggi_hanam', 'gyeonggi_gimpo',
     'gyeonggi_paju', 'gyeonggi_osan', 'gyeonggi_yangju', 'gyeonggi_guri', 'gyeonggi_namyangju',
     'gyeonggi_siheung', 'gyeonggi_gwangju',
-    'chungbuk_cheongju', 'jeonbuk_jeonju'
+    'chungbuk_cheongju', 'jeonbuk_jeonju', 'jeonnam_suncheon'
   ));
 
+-- 3) region 제약 (spot_requests)
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'spot_requests') THEN
@@ -54,7 +64,7 @@ BEGIN
         'gyeonggi_pyeongtaek', 'gyeonggi_yongin', 'gyeonggi_hanam', 'gyeonggi_gimpo',
         'gyeonggi_paju', 'gyeonggi_osan', 'gyeonggi_yangju', 'gyeonggi_guri', 'gyeonggi_namyangju',
         'gyeonggi_siheung', 'gyeonggi_gwangju',
-        'chungbuk_cheongju', 'jeonbuk_jeonju'
+        'chungbuk_cheongju', 'jeonbuk_jeonju', 'jeonnam_suncheon'
       ));
   END IF;
 END $$;
