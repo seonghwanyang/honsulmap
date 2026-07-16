@@ -364,6 +364,7 @@ const CITY_CENTER: Record<City, { lat: number; lng: number; zoom: number }> = {
   gyeonggi: { lat: 37.2636, lng: 127.0286, zoom: 10 },
   chungbuk: { lat: 36.6424, lng: 127.4890, zoom: 11 },
   jeonbuk: { lat: 35.8242, lng: 127.1480, zoom: 11 },
+  jeonnam: { lat: 34.9558, lng: 127.4875, zoom: 11 },
 };
 
 function MapPageInner({ initialCity }: { initialCity: City }) {
