@@ -68,6 +68,8 @@ export interface Spot {
   name: string;
   slug: string;
   instagram_id: string | null;
+  /** 인스타 프로필 사진을 Supabase Storage(spot-avatars)에 저장한 안정 URL. 마커에 표시. */
+  avatar_url?: string | null;
   category: SpotCategory;
   city: City;
   region: Region;
