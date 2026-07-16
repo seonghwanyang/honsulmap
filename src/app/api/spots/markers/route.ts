@@ -9,7 +9,7 @@ export async function GET() {
   const spotsQuery = supabase
     .from('spots')
     .select(
-      'id, name, slug, instagram_id, category, city, region, address, lat, lng, phone, business_hours, memo, naver_place_id, naver_rating, naver_review_count, vibe_tags, like_count, mood_up, mood_down, created_at, benefit_title, benefit_active, benefit_expires_at',
+      'id, name, slug, instagram_id, avatar_url, category, city, region, address, lat, lng, phone, business_hours, memo, naver_place_id, naver_rating, naver_review_count, vibe_tags, like_count, mood_up, mood_down, created_at, benefit_title, benefit_active, benefit_expires_at',
     )
     .order('created_at', { ascending: false });
 

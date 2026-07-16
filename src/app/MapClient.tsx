@@ -1106,6 +1106,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       const tailH = hasStory ? 7 : 5;
       const strokeColor = hasStory ? '#fff' : '#9ca3af';
       const glassIcon = spotIcon(spot, iconSz, strokeColor);
+      // 인스타 프사가 있으면 원을 꽉 채우고(absolute overlay), 없거나 로드 실패
+      // (onerror)면 기본 아이콘으로 폴백 — glassIcon이 항상 뒤에 깔려 있다.
+      const avatarImg = spot.avatar_url
+        ? `<img src="${esc(spot.avatar_url)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.remove()">`
+        : '';
 
       const baseBg = activeBg(spot);
       // Stale (>24h) spots wear a pastel-washed version of activeBg — same
@@ -1158,7 +1163,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             ${name}${tipBadge}
           </div>
           <div style="position:relative;width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};display:flex;align-items:center;justify-content:center;">
-            ${glassIcon}${storyDot}${benefitMark}${rightLabel}
+            ${avatarImg}${glassIcon}${storyDot}${benefitMark}${rightLabel}
           </div>
           <div style="width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${tailColor};margin-top:-1px;"></div>
         </div>
