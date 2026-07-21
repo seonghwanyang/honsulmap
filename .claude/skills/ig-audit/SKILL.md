@@ -25,8 +25,8 @@ description: 혼술맵 가게 인스타 핸들 전수 감사 + 프랜차이즈 �
 1. **공식 홈페이지 / 바이오링크 명부** ⭐가장 효율적(대형 프차): 알려진 본사 핸들 하나의 `external_url`(바이오 링크)을 web_profile_info로 얻어 → 그 사이트의 "매장찾기"를 `WebFetch`로 긁으면 전 지점이 주소까지 한 번에. (야화 `yahwabar.com` → 37지점)
 2. **네이버 플레이스 스윕** ⭐좌표·place_id 확보: `worker_venv/Scripts/python.exe scripts/_naver_place_sns.py "브랜드명" "브랜드명 지역" ...` → 지점명·주소·좌표·place_id + 가게가 직접 걸어둔 IG 링크. **데스크톱 UA 필수**(스크립트에 설정됨, 모바일 UA면 0건). 쿼리당 최대 20곳이라 지역별로 나눠 던져라("브랜드 서울" "브랜드 경기" "브랜드 부산").
 3. **구글 도킹** (한글 브랜드 발굴 최적): `WebSearch`로 `site:instagram.com "브랜드명" 지역`. 네이버에 IG 안 걸어둔 지점의 핸들을 검색엔진 색인에서 잡는다.
-4. **연관계정 그래프**: web_profile_info의 `edge_related_profiles` → 자매/유사 혼술바 계정(크로스브랜드, 노이즈 있지만 미등록 가게 발굴됨). 씨앗 핸들에서 BFS.
-5. **(로그인 세션 있으면) IG 검색 + 팔로잉 목록**: 형 브라우저 세션/sessionid를 받으면 검색창·본사 팔로잉으로 false-negative 0. 비로그인 검색 API는 막힘(아래).
+4. **연관계정(추천) 그래프**: web_profile_info의 `edge_related_profiles` → 인스타 *알고리즘 추천* ~20개(자매/유사 혼술바, 크로스브랜드 노이즈). 본사가 실제 팔로우한 게 아니라 정확도 낮음, 익명 가능. 미등록 가게 발굴 보조용.
+5. **본사 팔로잉 목록** = 가장 정확(본사가 실제 팔로우 = 대부분 자기 지점, 노이즈 없음) **but 로그인 필수**. 익명은 `api/v1/friendships/{uid}/following/` → **401 `require_login`**(2026-07-17 실측). 형 sessionid 쿠키를 받으면 `credentials:'include'`로 본사 팔로잉 전량 취득 → false-negative 0. IG 검색창도 동일(로그인 필요).
 
 ### 2단계 · 검증 (DB 쓰기 전 필수)
 
