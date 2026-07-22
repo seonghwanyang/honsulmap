@@ -16,9 +16,12 @@ import naver_map_resync_seoul as R
 from worker.db import get_client
 from playwright.sync_api import sync_playwright
 
-queries = sys.argv[1:]
+args = sys.argv[1:]
+# --honsul: IG 추출 전에 가게명 '혼술/혼자'로 선필터(순수 혼술바 대량 스윕 속도↑)
+HONSUL_ONLY = "--honsul" in args
+queries = [a for a in args if a != "--honsul"]
 if not queries:
-    sys.exit('쿼리를 넣어라: python scripts/discover_new_bars.py "대전 혼술바" ...')
+    sys.exit('쿼리를 넣어라: python scripts/discover_new_bars.py [--honsul] "대전 혼술바" ...')
 
 # 1) DB의 기존 place_id / instagram_id 집합 (dedup 기준)
 sb = get_client()
@@ -62,7 +65,9 @@ with sync_playwright() as p:
             if pid and pid not in candidates and pid not in db_pids:  # DB에 있으면 스킵
                 candidates[pid] = pl
         time.sleep(3)
-    print(f"[sweep] 신규 후보(place 기준) {len(candidates)}곳 — IG 추출 중...", file=sys.stderr)
+    if HONSUL_ONLY:
+        candidates = {pid: pl for pid, pl in candidates.items() if HONSUL.search(pl.get("name", ""))}
+    print(f"[sweep] 신규 후보(place 기준) {len(candidates)}곳{' (혼술 선필터)' if HONSUL_ONLY else ''} — IG 추출 중...", file=sys.stderr)
 
     for pid, pl in candidates.items():
         ig = ig_from_detail(page, pid)
