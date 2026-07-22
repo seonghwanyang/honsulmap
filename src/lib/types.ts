@@ -3,7 +3,7 @@
 export type SpotCategory = 'bar' | 'guesthouse';
 export type City =
   | 'jeju' | 'seoul' | 'busan' | 'incheon' | 'daejeon'
-  | 'gwangju' | 'daegu' | 'gyeonggi' | 'chungbuk' | 'jeonbuk';
+  | 'gwangju' | 'daegu' | 'gyeonggi' | 'chungbuk' | 'jeonbuk' | 'jeonnam';
 // New cities (Busan onward) carry a `city_` prefix so 구 names like
 // 중구/서구 stay globally unique on the shared `region` column. Jeju and
 // Seoul keep their legacy bare codes for now — they get retrofitted to
@@ -34,7 +34,7 @@ export type Region =
   | 'gyeonggi_pyeongtaek' | 'gyeonggi_yongin' | 'gyeonggi_hanam' | 'gyeonggi_gimpo'
   | 'gyeonggi_paju' | 'gyeonggi_osan' | 'gyeonggi_yangju' | 'gyeonggi_guri' | 'gyeonggi_namyangju'
   | 'gyeonggi_siheung' | 'gyeonggi_gwangju'
-  | 'chungbuk_cheongju' | 'jeonbuk_jeonju';
+  | 'chungbuk_cheongju' | 'jeonbuk_jeonju' | 'jeonnam_suncheon';
 export type PostCategory = 'status' | 'review' | 'tip' | 'free';
 export type MediaType = 'image' | 'video';
 export type TargetType = 'spot' | 'post' | 'comment';
@@ -289,6 +289,7 @@ export const REGIONS: { value: Region | 'all'; label: string; city?: City }[] = 
   // Chungbuk / Jeonbuk
   { value: 'chungbuk_cheongju', label: '청주', city: 'chungbuk' },
   { value: 'jeonbuk_jeonju', label: '전주', city: 'jeonbuk' },
+  { value: 'jeonnam_suncheon', label: '순천', city: 'jeonnam' },
 ];
 
 export const CITIES: { value: City; label: string }[] = [
@@ -302,6 +303,7 @@ export const CITIES: { value: City; label: string }[] = [
   { value: 'gyeonggi', label: '경기' },
   { value: 'chungbuk', label: '충북' },
   { value: 'jeonbuk', label: '전북' },
+  { value: 'jeonnam', label: '전남' },
 ];
 
 // Source of truth for API validation. Keep in lockstep with the Region
@@ -332,12 +334,12 @@ export const VALID_REGIONS = [
   'gyeonggi_pyeongtaek', 'gyeonggi_yongin', 'gyeonggi_hanam', 'gyeonggi_gimpo',
   'gyeonggi_paju', 'gyeonggi_osan', 'gyeonggi_yangju', 'gyeonggi_guri', 'gyeonggi_namyangju',
   'gyeonggi_siheung', 'gyeonggi_gwangju',
-  'chungbuk_cheongju', 'jeonbuk_jeonju',
+  'chungbuk_cheongju', 'jeonbuk_jeonju', 'jeonnam_suncheon',
 ] as const satisfies readonly Region[];
 
 export const VALID_CITIES = [
   'jeju', 'seoul', 'busan', 'incheon', 'daejeon',
-  'gwangju', 'daegu', 'gyeonggi', 'chungbuk', 'jeonbuk',
+  'gwangju', 'daegu', 'gyeonggi', 'chungbuk', 'jeonbuk', 'jeonnam',
 ] as const satisfies readonly City[];
 
 export const POST_CATEGORIES: { value: PostCategory | 'all'; label: string }[] = [

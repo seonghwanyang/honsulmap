@@ -176,7 +176,7 @@ interface NaverBounds {
 interface NaverLatLng { lat(): number; lng(): number; }
 interface NaverPoint { x: number; y: number; }
 interface NaverSize { width: number; height: number; }
-interface NaverMarker { setMap(map: NaverMap | null): void; }
+interface NaverMarker { setMap(map: NaverMap | null): void; setPosition(latlng: NaverLatLng): void; }
 
 const CLUSTER_ZOOM = 12;
 const STORY_FRESH_MS = 24 * 60 * 60 * 1000;
@@ -364,6 +364,7 @@ const CITY_CENTER: Record<City, { lat: number; lng: number; zoom: number }> = {
   gyeonggi: { lat: 37.2636, lng: 127.0286, zoom: 10 },
   chungbuk: { lat: 36.6424, lng: 127.4890, zoom: 11 },
   jeonbuk: { lat: 35.8242, lng: 127.1480, zoom: 11 },
+  jeonnam: { lat: 34.9558, lng: 127.4875, zoom: 11 },
 };
 
 function MapPageInner({ initialCity }: { initialCity: City }) {
@@ -397,6 +398,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const mapInstanceRef = useRef<NaverMap | null>(null);
   const overlaysRef = useRef<NaverMarker[]>([]);
   const userLocationMarkerRef = useRef<NaverMarker | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const followRef = useRef(true);
+  const [tracking, setTracking] = useState(false);
 
   const [spots, setSpots] = useState<SpotWithStories[]>([]);
   const [loading, setLoading] = useState(false);
@@ -468,6 +472,13 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   // (and the permission prompt happens up front, not on the first check-in tap).
   useEffect(() => {
     void getCurrentPositionSafe();
+  }, []);
+
+  // Stop the live GPS watch on unmount so it doesn't leak / drain battery.
+  useEffect(() => () => {
+    if (watchIdRef.current != null && typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+    }
   }, []);
 
   const openSpotPanel = useCallback(
@@ -639,9 +650,15 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       map, 'zoom_changed', (zoom: unknown) => setCurrentZoom(zoom as number),
     );
     const idleListener = window.naver.maps.Event.addListener(map, 'idle', updateBounds);
+    // Manual drag disables camera-follow so browsing ahead during live
+    // tracking isn't yanked back by the next GPS tick (dot keeps updating).
+    const dragListener = window.naver.maps.Event.addListener(map, 'dragstart', () => {
+      followRef.current = false;
+    });
     return () => {
       window.naver.maps.Event.removeListener(zoomListener);
       window.naver.maps.Event.removeListener(idleListener);
+      window.naver.maps.Event.removeListener(dragListener);
     };
   }, [mapReady]);
 
@@ -1411,7 +1428,89 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     return true;
   }, []);
 
+  // ── 실시간 위치 추적 (watchPosition) ──────────────────────────────
+  // Per-tick update: move the existing dot + optionally keep the camera on
+  // the user. No zoom morph / city-infer here (those run once on the first
+  // fix via applyGpsCoords) so the map doesn't re-animate every tick.
+  const updateUserMarker = useCallback(
+    (lat: number, lng: number, follow: boolean) => {
+      if (!mapInstanceRef.current || !window.naver?.maps) return;
+      if (!userLocationMarkerRef.current) {
+        applyGpsCoords(lat, lng); // marker not created yet → full apply
+        return;
+      }
+      userLocationMarkerRef.current.setPosition(
+        new window.naver.maps.LatLng(lat, lng),
+      );
+      if (follow) {
+        mapInstanceRef.current.panTo(new window.naver.maps.LatLng(lat, lng));
+      }
+    },
+    [applyGpsCoords],
+  );
+
+  const stopTracking = useCallback(() => {
+    if (
+      watchIdRef.current != null &&
+      typeof navigator !== 'undefined' &&
+      navigator.geolocation
+    ) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+    }
+    watchIdRef.current = null;
+    setTracking(false);
+  }, []);
+
+  // watchPosition streams fixes as the user walks. First fix centers+zooms
+  // (applyGpsCoords); later fixes just move the dot and pan while follow is
+  // on. Manual map drag turns follow off (dot keeps updating).
+  const startTracking = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    if (watchIdRef.current != null) return; // already tracking
+    followRef.current = true;
+    setTracking(true);
+    let first = true;
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        setGpsToast(null);
+        if (first) {
+          first = false;
+          if (!applyGpsCoords(lat, lng)) pendingGpsRef.current = { lat, lng };
+        } else {
+          updateUserMarker(lat, lng, followRef.current);
+        }
+      },
+      (err) => {
+        console.error(
+          `GPS watch error code=${err?.code} message=${err?.message || '(none)'}`,
+        );
+        // Only a hard failure before the first fix kills tracking; transient
+        // mid-walk errors are ignored so the dot doesn't disappear.
+        if (first) {
+          let msg: string;
+          if (err?.code === 1) msg = '위치 권한이 거부됐어요';
+          else if (err?.code === 2) msg = '현재 위치를 알 수 없어요 (신호 약함)';
+          else if (err?.code === 3) msg = '위치 확인 시간 초과';
+          else msg = '현재 위치를 가져올 수 없어요';
+          setGpsToast(msg);
+          setTimeout(() => setGpsToast(null), 3000);
+          stopTracking();
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 20_000 },
+    );
+  }, [applyGpsCoords, updateUserMarker, stopTracking]);
+
   const handleGps = useCallback(async () => {
+    // Toggle off: second tap stops live tracking (saves battery).
+    if (watchIdRef.current != null) {
+      stopTracking();
+      setGpsToast('위치 추적을 껐어요');
+      setTimeout(() => setGpsToast(null), 2000);
+      return;
+    }
+
     if (!navigator.geolocation) {
       setGpsToast('이 브라우저는 위치를 지원하지 않아요');
       setTimeout(() => setGpsToast(null), 3000);
@@ -1441,42 +1540,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     // is a 2-3s silent gap on mobile. Without feedback users assume
     // nothing happened and tap again.
     setGpsToast('내 위치 찾는 중…');
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        setGpsToast(null);
-        // If the map is still loading (welcome-modal early tap), park
-        // the coords; the mapReady effect picks them up later.
-        if (!applyGpsCoords(lat, lng)) {
-          pendingGpsRef.current = { lat, lng };
-        }
-      },
-      (err) => {
-        // GeolocationPositionError fields are non-enumerable, so logging
-        // the object directly prints "{}" in the Next dev overlay.
-        // Stringify code/message into the format string instead.
-        console.error(
-          `GPS error code=${err?.code} message=${err?.message || '(none)'}`,
-        );
-        let msg: string;
-        if (err?.code === 1) msg = '위치 권한이 거부됐어요';
-        else if (err?.code === 2) msg = '현재 위치를 알 수 없어요 (신호 약함)';
-        else if (err?.code === 3) msg = '위치 확인 시간 초과';
-        else msg = '현재 위치를 가져올 수 없어요';
-        setGpsToast(msg);
-        setTimeout(() => setGpsToast(null), 3000);
-      },
-      {
-        // 20s 클라이언트 타임아웃 — GPS 픽스가 안 잡히는 환경(에뮬레이터,
-        // 실내/신호 약함)에서 "내 위치 찾는 중…" 스피너가 무한정 도는 걸 막는다.
-        // 초과하면 error 콜백(code 3 → '위치 확인 시간 초과')이 토스트를 정리한다.
-        enableHighAccuracy: false,
-        maximumAge: 60_000,
-        timeout: 20_000,
-      },
-    );
-  }, [applyGpsCoords]);
+    startTracking();
+  }, [startTracking, stopTracking]);
 
   // Flush a queued GPS request once the Naver map finishes loading.
   useEffect(() => {
@@ -1696,10 +1761,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         <button
           onClick={handleGps}
           className="w-11 h-11 flex items-center justify-center shadow-lg"
-          style={{ background: '#ffffff', borderRadius: '50%', border: '1px solid #e5e7eb' }}
-          aria-label="현재 위치"
+          style={{ background: tracking ? '#ea573e' : '#ffffff', borderRadius: '50%', border: tracking ? '1px solid #ea573e' : '1px solid #e5e7eb' }}
+          aria-label={tracking ? '위치 추적 끄기' : '현재 위치'}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={tracking ? '#ffffff' : '#374151'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" />
             <line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" />
             <line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" />
