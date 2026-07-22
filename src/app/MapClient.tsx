@@ -365,6 +365,12 @@ const CITY_CENTER: Record<City, { lat: number; lng: number; zoom: number }> = {
   chungbuk: { lat: 36.6424, lng: 127.4890, zoom: 11 },
   jeonbuk: { lat: 35.8242, lng: 127.1480, zoom: 11 },
   jeonnam: { lat: 34.9558, lng: 127.4875, zoom: 11 },
+  ulsan: { lat: 35.5384, lng: 129.3114, zoom: 11 },
+  sejong: { lat: 36.4801, lng: 127.2890, zoom: 11 },
+  gangwon: { lat: 37.8813, lng: 127.7300, zoom: 10 },
+  chungnam: { lat: 36.8065, lng: 127.1522, zoom: 10 },
+  gyeongbuk: { lat: 36.0190, lng: 129.3435, zoom: 10 },
+  gyeongnam: { lat: 35.2280, lng: 128.6811, zoom: 10 },
 };
 
 function MapPageInner({ initialCity }: { initialCity: City }) {
