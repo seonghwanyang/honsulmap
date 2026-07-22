@@ -65,9 +65,10 @@ with sync_playwright() as p:
             if pid and pid not in candidates and pid not in db_pids:  # DB에 있으면 스킵
                 candidates[pid] = pl
         time.sleep(3)
+    # 이름에 '혼술/혼자' 있는 곳만 = 순수 혼술바(정밀도 우선). --honsul이면 IG 추출 전 선필터로 속도↑.
     if HONSUL_ONLY:
         candidates = {pid: pl for pid, pl in candidates.items() if HONSUL.search(pl.get("name", ""))}
-    print(f"[sweep] 신규 후보(place 기준) {len(candidates)}곳{' (혼술 선필터)' if HONSUL_ONLY else ''} — IG 추출 중...", file=sys.stderr)
+    print(f"[sweep] 신규 후보 {len(candidates)}곳{' (혼술 선필터)' if HONSUL_ONLY else ''} — IG 추출 중...", file=sys.stderr)
 
     for pid, pl in candidates.items():
         ig = ig_from_detail(page, pid)
@@ -75,8 +76,8 @@ with sync_playwright() as p:
             continue
         name = pl.get("name", "")
         addr = pl.get("roadAddress") or pl.get("address", "")
-        flag = "혼술" if HONSUL.search(name) else ""
-        new_rows.append((name, addr, f"{pl.get('y')},{pl.get('x')}", pid, ig or "-", flag))
+        new_rows.append((name, addr, f"{pl.get('y')},{pl.get('x')}", pid, ig or "-",
+                         "혼술" if HONSUL.search(name) else ""))
         time.sleep(2.0)
     b.close()
 

@@ -37,7 +37,14 @@
       "Bash(curl:*)",
       "WebFetch(domain:navermaps.github.io)",
       "Bash(PYTHONIOENCODING=utf-8 python:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(worker_venv/Scripts/python.exe:*)",
+      "Bash(PYTHONIOENCODING=utf-8 worker_venv/Scripts/python.exe:*)",
+      "Bash(npx tsx *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "ga4",
+    "clarity"
+  ]
 }
