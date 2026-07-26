@@ -8,7 +8,7 @@ export async function GET() {
   const { data, error } = await admin
     .from('spots')
     .select(
-      'id, name, slug, region, city, category, benefit_title, benefit_detail, benefit_expires_at, benefit_updated_at',
+      'id, name, slug, region, city, category, avatar_url, benefit_title, benefit_detail, benefit_expires_at, benefit_updated_at',
     )
     .eq('benefit_active', true)
     .not('benefit_title', 'is', null)

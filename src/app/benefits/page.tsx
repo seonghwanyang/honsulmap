@@ -15,6 +15,7 @@ interface BenefitSpot {
   region: string;
   city: string | null;
   category: string;
+  avatar_url: string | null;
   benefit_title: string;
   benefit_detail: string | null;
   benefit_expires_at: string | null;
@@ -188,19 +189,28 @@ export default function BenefitsPage() {
                       {d}
                     </span>
                   )}
-                  <span
-                    className="flex items-center justify-center"
-                    style={{ width: 38, height: 38, background: '#111827', borderRadius: 11 }}
-                    aria-hidden="true"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 12 20 22 4 22 4 12" />
-                      <rect x="2" y="7" width="20" height="5" />
-                      <line x1="12" y1="22" x2="12" y2="7" />
-                      <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
-                      <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
-                    </svg>
-                  </span>
+                  {s.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={s.avatar_url}
+                      alt=""
+                      style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '1px solid #f0f0f0' }}
+                    />
+                  ) : (
+                    <span
+                      className="flex items-center justify-center"
+                      style={{ width: 40, height: 40, background: '#111827', borderRadius: '50%' }}
+                      aria-hidden="true"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 12 20 22 4 22 4 12" />
+                        <rect x="2" y="7" width="20" height="5" />
+                        <line x1="12" y1="22" x2="12" y2="7" />
+                        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                      </svg>
+                    </span>
+                  )}
                   <span style={{ fontSize: 13.5, fontWeight: 800, color: '#111827', lineHeight: 1.35, wordBreak: 'keep-all' }}>
                     {s.benefit_title}
                   </span>
