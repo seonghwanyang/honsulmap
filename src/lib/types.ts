@@ -3,7 +3,8 @@
 export type SpotCategory = 'bar' | 'guesthouse';
 export type City =
   | 'jeju' | 'seoul' | 'busan' | 'incheon' | 'daejeon'
-  | 'gwangju' | 'daegu' | 'gyeonggi' | 'chungbuk' | 'jeonbuk' | 'jeonnam';
+  | 'gwangju' | 'daegu' | 'ulsan' | 'sejong' | 'gyeonggi'
+  | 'gangwon' | 'chungbuk' | 'chungnam' | 'jeonbuk' | 'jeonnam' | 'gyeongbuk' | 'gyeongnam';
 // New cities (Busan onward) carry a `city_` prefix so 구 names like
 // 중구/서구 stay globally unique on the shared `region` column. Jeju and
 // Seoul keep their legacy bare codes for now — they get retrofitted to
@@ -23,18 +24,30 @@ export type Region =
   | 'busan_busanjin' | 'busan_dongnae' | 'busan_nam' | 'busan_buk'
   | 'busan_haeundae' | 'busan_saha' | 'busan_geumjeong' | 'busan_gangseo'
   | 'busan_yeonje' | 'busan_suyeong' | 'busan_sasang' | 'busan_gijang'
-  // Incheon / Daejeon / Gwangju / Daegu
+  // Incheon / Daejeon / Gwangju / Daegu / Ulsan / Sejong (광역시 구 단위)
   | 'incheon_namdong' | 'incheon_bupyeong' | 'incheon_yeonsu' | 'incheon_geomdan'
-  | 'daejeon_seo' | 'daejeon_yuseong'
-  | 'gwangju_seo' | 'gwangju_dong'
-  | 'daegu_jung'
+  | 'incheon_jung' | 'incheon_dong' | 'incheon_michuhol' | 'incheon_gyeyang' | 'incheon_seo'
+  | 'daejeon_seo' | 'daejeon_yuseong' | 'daejeon_dong' | 'daejeon_jung' | 'daejeon_daedeok'
+  | 'gwangju_seo' | 'gwangju_dong' | 'gwangju_nam' | 'gwangju_buk' | 'gwangju_gwangsan'
+  | 'daegu_jung' | 'daegu_dong' | 'daegu_seo' | 'daegu_nam' | 'daegu_buk' | 'daegu_suseong' | 'daegu_dalseo'
+  | 'ulsan_jung' | 'ulsan_nam' | 'ulsan_dong' | 'ulsan_buk' | 'ulsan_ulju'
+  | 'sejong'
   // Gyeonggi (시 단위) / Chungbuk / Jeonbuk
   | 'gyeonggi_suwon' | 'gyeonggi_ansan' | 'gyeonggi_anyang' | 'gyeonggi_bucheon' | 'gyeonggi_goyang'
   | 'gyeonggi_hwaseong' | 'gyeonggi_seongnam' | 'gyeonggi_uijeongbu'
   | 'gyeonggi_pyeongtaek' | 'gyeonggi_yongin' | 'gyeonggi_hanam' | 'gyeonggi_gimpo'
   | 'gyeonggi_paju' | 'gyeonggi_osan' | 'gyeonggi_yangju' | 'gyeonggi_guri' | 'gyeonggi_namyangju'
   | 'gyeonggi_siheung' | 'gyeonggi_gwangju'
-  | 'chungbuk_cheongju' | 'jeonbuk_jeonju' | 'jeonnam_suncheon';
+  // Chungbuk / Chungnam (시 단위)
+  | 'chungbuk_cheongju' | 'chungbuk_chungju' | 'chungbuk_jecheon'
+  | 'chungnam_cheonan' | 'chungnam_asan' | 'chungnam_seosan' | 'chungnam_nonsan' | 'chungnam_dangjin' | 'chungnam_gongju' | 'chungnam_boryeong' | 'chungnam_gyeryong'
+  // Jeonbuk / Jeonnam
+  | 'jeonbuk_jeonju' | 'jeonbuk_iksan' | 'jeonbuk_gunsan' | 'jeonbuk_jeongeup' | 'jeonbuk_gimje' | 'jeonbuk_namwon'
+  | 'jeonnam_suncheon' | 'jeonnam_yeosu' | 'jeonnam_mokpo' | 'jeonnam_gwangyang' | 'jeonnam_naju'
+  // Gangwon / Gyeongbuk / Gyeongnam
+  | 'gangwon_chuncheon' | 'gangwon_wonju' | 'gangwon_gangneung' | 'gangwon_donghae' | 'gangwon_sokcho' | 'gangwon_samcheok' | 'gangwon_taebaek'
+  | 'gyeongbuk_pohang' | 'gyeongbuk_gumi' | 'gyeongbuk_gyeongju' | 'gyeongbuk_gyeongsan' | 'gyeongbuk_andong' | 'gyeongbuk_gimcheon' | 'gyeongbuk_yeongju' | 'gyeongbuk_sangju' | 'gyeongbuk_mungyeong' | 'gyeongbuk_yeongcheon'
+  | 'gyeongnam_changwon' | 'gyeongnam_gimhae' | 'gyeongnam_jinju' | 'gyeongnam_yangsan' | 'gyeongnam_geoje' | 'gyeongnam_tongyeong' | 'gyeongnam_sacheon' | 'gyeongnam_miryang';
 export type PostCategory = 'status' | 'review' | 'tip' | 'free';
 export type MediaType = 'image' | 'video';
 export type TargetType = 'spot' | 'post' | 'comment';
@@ -253,19 +266,44 @@ export const REGIONS: { value: Region | 'all'; label: string; city?: City }[] = 
   { value: 'busan_yeongdo', label: '영도구', city: 'busan' },
   { value: 'busan_jung', label: '중구', city: 'busan' },
   { value: 'busan_haeundae', label: '해운대구', city: 'busan' },
-  // Incheon
+  // Incheon (8구, 강화/옹진 군 제외)
+  { value: 'incheon_jung', label: '중구/영종', city: 'incheon' },
+  { value: 'incheon_dong', label: '동구', city: 'incheon' },
+  { value: 'incheon_michuhol', label: '미추홀구', city: 'incheon' },
   { value: 'incheon_namdong', label: '남동구', city: 'incheon' },
   { value: 'incheon_bupyeong', label: '부평구', city: 'incheon' },
+  { value: 'incheon_gyeyang', label: '계양구', city: 'incheon' },
+  { value: 'incheon_seo', label: '서구/청라', city: 'incheon' },
   { value: 'incheon_yeonsu', label: '연수구/송도', city: 'incheon' },
   { value: 'incheon_geomdan', label: '검단구', city: 'incheon' },
-  // Daejeon
+  // Daejeon (5구)
+  { value: 'daejeon_dong', label: '동구', city: 'daejeon' },
+  { value: 'daejeon_jung', label: '중구', city: 'daejeon' },
   { value: 'daejeon_seo', label: '서구', city: 'daejeon' },
   { value: 'daejeon_yuseong', label: '유성구', city: 'daejeon' },
-  // Gwangju
-  { value: 'gwangju_seo', label: '서구', city: 'gwangju' },
+  { value: 'daejeon_daedeok', label: '대덕구', city: 'daejeon' },
+  // Gwangju (5구)
   { value: 'gwangju_dong', label: '동구', city: 'gwangju' },
-  // Daegu
+  { value: 'gwangju_seo', label: '서구', city: 'gwangju' },
+  { value: 'gwangju_nam', label: '남구', city: 'gwangju' },
+  { value: 'gwangju_buk', label: '북구', city: 'gwangju' },
+  { value: 'gwangju_gwangsan', label: '광산구', city: 'gwangju' },
+  // Daegu (7구, 달성/군위 군 제외)
   { value: 'daegu_jung', label: '중구', city: 'daegu' },
+  { value: 'daegu_dong', label: '동구', city: 'daegu' },
+  { value: 'daegu_seo', label: '서구', city: 'daegu' },
+  { value: 'daegu_nam', label: '남구', city: 'daegu' },
+  { value: 'daegu_buk', label: '북구', city: 'daegu' },
+  { value: 'daegu_suseong', label: '수성구', city: 'daegu' },
+  { value: 'daegu_dalseo', label: '달서구', city: 'daegu' },
+  // Ulsan (4구1군)
+  { value: 'ulsan_jung', label: '중구', city: 'ulsan' },
+  { value: 'ulsan_nam', label: '남구', city: 'ulsan' },
+  { value: 'ulsan_dong', label: '동구', city: 'ulsan' },
+  { value: 'ulsan_buk', label: '북구', city: 'ulsan' },
+  { value: 'ulsan_ulju', label: '울주군', city: 'ulsan' },
+  // Sejong
+  { value: 'sejong', label: '세종', city: 'sejong' },
   // Gyeonggi (시 단위)
   { value: 'gyeonggi_suwon', label: '수원', city: 'gyeonggi' },
   { value: 'gyeonggi_ansan', label: '안산', city: 'gyeonggi' },
@@ -286,10 +324,60 @@ export const REGIONS: { value: Region | 'all'; label: string; city?: City }[] = 
   { value: 'gyeonggi_namyangju', label: '남양주/다산', city: 'gyeonggi' },
   { value: 'gyeonggi_siheung', label: '시흥/배곧', city: 'gyeonggi' },
   { value: 'gyeonggi_gwangju', label: '경기광주', city: 'gyeonggi' },
-  // Chungbuk / Jeonbuk
+  // Chungbuk
   { value: 'chungbuk_cheongju', label: '청주', city: 'chungbuk' },
+  { value: 'chungbuk_chungju', label: '충주', city: 'chungbuk' },
+  { value: 'chungbuk_jecheon', label: '제천', city: 'chungbuk' },
+  // Chungnam
+  { value: 'chungnam_cheonan', label: '천안', city: 'chungnam' },
+  { value: 'chungnam_asan', label: '아산', city: 'chungnam' },
+  { value: 'chungnam_seosan', label: '서산', city: 'chungnam' },
+  { value: 'chungnam_nonsan', label: '논산', city: 'chungnam' },
+  { value: 'chungnam_dangjin', label: '당진', city: 'chungnam' },
+  { value: 'chungnam_gongju', label: '공주', city: 'chungnam' },
+  { value: 'chungnam_boryeong', label: '보령', city: 'chungnam' },
+  { value: 'chungnam_gyeryong', label: '계룡', city: 'chungnam' },
+  // Jeonbuk
   { value: 'jeonbuk_jeonju', label: '전주', city: 'jeonbuk' },
+  { value: 'jeonbuk_iksan', label: '익산', city: 'jeonbuk' },
+  { value: 'jeonbuk_gunsan', label: '군산', city: 'jeonbuk' },
+  { value: 'jeonbuk_jeongeup', label: '정읍', city: 'jeonbuk' },
+  { value: 'jeonbuk_gimje', label: '김제', city: 'jeonbuk' },
+  { value: 'jeonbuk_namwon', label: '남원', city: 'jeonbuk' },
+  // Jeonnam
   { value: 'jeonnam_suncheon', label: '순천', city: 'jeonnam' },
+  { value: 'jeonnam_yeosu', label: '여수', city: 'jeonnam' },
+  { value: 'jeonnam_mokpo', label: '목포', city: 'jeonnam' },
+  { value: 'jeonnam_gwangyang', label: '광양', city: 'jeonnam' },
+  { value: 'jeonnam_naju', label: '나주', city: 'jeonnam' },
+  // Gangwon
+  { value: 'gangwon_chuncheon', label: '춘천', city: 'gangwon' },
+  { value: 'gangwon_wonju', label: '원주', city: 'gangwon' },
+  { value: 'gangwon_gangneung', label: '강릉', city: 'gangwon' },
+  { value: 'gangwon_donghae', label: '동해', city: 'gangwon' },
+  { value: 'gangwon_sokcho', label: '속초', city: 'gangwon' },
+  { value: 'gangwon_samcheok', label: '삼척', city: 'gangwon' },
+  { value: 'gangwon_taebaek', label: '태백', city: 'gangwon' },
+  // Gyeongbuk
+  { value: 'gyeongbuk_pohang', label: '포항', city: 'gyeongbuk' },
+  { value: 'gyeongbuk_gumi', label: '구미', city: 'gyeongbuk' },
+  { value: 'gyeongbuk_gyeongju', label: '경주', city: 'gyeongbuk' },
+  { value: 'gyeongbuk_gyeongsan', label: '경산', city: 'gyeongbuk' },
+  { value: 'gyeongbuk_andong', label: '안동', city: 'gyeongbuk' },
+  { value: 'gyeongbuk_gimcheon', label: '김천', city: 'gyeongbuk' },
+  { value: 'gyeongbuk_yeongju', label: '영주', city: 'gyeongbuk' },
+  { value: 'gyeongbuk_sangju', label: '상주', city: 'gyeongbuk' },
+  { value: 'gyeongbuk_mungyeong', label: '문경', city: 'gyeongbuk' },
+  { value: 'gyeongbuk_yeongcheon', label: '영천', city: 'gyeongbuk' },
+  // Gyeongnam
+  { value: 'gyeongnam_changwon', label: '창원', city: 'gyeongnam' },
+  { value: 'gyeongnam_gimhae', label: '김해', city: 'gyeongnam' },
+  { value: 'gyeongnam_jinju', label: '진주', city: 'gyeongnam' },
+  { value: 'gyeongnam_yangsan', label: '양산', city: 'gyeongnam' },
+  { value: 'gyeongnam_geoje', label: '거제', city: 'gyeongnam' },
+  { value: 'gyeongnam_tongyeong', label: '통영', city: 'gyeongnam' },
+  { value: 'gyeongnam_sacheon', label: '사천', city: 'gyeongnam' },
+  { value: 'gyeongnam_miryang', label: '밀양', city: 'gyeongnam' },
 ];
 
 export const CITIES: { value: City; label: string }[] = [
@@ -300,10 +388,16 @@ export const CITIES: { value: City; label: string }[] = [
   { value: 'daejeon', label: '대전' },
   { value: 'gwangju', label: '광주' },
   { value: 'daegu', label: '대구' },
+  { value: 'ulsan', label: '울산' },
+  { value: 'sejong', label: '세종' },
   { value: 'gyeonggi', label: '경기' },
+  { value: 'gangwon', label: '강원' },
   { value: 'chungbuk', label: '충북' },
+  { value: 'chungnam', label: '충남' },
   { value: 'jeonbuk', label: '전북' },
   { value: 'jeonnam', label: '전남' },
+  { value: 'gyeongbuk', label: '경북' },
+  { value: 'gyeongnam', label: '경남' },
 ];
 
 // Source of truth for API validation. Keep in lockstep with the Region
@@ -323,23 +417,36 @@ export const VALID_REGIONS = [
   'busan_busanjin', 'busan_dongnae', 'busan_nam', 'busan_buk',
   'busan_haeundae', 'busan_saha', 'busan_geumjeong', 'busan_gangseo',
   'busan_yeonje', 'busan_suyeong', 'busan_sasang', 'busan_gijang',
-  // Incheon / Daejeon / Gwangju / Daegu
+  // Incheon / Daejeon / Gwangju / Daegu / Ulsan / Sejong (광역시 구)
   'incheon_namdong', 'incheon_bupyeong', 'incheon_yeonsu', 'incheon_geomdan',
-  'daejeon_seo', 'daejeon_yuseong',
-  'gwangju_seo', 'gwangju_dong',
-  'daegu_jung',
+  'incheon_jung', 'incheon_dong', 'incheon_michuhol', 'incheon_gyeyang', 'incheon_seo',
+  'daejeon_seo', 'daejeon_yuseong', 'daejeon_dong', 'daejeon_jung', 'daejeon_daedeok',
+  'gwangju_seo', 'gwangju_dong', 'gwangju_nam', 'gwangju_buk', 'gwangju_gwangsan',
+  'daegu_jung', 'daegu_dong', 'daegu_seo', 'daegu_nam', 'daegu_buk', 'daegu_suseong', 'daegu_dalseo',
+  'ulsan_jung', 'ulsan_nam', 'ulsan_dong', 'ulsan_buk', 'ulsan_ulju',
+  'sejong',
   // Gyeonggi (시 단위) / Chungbuk / Jeonbuk
   'gyeonggi_suwon', 'gyeonggi_ansan', 'gyeonggi_anyang', 'gyeonggi_bucheon', 'gyeonggi_goyang',
   'gyeonggi_hwaseong', 'gyeonggi_seongnam', 'gyeonggi_uijeongbu',
   'gyeonggi_pyeongtaek', 'gyeonggi_yongin', 'gyeonggi_hanam', 'gyeonggi_gimpo',
   'gyeonggi_paju', 'gyeonggi_osan', 'gyeonggi_yangju', 'gyeonggi_guri', 'gyeonggi_namyangju',
   'gyeonggi_siheung', 'gyeonggi_gwangju',
-  'chungbuk_cheongju', 'jeonbuk_jeonju', 'jeonnam_suncheon',
+  // Chungbuk / Chungnam
+  'chungbuk_cheongju', 'chungbuk_chungju', 'chungbuk_jecheon',
+  'chungnam_cheonan', 'chungnam_asan', 'chungnam_seosan', 'chungnam_nonsan', 'chungnam_dangjin', 'chungnam_gongju', 'chungnam_boryeong', 'chungnam_gyeryong',
+  // Jeonbuk / Jeonnam
+  'jeonbuk_jeonju', 'jeonbuk_iksan', 'jeonbuk_gunsan', 'jeonbuk_jeongeup', 'jeonbuk_gimje', 'jeonbuk_namwon',
+  'jeonnam_suncheon', 'jeonnam_yeosu', 'jeonnam_mokpo', 'jeonnam_gwangyang', 'jeonnam_naju',
+  // Gangwon / Gyeongbuk / Gyeongnam
+  'gangwon_chuncheon', 'gangwon_wonju', 'gangwon_gangneung', 'gangwon_donghae', 'gangwon_sokcho', 'gangwon_samcheok', 'gangwon_taebaek',
+  'gyeongbuk_pohang', 'gyeongbuk_gumi', 'gyeongbuk_gyeongju', 'gyeongbuk_gyeongsan', 'gyeongbuk_andong', 'gyeongbuk_gimcheon', 'gyeongbuk_yeongju', 'gyeongbuk_sangju', 'gyeongbuk_mungyeong', 'gyeongbuk_yeongcheon',
+  'gyeongnam_changwon', 'gyeongnam_gimhae', 'gyeongnam_jinju', 'gyeongnam_yangsan', 'gyeongnam_geoje', 'gyeongnam_tongyeong', 'gyeongnam_sacheon', 'gyeongnam_miryang',
 ] as const satisfies readonly Region[];
 
 export const VALID_CITIES = [
   'jeju', 'seoul', 'busan', 'incheon', 'daejeon',
-  'gwangju', 'daegu', 'gyeonggi', 'chungbuk', 'jeonbuk', 'jeonnam',
+  'gwangju', 'daegu', 'ulsan', 'sejong', 'gyeonggi',
+  'gangwon', 'chungbuk', 'chungnam', 'jeonbuk', 'jeonnam', 'gyeongbuk', 'gyeongnam',
 ] as const satisfies readonly City[];
 
 export const POST_CATEGORIES: { value: PostCategory | 'all'; label: string }[] = [
