@@ -1723,8 +1723,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         <AdBannerSlot
           spots={spots}
           onOpen={(spot) => {
-            openSpotPanel(spot, 'map');
+            // 검색 클릭과 동일: 광고 가게로 지도 이동(zoom16이면 클러스터 풀려 마커 단독 노출)
+            // → 카메라 이동이 보인 뒤 패널 슬라이드업.
+            if (mapInstanceRef.current && window.naver?.maps) {
+              mapInstanceRef.current.morph(new window.naver.maps.LatLng(spot.lat, spot.lng), 16);
+            }
+            setSelectedSpot(null);
             setSheetOpen(false);
+            setTimeout(() => openSpotPanel(spot, 'map'), 700);
           }}
         />
       </div>
