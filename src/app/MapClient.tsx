@@ -84,16 +84,18 @@ function AdBannerSlot({
   const [idx, setIdx] = useState(0);
   const [anim, setAnim] = useState(true);
   const n = banners.length;
-  useEffect(() => {
-    setIdx(0);
-    if (n < 2) return;
-    const t = setInterval(() => {
-      if (document.hidden) return; // 백그라운드 탭에선 진행 정지 (transitionEnd 유실 방지)
-      setAnim(true);
-      setIdx((i) => (i >= n ? 1 : i + 1)); // transitionEnd 유실 시에도 트랙 밖으로 안 나가게
-    }, AD_ROTATE_HOLD_MS + AD_ROTATE_SLIDE_MS);
-    return () => clearInterval(t);
+  const goNext = useCallback(() => {
+    setAnim(true);
+    setIdx((i) => (i >= n ? 1 : i + 1)); // transitionEnd 유실 시에도 트랙 밖으로 안 나가게
   }, [n]);
+  // banners 바뀌면 최근접(0)부터 시작.
+  useEffect(() => { setIdx(0); }, [n]);
+  // 자동 넘김 — idx 변할 때마다 타이머 재설정: 수동(다음 버튼)으로 넘겨도 대기시간 초기화됨.
+  useEffect(() => {
+    if (n < 2) return;
+    const t = setTimeout(goNext, AD_ROTATE_HOLD_MS + AD_ROTATE_SLIDE_MS);
+    return () => clearTimeout(t);
+  }, [idx, n, goNext]);
   if (n === 0) return null;
   const track = n > 1 ? [...banners, banners[0]] : banners;
   const current = banners[idx % n];
@@ -134,6 +136,19 @@ function AdBannerSlot({
           style={{ position: 'absolute', top: 6, right: 8, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, color: 'rgba(255,255,255,0.85)', background: 'rgba(17,24,39,0.55)', borderRadius: 5, padding: '2px 5px' }}
         >
           AD
+        </span>
+        <span
+          aria-label="다음 광고"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            goNext();
+          }}
+          style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </span>
       </button>
     </div>
@@ -538,7 +553,6 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     adComputedRef.current = true;
     // 첫 위치 = 서버 지오(initialCity). 로드 순간 이미 있어 스왑 없이 첫 프레임부터 올바름.
     const c = CITY_CENTER[initialCity];
-    const LOCAL_R = 30000; // 지역광고 노출 반경 30km
     const scored = AD_BANNERS.map((ad) => {
       const cands = ad.ig
         ? spots.filter((s) => s.instagram_id === ad.ig)
@@ -548,12 +562,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       const d = cands.reduce((m, s) => Math.min(m, haversineMeters(c.lat, c.lng, s.lat, s.lng)), Infinity);
       return { ad, d };
     });
-    setOrderedAds(
-      scored
-        .filter(({ ad, d }) => ad.scope !== 'local' || d <= LOCAL_R)
-        .sort((a, b) => a.d - b.d)
-        .map((x) => x.ad),
-    );
+    // 게이팅 없이 전부 노출, 최근접 순 정렬만 (지역광고는 추후 nearest-N 방식으로).
+    setOrderedAds(scored.sort((a, b) => a.d - b.d).map((x) => x.ad));
   }, [spots, initialCity]);
 
   // 뒤로가기(iOS 엣지 스와이프 / 안드 백 / 브라우저 back)로 상세 시트 닫기
