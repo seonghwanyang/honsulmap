@@ -56,9 +56,14 @@ export default function BottomNav() {
   // consumer nav pill should not float over it.
   if (pathname.startsWith('/partner')) return null;
 
+  // NOTE: backdrop-blur / transform 센터링 금지 — fixed 요소에 backdrop-filter
+  // (또는 transform)가 있으면 안드로이드에서 네이버 지도 캔버스 레이어 위에서
+  // 합성이 실패해 네비가 안 그려진다 (로드 직후 0.1초만 보였다 사라지고, 상세
+  // 시트의 일반 DOM이 밑에 깔리면 다시 나타나던 버그). left-0/right-0/mx-auto
+  // 로 transform 없이 가운데 정렬한다.
   return (
     <nav
-      className="app-bottom-nav fixed left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1 px-2 py-1.5 bg-white/97 backdrop-blur-2xl rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-black/5"
+      className="app-bottom-nav fixed left-0 right-0 mx-auto w-fit z-[9999] flex items-center gap-1 px-2 py-1.5 bg-white rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-black/5"
     >
       {NAV_ITEMS.map((item) => {
         const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
