@@ -38,7 +38,8 @@ const AD_ROTATE_SLIDE_MS = 400; // 슬라이드 전환 시간 (업계 300~400ms 
 // Material 3 "emphasized decelerate": 최고 속도로 출발해 끝에서 부드럽게 감속.
 // 롤링 배너 표준 체감 — CSS 기본 `ease`는 출발이 느려 짧은 슬라이드에서 굼떠 보인다.
 const AD_ROTATE_EASING = 'cubic-bezier(0.05, 0.7, 0.1, 1)';
-const AD_BANNERS: { ig: string; src: string; alt: string; imgStyle?: CSSProperties }[] = [
+type AdBanner = { ig?: string; brand?: RegExp; src: string; alt: string; imgStyle?: CSSProperties };
+const AD_BANNERS: AdBanner[] = [
   {
     ig: 'jimuninsik_jeju',
     src: '/ads/jimuninsik_banner3.jpg',
@@ -60,14 +61,18 @@ const AD_BANNERS: { ig: string; src: string; alt: string; imgStyle?: CSSProperti
     alt: '달밤 이태원 혼술바 광고',
     // 원본(1284x642) 타이틀+서브타이틀 중앙 밴드를 6.35:1로 크롭한 파일.
   },
+  {
+    brand: /^nowavebar/,
+    src: '/ads/nowave.jpg',
+    alt: '노웨이브 혼술바 광고',
+    // 전국 다지점 — 클릭 시 지도 화면 중심에서 가장 가까운 노웨이브로 이동.
+  },
 ];
 
 function AdBannerSlot({
-  spots,
   onOpen,
 }: {
-  spots: SpotWithStories[];
-  onOpen: (spot: SpotWithStories) => void;
+  onOpen: (ad: AdBanner) => void;
 }) {
   // 캐러셀식 상시 이동이 아니라 "정지 → 짧은 슬라이드" 반복.
   // 무한 루프용 클론: 트랙 끝에 첫 배너를 붙이고, 클론 도착 시 무전환 점프로 0번 복귀.
@@ -91,10 +96,7 @@ function AdBannerSlot({
     <div style={{ padding: '2px 12px 8px', maxWidth: 480, margin: '0 auto' }}>
       <button
         type="button"
-        onClick={() => {
-          const spot = spots.find((s) => s.instagram_id === current.ig);
-          if (spot) onOpen(spot);
-        }}
+        onClick={() => onOpen(current)}
         aria-label={`${current.alt} — 가게 보기`}
         style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', overflow: 'hidden', borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
       >
@@ -115,7 +117,7 @@ function AdBannerSlot({
           {track.map((ad, i) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              key={`${ad.ig}-${i}`}
+              key={`${ad.src}-${i}`}
               src={ad.src}
               alt={ad.alt}
               style={{ width: '100%', flexShrink: 0, aspectRatio: '1206 / 190', objectFit: 'cover', display: 'block', ...ad.imgStyle }}
@@ -1727,16 +1729,37 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             maxWidth 480: 지도 세로는 고정인데 폭만 늘면 배너 높이가 계속 커져
             지도를 가리므로, 보기 좋던 480px 뷰포트 시점에서 성장 정지(이후 중앙 정렬). */}
         <AdBannerSlot
-          spots={spots}
-          onOpen={(spot) => {
-            // 검색 클릭과 동일: 광고 가게로 지도 이동(zoom16이면 클러스터 풀려 마커 단독 노출)
-            // → 카메라 이동이 보인 뒤 패널 슬라이드업.
+          onOpen={(ad) => {
+            // 단일 지점(ig) 또는 브랜드(전국 다지점 → 지도 화면 중심 최근접) 해석.
+            let target: SpotWithStories | undefined;
+            if (ad.ig) {
+              target = spots.find((s) => s.instagram_id === ad.ig);
+            } else if (ad.brand) {
+              const brand = ad.brand;
+              const cands = spots.filter((s) => s.instagram_id && brand.test(s.instagram_id));
+              const c = viewBounds
+                ? { lat: (viewBounds.minLat + viewBounds.maxLat) / 2, lng: (viewBounds.minLng + viewBounds.maxLng) / 2 }
+                : null;
+              target = c
+                ? cands.reduce<SpotWithStories | undefined>(
+                    (best, s) =>
+                      !best ||
+                      haversineMeters(c.lat, c.lng, s.lat, s.lng) < haversineMeters(c.lat, c.lng, best.lat, best.lng)
+                        ? s
+                        : best,
+                    undefined,
+                  )
+                : cands[0];
+            }
+            if (!target) return;
+            const t = target;
+            // 검색 클릭과 동일: 지도 이동(zoom16이면 클러스터 풀려 마커 단독) → 700ms 뒤 패널.
             if (mapInstanceRef.current && window.naver?.maps) {
-              mapInstanceRef.current.morph(new window.naver.maps.LatLng(spot.lat, spot.lng), 16);
+              mapInstanceRef.current.morph(new window.naver.maps.LatLng(t.lat, t.lng), 16);
             }
             setSelectedSpot(null);
             setSheetOpen(false);
-            setTimeout(() => openSpotPanel(spot, 'map'), 700);
+            setTimeout(() => openSpotPanel(t, 'map'), 700);
           }}
         />
       </div>

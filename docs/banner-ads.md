@@ -36,8 +36,11 @@
 ## 4. 게재 관리
 
 - 게재 추가/제거 = `MapClient.tsx`의 `AD_BANNERS` 배열 수정 (배포 필요)
-- 항목: `{ ig, src, alt, imgStyle? }` — `ig`는 클릭 시 열 가게의 인스타 핸들
-- **현재 게재 (3)**: 지문인식 혼술바(제주) `@jimuninsik_jeju` · 엮은이(서귀포) `@the_editor_jeju` · 달밤 이태원 `@dalbam_seoul_itaewon` (+ 노웨이브 지점 확정 시 추가 예정)
+- 항목: `{ src, alt, imgStyle?, ig?, brand? }`
+  - `ig`: 단일 지점 — 클릭 시 그 가게로 이동 (달밤 이태원 등)
+  - `brand`: 전국 다지점 브랜드 정규식(예: `/^nowavebar/`) — 클릭 시 **지도 화면 중심에서 가장 가까운 지점**으로 이동 (위치권한 불필요, viewBounds 중심 기준). 노웨이브처럼 지점이 여러 개라 하나로 못 정할 때.
+- 클릭 동작: 검색 클릭과 동일 — 대상 가게로 morph(zoom16, 클러스터 풀려 마커 단독) → 700ms 뒤 패널.
+- **현재 게재 (4)**: 지문인식(제주) `@jimuninsik_jeju` · 엮은이(서귀포) `@the_editor_jeju` · 달밤 이태원 `@dalbam_seoul_itaewon` · 노웨이브 `brand:/^nowavebar/` (전국, 최근접)
 - ⚠️ 영업 시 **슬롯 수량(선착순 몇 자리인지)은 사장에게 언급 금지**
 
 ## 5. 추후 (필요해지면)
