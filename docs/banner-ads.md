@@ -37,7 +37,7 @@
 
 - 게재 추가/제거 = `MapClient.tsx`의 `AD_BANNERS` 배열 수정 (배포 필요)
 - 항목: `{ ig, src, alt, imgStyle? }` — `ig`는 클릭 시 열 가게의 인스타 핸들
-- **현재 게재 (2)**: 지문인식 혼술바(제주) `@jimuninsik_jeju` · 엮은이(서귀포) `@the_editor_jeju`
+- **현재 게재 (3)**: 지문인식 혼술바(제주) `@jimuninsik_jeju` · 엮은이(서귀포) `@the_editor_jeju` · 달밤 이태원 `@dalbam_seoul_itaewon` (+ 노웨이브 지점 확정 시 추가 예정)
 - ⚠️ 영업 시 **슬롯 수량(선착순 몇 자리인지)은 사장에게 언급 금지**
 
 ## 5. 추후 (필요해지면)

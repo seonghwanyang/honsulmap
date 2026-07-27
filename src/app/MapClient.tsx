@@ -54,6 +54,12 @@ const AD_BANNERS: { ig: string; src: string; alt: string; imgStyle?: CSSProperti
     alt: '서귀포 혼술바 엮은이 광고',
     // 원본 상하 흰 여백 제거 후 크림 배경 1206×190 캔버스로 재조판한 파일.
   },
+  {
+    ig: 'dalbam_seoul_itaewon',
+    src: '/ads/dalbam_itaewon.jpg',
+    alt: '달밤 이태원 혼술바 광고',
+    // 원본(1284x642) 타이틀+서브타이틀 중앙 밴드를 6.35:1로 크롭한 파일.
+  },
 ];
 
 function AdBannerSlot({
