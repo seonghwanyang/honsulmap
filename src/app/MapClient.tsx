@@ -38,10 +38,12 @@ const AD_ROTATE_SLIDE_MS = 400; // 슬라이드 전환 시간 (업계 300~400ms 
 // Material 3 "emphasized decelerate": 최고 속도로 출발해 끝에서 부드럽게 감속.
 // 롤링 배너 표준 체감 — CSS 기본 `ease`는 출발이 느려 짧은 슬라이드에서 굼떠 보인다.
 const AD_ROTATE_EASING = 'cubic-bezier(0.05, 0.7, 0.1, 1)';
-type AdBanner = { ig?: string; brand?: RegExp; src: string; alt: string; imgStyle?: CSSProperties };
+// scope: 'national'(전체광고, 전국 노출) | 'local'(지역광고, 화면 중심 30km 내에서만 노출).
+// ig=단일지점 클릭 / brand=다지점(최근접 클릭). scope 미지정=national.
+type AdBanner = { ig?: string; brand?: RegExp; src: string; alt: string; imgStyle?: CSSProperties; scope?: 'national' | 'local' };
 const AD_BANNERS: AdBanner[] = [
   {
-    ig: 'jimuninsik_jeju',
+    brand: /^jimuninsik/,
     src: '/ads/jimuninsik_banner3.jpg',
     alt: '지문인식 혼술바 광고',
     // banner3(1206x843) 실측: '지문인식' 타이틀 y[338..447] + '혼술바' 서브타이틀
@@ -50,7 +52,7 @@ const AD_BANNERS: AdBanner[] = [
     imgStyle: { objectPosition: 'center 49%' },
   },
   {
-    ig: 'the_editor_jeju',
+    brand: /^the_editor/,
     src: '/ads/the_editor_seogwipo.jpg',
     alt: '서귀포 혼술바 엮은이 광고',
     // 원본 상하 흰 여백 제거 후 크림 배경 1206×190 캔버스로 재조판한 파일.
@@ -70,19 +72,21 @@ const AD_BANNERS: AdBanner[] = [
 ];
 
 function AdBannerSlot({
+  banners,
   onOpen,
 }: {
+  banners: AdBanner[];
   onOpen: (ad: AdBanner) => void;
 }) {
   // 캐러셀식 상시 이동이 아니라 "정지 → 짧은 슬라이드" 반복.
   // 무한 루프용 클론: 트랙 끝에 첫 배너를 붙이고, 클론 도착 시 무전환 점프로 0번 복귀.
-  // SSR/hydration 불일치를 피하려고 첫 렌더는 0번 고정, 마운트 후 랜덤 시작.
+  // banners는 부모가 지역광고 필터 + 최근접 정렬한 목록 → 0번(최근접)부터 시작.
   const [idx, setIdx] = useState(0);
   const [anim, setAnim] = useState(true);
-  const n = AD_BANNERS.length;
+  const n = banners.length;
   useEffect(() => {
+    setIdx(0);
     if (n < 2) return;
-    setIdx(Math.floor(Math.random() * n));
     const t = setInterval(() => {
       if (document.hidden) return; // 백그라운드 탭에선 진행 정지 (transitionEnd 유실 방지)
       setAnim(true);
@@ -90,8 +94,9 @@ function AdBannerSlot({
     }, AD_ROTATE_HOLD_MS + AD_ROTATE_SLIDE_MS);
     return () => clearInterval(t);
   }, [n]);
-  const track = n > 1 ? [...AD_BANNERS, AD_BANNERS[0]] : AD_BANNERS;
-  const current = AD_BANNERS[idx % n];
+  if (n === 0) return null;
+  const track = n > 1 ? [...banners, banners[0]] : banners;
+  const current = banners[idx % n];
   return (
     <div style={{ padding: '2px 12px 8px', maxWidth: 480, margin: '0 auto' }}>
       <button
@@ -523,6 +528,32 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     flushPanelDwell();
     setSelectedSpot(null);
   }, [flushPanelDwell]);
+
+  // 광고 배너: 최초 지도 위치 기준 지역광고(scope:local) 필터 + 최근접 정렬.
+  // 한 번만 계산(adComputedRef) → 팬할 때마다 로테이션 리셋되는 것 방지.
+  const [orderedAds, setOrderedAds] = useState<AdBanner[]>(AD_BANNERS);
+  const adComputedRef = useRef(false);
+  useEffect(() => {
+    if (adComputedRef.current || !viewBounds || spots.length === 0) return;
+    adComputedRef.current = true;
+    const c = { lat: (viewBounds.minLat + viewBounds.maxLat) / 2, lng: (viewBounds.minLng + viewBounds.maxLng) / 2 };
+    const LOCAL_R = 30000; // 지역광고 노출 반경 30km
+    const scored = AD_BANNERS.map((ad) => {
+      const cands = ad.ig
+        ? spots.filter((s) => s.instagram_id === ad.ig)
+        : ad.brand
+          ? spots.filter((s) => s.instagram_id && ad.brand!.test(s.instagram_id))
+          : [];
+      const d = cands.reduce((m, s) => Math.min(m, haversineMeters(c.lat, c.lng, s.lat, s.lng)), Infinity);
+      return { ad, d };
+    });
+    setOrderedAds(
+      scored
+        .filter(({ ad, d }) => ad.scope !== 'local' || d <= LOCAL_R)
+        .sort((a, b) => a.d - b.d)
+        .map((x) => x.ad),
+    );
+  }, [viewBounds, spots]);
 
   // 뒤로가기(iOS 엣지 스와이프 / 안드 백 / 브라우저 back)로 상세 시트 닫기
   useBackClose(!!selectedSpot, closeSpotPanel);
@@ -1729,6 +1760,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             maxWidth 480: 지도 세로는 고정인데 폭만 늘면 배너 높이가 계속 커져
             지도를 가리므로, 보기 좋던 480px 뷰포트 시점에서 성장 정지(이후 중앙 정렬). */}
         <AdBannerSlot
+          banners={orderedAds}
           onOpen={(ad) => {
             // 단일 지점(ig) 또는 브랜드(전국 다지점 → 지도 화면 중심 최근접) 해석.
             let target: SpotWithStories | undefined;
