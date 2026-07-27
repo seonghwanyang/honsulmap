@@ -534,9 +534,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [orderedAds, setOrderedAds] = useState<AdBanner[]>(AD_BANNERS);
   const adComputedRef = useRef(false);
   useEffect(() => {
-    if (adComputedRef.current || !viewBounds || spots.length === 0) return;
+    if (adComputedRef.current || spots.length === 0) return;
     adComputedRef.current = true;
-    const c = { lat: (viewBounds.minLat + viewBounds.maxLat) / 2, lng: (viewBounds.minLng + viewBounds.maxLng) / 2 };
+    // 첫 위치 = 서버 지오(initialCity). 로드 순간 이미 있어 스왑 없이 첫 프레임부터 올바름.
+    const c = CITY_CENTER[initialCity];
     const LOCAL_R = 30000; // 지역광고 노출 반경 30km
     const scored = AD_BANNERS.map((ad) => {
       const cands = ad.ig
@@ -553,7 +554,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         .sort((a, b) => a.d - b.d)
         .map((x) => x.ad),
     );
-  }, [viewBounds, spots]);
+  }, [spots, initialCity]);
 
   // 뒤로가기(iOS 엣지 스와이프 / 안드 백 / 브라우저 back)로 상세 시트 닫기
   useBackClose(!!selectedSpot, closeSpotPanel);
