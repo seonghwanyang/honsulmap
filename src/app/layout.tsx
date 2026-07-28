@@ -119,7 +119,13 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  // 지도 서비스 표준: 페이지 핀치줌 차단(지도 자체 줌만 사용). 안드로이드
+  // 크롬·삼성인터넷은 maximum-scale=1을 무시하고 핀치줌을 허용해, 페이지가
+  // 확대 상태로 고정되는 사고가 나던 것 방지.
+  userScalable: false,
   themeColor: '#ffffff',
+  // iOS 노치까지 화면을 쓰고 env(safe-area-inset-*)를 활성화 (헤더 여백용).
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
