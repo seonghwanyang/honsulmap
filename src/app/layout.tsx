@@ -7,6 +7,7 @@ import ClarityScript from '@/components/analytics/ClarityScript';
 import AdSenseScript from '@/components/ads/AdSenseScript';
 import AddToHomePrompt from '@/components/AddToHomePrompt';
 import PushRegistration from '@/components/PushRegistration';
+import AdMobBanner from '@/components/AdMobBanner';
 import AndroidBackHandler from '@/components/AndroidBackHandler';
 import { jsonLdScript } from '@/lib/utils';
 
@@ -176,6 +177,7 @@ export default function RootLayout({
         <BottomNav />
         <AddToHomePrompt />
         <PushRegistration />
+        <AdMobBanner />
         <AndroidBackHandler />
         <ClarityScript />
         <AdSenseScript />
