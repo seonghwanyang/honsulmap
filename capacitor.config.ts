@@ -28,6 +28,15 @@ const config: CapacitorConfig = {
       'nid.naver.com',
     ],
   },
+  plugins: {
+    // 상태바/제스처바 아이콘 색. 기본값(DEFAULT)은 폰의 다크모드를 따라가는데,
+    // 우리 웹은 항상 흰 배경이라 다크모드 폰에서 흰 아이콘이 흰 바탕에 묻혀 안 보였음
+    // (Cap8 targetSdk36 edge-to-edge라 styles.xml statusBarColor는 무시됨).
+    // 'Light' = 밝은 배경용 = 어두운 아이콘 고정. Android/iOS 공통.
+    SystemBars: {
+      style: 'Light',
+    },
+  },
 };
 
 export default config;
