@@ -100,7 +100,7 @@ function AdBannerSlot({
   const track = n > 1 ? [...banners, banners[0]] : banners;
   const current = banners[idx % n];
   return (
-    <div style={{ padding: '2px 12px 8px', maxWidth: 480, margin: '0 auto' }}>
+    <div style={{ flex: 1, minWidth: 0, maxWidth: 480, margin: '0 auto' }}>
       <button
         type="button"
         onClick={() => onOpen(current)}
@@ -446,10 +446,17 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
+  // 실시간 근황 스트립: 기본 접힘(원형 아이콘) — 탭하면 배너 줄 아래로 펼침.
+  const [hotOpen, setHotOpen] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(10);
   const [viewBounds, setViewBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
   const [, setTick] = useState(0);
   const [gpsToast, setGpsToast] = useState<string | null>(null);
+
+  // 가게 패널이 열리면 실시간 근황 드롭다운은 접는다 (겹침 방지).
+  useEffect(() => {
+    if (selectedSpot) setHotOpen(false);
+  }, [selectedSpot]);
 
   // Story pagination state for the currently-selected spot. `total` is
   // the server-reported count; `loading` toggles during initial + "더 보기"
@@ -1766,10 +1773,39 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             <SpotRequestButton variant="compact" />
           </div>
         </div>
-        <HotSpotCarousel />
-        {/* 광고 배너 — 실시간 근황 아래. 게재 중: 지문인식(제주) · 엮은이(서귀포) 로테이션.
-            maxWidth 480: 지도 세로는 고정인데 폭만 늘면 배너 높이가 계속 커져
-            지도를 가리므로, 보기 좋던 480px 뷰포트 시점에서 성장 정지(이후 중앙 정렬). */}
+        {/* [실시간 근황 아이콘][광고 배너] 한 줄 — 세로 공간 절약. 캐러셀
+            풀스트립은 접어두고 아이콘 탭 시 아래로 드롭다운(HotSpotCarousel 재사용).
+            배너 maxWidth 480: 폭만 늘면 배너 높이가 계속 커져 지도를 가리므로
+            480px 시점에서 성장 정지(이후 중앙 정렬). */}
+        <div className="relative flex items-center" style={{ gap: 8, padding: '2px 12px 8px' }}>
+          <button
+            type="button"
+            onClick={() => setHotOpen((v) => !v)}
+            aria-label={hotOpen ? '실시간 근황 닫기' : '실시간 근황 열기'}
+            aria-expanded={hotOpen}
+            className="flex-shrink-0 flex items-center justify-center"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 999,
+              background: hotOpen ? '#111827' : '#fff',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+              cursor: 'pointer',
+              position: 'relative',
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill={hotOpen ? '#ffffff' : '#ea573e'} aria-hidden="true">
+              <path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14a8 8 0 0 0 16 0C20 9.9 18.04 6.24 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z" />
+            </svg>
+            {/* 새 스토리가 있다는 라이브 점 — 마커 배지와 같은 보라 */}
+            {!hotOpen && (
+              <span
+                aria-hidden="true"
+                style={{ position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: '50%', background: '#7C3AED', border: '1.5px solid #fff' }}
+              />
+            )}
+          </button>
         <AdBannerSlot
           banners={orderedAds}
           onOpen={(ad) => {
@@ -1805,6 +1841,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             setTimeout(() => openSpotPanel(t, 'map'), 700);
           }}
         />
+          {hotOpen && (
+            <div className="absolute left-0 right-0" style={{ top: '100%', zIndex: 30 }}>
+              <HotSpotCarousel />
+            </div>
+          )}
+        </div>
       </div>
 
 
