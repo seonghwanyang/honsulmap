@@ -1795,8 +1795,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               position: 'relative',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill={hotOpen ? '#ffffff' : '#ea573e'} aria-hidden="true">
-              <path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14a8 8 0 0 0 16 0C20 9.9 18.04 6.24 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z" />
+            {/* 아웃라인 스트로크 불꽃 — 하단 네비·헤더와 같은 아이콘 패밀리(stroke 2) */}
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={hotOpen ? '#ffffff' : '#111827'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
             </svg>
             {/* 새 스토리가 있다는 라이브 점 — 마커 배지와 같은 보라 */}
             {!hotOpen && (
