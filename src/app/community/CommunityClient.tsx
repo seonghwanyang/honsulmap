@@ -9,6 +9,8 @@ import { track } from '@/lib/analytics';
 import { isBlockedNick } from '@/lib/blocklist';
 import { usePageDwell } from '@/lib/hooks/usePageDwell';
 import { useScrollDepth } from '@/lib/hooks/useScrollDepth';
+import InlineAd from '@/components/ads/InlineAd';
+import { INLINE_AD_UNITS } from '@/lib/ads/config';
 
 const categoryBadgeStyle: Record<string, { bg: string; text: string }> = {
   status: { bg: '#dcfce7', text: '#15803d' },
@@ -139,11 +141,18 @@ export default function CommunityClient({ initialPosts, category }: CommunityCli
 
   const renderPosts = () => {
     const items: React.ReactNode[] = [];
-    posts
-      .filter((post) => !isBlockedNick(post.nickname))
-      .forEach((post) => {
-        items.push(<PostItem key={post.id} post={post} />);
-      });
+    const visible = posts.filter((post) => !isBlockedNick(post.nickname));
+    let adCount = 0;
+    visible.forEach((post, idx) => {
+      items.push(<PostItem key={post.id} post={post} />);
+      // 글 5개마다 AdFit 인라인 광고. AdFit은 유닛당 페이지 1회만 렌더되므로
+      // INLINE_AD_UNITS(4개)를 순서대로 소진 — 글 20개 이후엔 광고 없음
+      // (스팟 페이지와 같은 캡 방식). 리스트 마지막 글 뒤에는 붙이지 않는다.
+      if ((idx + 1) % 5 === 0 && idx < visible.length - 1 && adCount < INLINE_AD_UNITS.length) {
+        items.push(<InlineAd key={`ad-${adCount}`} unit={INLINE_AD_UNITS[adCount]} />);
+        adCount++;
+      }
+    });
     return items;
   };
 
