@@ -21,7 +21,9 @@ function isStandalone(): boolean {
   );
 }
 
-// Floating "홈 화면에 추가" card. Shows on the map only, and only AFTER the
+// Floating "홈 화면에 추가" card — 안드로이드 웹 전용(플레이스토어 출시 전의
+// 유일한 설치 경로). iOS는 헤더 '앱 받기' 칩(App Store)이 설치 유도를 담당하고,
+// 네이티브 앱 웹뷰에선 항상 숨긴다. Shows on the map only, and only AFTER the
 // onboarding sequence: WelcomeModal (location step, which blurs the map) is
 // closed → blur lifts → clean map → a beat later this nudge appears. Never
 // piles on top of the welcome/location step.
@@ -42,6 +44,8 @@ export default function AddToHomePrompt() {
   useEffect(() => {
     // The nudge belongs to the map onboarding, not the feed/community tabs.
     if (pathname !== '/') return;
+    // 네이티브 앱(Capacitor 웹뷰) 안에서는 어떤 설치 유도도 띄우지 않는다.
+    if ((window as unknown as { Capacitor?: unknown }).Capacitor) return;
     if (isStandalone()) {
       try {
         localStorage.setItem(INSTALLED_KEY, '1');
@@ -62,6 +66,9 @@ export default function AddToHomePrompt() {
     // Mobile only — "홈 화면에 추가" doesn't apply on desktop browsers.
     if (!/android|iphone|ipad|ipod|mobi/i.test(ua)) return;
     const isIOS = /iphone|ipad|ipod/i.test(ua);
+    // iOS는 앱스토어 출시 후 헤더 '앱 받기' 칩이 설치 유도를 담당 — PWA 홈화면
+    // 힌트는 안드로이드 전용으로 남긴다 (플레이스토어 출시되면 이 컴포넌트 제거).
+    if (isIOS) return;
     const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios/i.test(ua);
 
     let captured: BeforeInstallPromptEvent | null = null;
