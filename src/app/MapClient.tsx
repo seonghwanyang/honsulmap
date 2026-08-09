@@ -1175,7 +1175,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       return `${svgOpen}<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
     };
 
-    const renderSpotMarker = (spot: SpotWithStories, showLabel = false) => {
+    const renderSpotMarker = (spot: SpotWithStories, showLabel = false, showCard = false) => {
       const freshness = getFreshness(spot);
       const hasStory = freshness !== 'none';
       const isFresh = freshness === 'fresh';
@@ -1210,12 +1210,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // Persistent name label to the right of the pin (Kakao-style), shown
       // only when the zoom-tiered collision pass (below) selected this spot.
       // White halo via text-shadow keeps it legible over the map, no bg box.
-      // 미니 스토리 카드 — fresh 핀의 이름라벨 오른쪽 8px, 윗변을 라벨 윗변에 맞춰
-      // 세로형(26×38, 스토리 비율)으로 아래로 늘어진다. 라벨 뜨는 핀에만 붙어
-      // 충돌 패스를 그대로 따라감. 탭하면 버블링으로 가게 패널이 열림.
+      // 미니 스토리 카드 — fresh 핀의 이름라벨과 같은 열(왼쪽 정렬), 라벨 아래 4px에서
+      // 세로형(60×88, 스토리 비율)으로 시작. showCard는 줌15+ 카드 충돌 패스(아래
+      // effect)가 '최신 스토리 우선'으로 배정. 탭하면 버블링으로 가게 패널이 열림.
       const storyThumb =
-        isFresh && spot.latest_story_thumb
-          ? `<img src="${esc(spot.latest_story_thumb)}" alt="" onerror="this.remove()" style="position:absolute;left:calc(100% + 8px);top:0;width:26px;height:38px;object-fit:cover;border-radius:8px;border:1.5px solid #fff;box-shadow:0 0 0 1.5px #7C3AED,0 2px 5px rgba(0,0,0,0.25);background:#f3f4f6;pointer-events:auto;">`
+        showCard && isFresh && spot.latest_story_thumb
+          ? `<img src="${esc(spot.latest_story_thumb)}" alt="" onerror="this.remove()" style="position:absolute;left:0;top:calc(100% + 4px);width:60px;height:88px;object-fit:cover;border-radius:10px;border:1.5px solid #fff;box-shadow:0 0 0 1.5px #7C3AED,0 2px 6px rgba(0,0,0,0.28);background:#f3f4f6;pointer-events:auto;">`
           : '';
       const rightLabel = showLabel
         ? `<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:600;color:#111827;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff;pointer-events:none;">${name}${storyThumb}</span>`
@@ -1294,6 +1294,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // zoom in (12: 혜택+fresh · 13: +stale · 14+: 전체). Collision then thins
       // within the eligible set so the highest-priority names survive.
       const labelSet = new Set<string>();
+      const cardSet = new Set<string>();
       const size = mapInstanceRef.current.getSize();
       if (viewBounds && size.width && size.height) {
         const { minLat, maxLat, minLng, maxLng } = viewBounds;
@@ -1328,9 +1329,35 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             boxes.push(box);
             labelSet.add(c.s.id);
           });
+
+        // 미니 스토리 카드 충돌 패스 — 줌 15+에서만. fresh+썸네일 핀을 '최신 스토리
+        // 순'으로 훑으며 카드 박스(라벨 열 아래 60×88)가 이미 배정된 카드와 겹치면
+        // 탈락 → 겹칠 자리엔 최신 가게만 카드가 붙는다. 줌아웃 땐 보라점만.
+        if (currentZoom >= 15) {
+          const cardBoxes: Box[] = [];
+          visibleSpots
+            .filter((s) => getFreshness(s) === 'fresh' && s.latest_story_thumb)
+            .map((s) => ({
+              s,
+              x: ((s.lng - minLng) / dLng) * W,
+              y: ((maxLat - s.lat) / dLat) * H,
+            }))
+            .filter((c) => c.x > -100 && c.x < W + 100 && c.y > -100 && c.y < H + 100)
+            .sort(
+              (a, b) =>
+                new Date(b.s.latest_story_at ?? 0).getTime() -
+                new Date(a.s.latest_story_at ?? 0).getTime(),
+            )
+            .forEach((c) => {
+              const box: Box = { x0: c.x + 21, y0: c.y - 12, x1: c.x + 85, y1: c.y + 80 };
+              if (cardBoxes.some((o) => hit(o, box))) return;
+              cardBoxes.push(box);
+              cardSet.add(c.s.id);
+            });
+        }
       }
       visibleSpots.forEach((spot) => {
-        overlaysRef.current.push(renderSpotMarker(spot, labelSet.has(spot.id)));
+        overlaysRef.current.push(renderSpotMarker(spot, labelSet.has(spot.id), cardSet.has(spot.id)));
       });
     } else {
       const clusters = clusterByGrid(visibleSpots, currentZoom);
