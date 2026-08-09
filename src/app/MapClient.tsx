@@ -1722,6 +1722,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
 
   return (
     <div className="relative w-full" style={{ height: '100dvh', background: '#f8f9fa' }}>
+      {/* 로컬 디버그: 현재 줌 표시 — next dev에서만, production 빌드에선 코드째 제거됨 */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{ position: 'fixed', left: 10, bottom: 140, zIndex: 9999, background: '#111827', color: '#fff', fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, opacity: 0.85, pointerEvents: 'none' }}>
+          zoom {currentZoom}
+        </div>
+      )}
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 z-20 flex items-center px-4 h-14 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]" style={{ height: 'calc(3.5rem + env(safe-area-inset-top))', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex flex-col justify-center gap-px">
