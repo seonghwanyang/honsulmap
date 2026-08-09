@@ -1179,6 +1179,20 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       const freshness = getFreshness(spot);
       const hasStory = freshness !== 'none';
       const isFresh = freshness === 'fresh';
+      // fresh 핀끼리 겹칠 때 위 레이어 = 최신 스토리 (우리가 정한 우선순위).
+      // 남은 fresh 시간(분) 0~1440 — 방금 올린 스토리일수록 큼 → zIndex 가산.
+      const freshRecencyMin =
+        isFresh && spot.latest_story_at
+          ? Math.max(
+              0,
+              Math.min(
+                1440,
+                Math.floor(
+                  (new Date(spot.latest_story_at).getTime() + STORY_FRESH_MS - Date.now()) / 60000,
+                ),
+              ),
+            )
+          : 0;
       const sz = hasStory ? 32 : 24;
       const iconSz = hasStory ? 14 : 11;
       const tailW = hasStory ? 6 : 4;
@@ -1262,7 +1276,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         // Fresh pins (<24h) sit highest, then stale (had a story but
         // outside the 24h window), then never-had-a-story. Keeps today's
         // activity visible when shore clusters get tight.
-        zIndex: isFresh ? 200 : hasStory ? 150 : 100,
+        zIndex: isFresh ? 200 + freshRecencyMin : hasStory ? 150 : 100,
         icon: {
           content,
           size: new window.naver.maps.Size(sz, totalH),
