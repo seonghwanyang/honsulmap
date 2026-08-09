@@ -1211,8 +1211,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // only when the zoom-tiered collision pass (below) selected this spot.
       // White halo via text-shadow keeps it legible over the map, no bg box.
       // 미니 스토리 카드 — fresh 핀의 이름라벨과 같은 열(왼쪽 정렬), 라벨 아래 4px에서
-      // 세로형(60×88, 스토리 비율)으로 시작. showCard는 줌15+ 카드 충돌 패스(아래
-      // effect)가 '최신 스토리 우선'으로 배정. 탭하면 버블링으로 가게 패널이 열림.
+      // 세로형(60×88, 스토리 비율)으로 시작. showCard는 줌15+에서 일괄 true (겹침 허용).
+      // 탭하면 버블링으로 가게 패널이 열림.
       const storyThumb =
         showCard && isFresh && spot.latest_story_thumb
           ? `<img src="${esc(spot.latest_story_thumb)}" alt="" onerror="this.remove()" style="position:absolute;left:0;top:calc(100% + 4px);width:60px;height:88px;object-fit:cover;border-radius:10px;border:1.5px solid #fff;box-shadow:0 0 0 1.5px #7C3AED,0 2px 6px rgba(0,0,0,0.28);background:#f3f4f6;pointer-events:auto;">`
@@ -1330,31 +1330,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             labelSet.add(c.s.id);
           });
 
-        // 미니 스토리 카드 충돌 패스 — 줌 15+에서만. fresh+썸네일 핀을 '최신 스토리
-        // 순'으로 훑으며 카드 박스(라벨 열 아래 60×88)가 이미 배정된 카드와 겹치면
-        // 탈락 → 겹칠 자리엔 최신 가게만 카드가 붙는다. 줌아웃 땐 보라점만.
-        if (currentZoom >= 15) {
-          const cardBoxes: Box[] = [];
-          visibleSpots
-            .filter((s) => getFreshness(s) === 'fresh' && s.latest_story_thumb)
-            .map((s) => ({
-              s,
-              x: ((s.lng - minLng) / dLng) * W,
-              y: ((maxLat - s.lat) / dLat) * H,
-            }))
-            .filter((c) => c.x > -100 && c.x < W + 100 && c.y > -100 && c.y < H + 100)
-            .sort(
-              (a, b) =>
-                new Date(b.s.latest_story_at ?? 0).getTime() -
-                new Date(a.s.latest_story_at ?? 0).getTime(),
-            )
-            .forEach((c) => {
-              const box: Box = { x0: c.x + 21, y0: c.y - 12, x1: c.x + 85, y1: c.y + 80 };
-              if (cardBoxes.some((o) => hit(o, box))) return;
-              cardBoxes.push(box);
-              cardSet.add(c.s.id);
-            });
-        }
+      }
+      // 미니 스토리 카드 — 줌 15+에서 fresh+썸네일 핀 전부, 겹침 허용 (2026-08-10 결정:
+      // 픽셀 충돌로 솎으면 줌을 올릴 때마다 하나씩 늘어나는 느낌이라, 카드가 처음
+      // 등장하는 줌에서 한 번에 다 보이게 한다). 줌아웃(<15) 땐 보라점만.
+      if (currentZoom >= 15) {
+        visibleSpots.forEach((s) => {
+          if (getFreshness(s) === 'fresh' && s.latest_story_thumb) cardSet.add(s.id);
+        });
       }
       visibleSpots.forEach((spot) => {
         overlaysRef.current.push(renderSpotMarker(spot, labelSet.has(spot.id), cardSet.has(spot.id)));
