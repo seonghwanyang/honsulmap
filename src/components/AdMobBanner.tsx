@@ -25,8 +25,14 @@ function marginAboveNav(): number {
   const nav = document.querySelector('.app-bottom-nav');
   if (!nav) return SAFE_MARGIN_FALLBACK;
   const rect = nav.getBoundingClientRect();
-  // 화면 밑에서 네비 top까지 거리 + 여백 → 배너가 네비 위에 붙되 안 겹침.
-  return Math.round(window.innerHeight - rect.top + GAP_ABOVE_NAV);
+  // 네이티브(패치본)가 안드15+ 엣지투엣지에서 제스처바 인셋을 margin에 자체 가산하므로,
+  // 여기선 인셋(Capacitor SystemBars가 주입하는 --safe-area-inset-bottom)을 빼고
+  // '뷰포트 하단→네비 top 거리 + 여백'만 전달해 중복 가산을 막는다. 비엣지투엣지에선 0이라 무영향.
+  const safeBottom =
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom'),
+    ) || 0;
+  return Math.max(0, Math.round(window.innerHeight - rect.top + GAP_ABOVE_NAV - safeBottom));
 }
 
 export default function AdMobBanner() {
