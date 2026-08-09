@@ -1175,10 +1175,24 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       return `${svgOpen}<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
     };
 
-    const renderSpotMarker = (spot: SpotWithStories, showLabel = false) => {
+    const renderSpotMarker = (spot: SpotWithStories, showLabel = false, showCard = false) => {
       const freshness = getFreshness(spot);
       const hasStory = freshness !== 'none';
       const isFresh = freshness === 'fresh';
+      // fresh 핀끼리 겹칠 때 위 레이어 = 최신 스토리 (우리가 정한 우선순위).
+      // 남은 fresh 시간(분) 0~1440 — 방금 올린 스토리일수록 큼 → zIndex 가산.
+      const freshRecencyMin =
+        isFresh && spot.latest_story_at
+          ? Math.max(
+              0,
+              Math.min(
+                1440,
+                Math.floor(
+                  (new Date(spot.latest_story_at).getTime() + STORY_FRESH_MS - Date.now()) / 60000,
+                ),
+              ),
+            )
+          : 0;
       const sz = hasStory ? 32 : 24;
       const iconSz = hasStory ? 14 : 11;
       const tailW = hasStory ? 6 : 4;
@@ -1210,8 +1224,15 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // Persistent name label to the right of the pin (Kakao-style), shown
       // only when the zoom-tiered collision pass (below) selected this spot.
       // White halo via text-shadow keeps it legible over the map, no bg box.
+      // 미니 스토리 카드 — fresh 핀의 이름라벨과 같은 열(왼쪽 정렬), 라벨 아래 4px에서
+      // 세로형(60×88, 스토리 비율)으로 시작. showCard는 줌15+에서 일괄 true (겹침 허용).
+      // 탭하면 버블링으로 가게 패널이 열림.
+      const storyThumb =
+        showCard && isFresh && spot.latest_story_thumb
+          ? `<img src="${esc(spot.latest_story_thumb)}" alt="" onerror="this.remove()" style="position:absolute;left:0;top:calc(100% + 4px);width:60px;height:88px;object-fit:cover;border-radius:10px;border:1.5px solid #fff;box-shadow:0 0 0 1.5px #7C3AED,0 2px 6px rgba(0,0,0,0.28);background:#f3f4f6;pointer-events:auto;">`
+          : '';
       const rightLabel = showLabel
-        ? `<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:600;color:#111827;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff;pointer-events:none;">${name}</span>`
+        ? `<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:600;color:#111827;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff;pointer-events:none;">${name}${storyThumb}</span>`
         : '';
       // Purple story dot — fresh only. Stale spots had a story but it's
       // outside the 24h activity window, so we drop the dot/tipBadge to
@@ -1255,7 +1276,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         // Fresh pins (<24h) sit highest, then stale (had a story but
         // outside the 24h window), then never-had-a-story. Keeps today's
         // activity visible when shore clusters get tight.
-        zIndex: isFresh ? 200 : hasStory ? 150 : 100,
+        zIndex: isFresh ? 200 + freshRecencyMin : hasStory ? 150 : 100,
         icon: {
           content,
           size: new window.naver.maps.Size(sz, totalH),
@@ -1287,6 +1308,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // zoom in (12: 혜택+fresh · 13: +stale · 14+: 전체). Collision then thins
       // within the eligible set so the highest-priority names survive.
       const labelSet = new Set<string>();
+      const cardSet = new Set<string>();
       const size = mapInstanceRef.current.getSize();
       if (viewBounds && size.width && size.height) {
         const { minLat, maxLat, minLng, maxLng } = viewBounds;
@@ -1321,9 +1343,18 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             boxes.push(box);
             labelSet.add(c.s.id);
           });
+
+      }
+      // 미니 스토리 카드 — 줌 15+에서 fresh+썸네일 핀 전부, 겹침 허용 (2026-08-10 결정:
+      // 픽셀 충돌로 솎으면 줌을 올릴 때마다 하나씩 늘어나는 느낌이라, 카드가 처음
+      // 등장하는 줌에서 한 번에 다 보이게 한다). 줌아웃(<15) 땐 보라점만.
+      if (currentZoom >= 15) {
+        visibleSpots.forEach((s) => {
+          if (getFreshness(s) === 'fresh' && s.latest_story_thumb) cardSet.add(s.id);
+        });
       }
       visibleSpots.forEach((spot) => {
-        overlaysRef.current.push(renderSpotMarker(spot, labelSet.has(spot.id)));
+        overlaysRef.current.push(renderSpotMarker(spot, labelSet.has(spot.id), cardSet.has(spot.id)));
       });
     } else {
       const clusters = clusterByGrid(visibleSpots, currentZoom);
@@ -1688,6 +1719,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
 
   return (
     <div className="relative w-full" style={{ height: '100dvh', background: '#f8f9fa' }}>
+      {/* 로컬 디버그: 현재 줌 표시 — next dev에서만, production 빌드에선 코드째 제거됨 */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{ position: 'fixed', left: 10, bottom: 140, zIndex: 9999, background: '#111827', color: '#fff', fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, opacity: 0.85, pointerEvents: 'none' }}>
+          zoom {currentZoom}
+        </div>
+      )}
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 z-20 flex items-center px-4 h-14 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]" style={{ height: 'calc(3.5rem + env(safe-area-inset-top))', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex flex-col justify-center gap-px">

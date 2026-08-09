@@ -6,7 +6,8 @@
     "dev": "node -e \"fs=require('fs');fs.rmSync('.next',{recursive:true,force:true})\" && next dev",
     "build": "node -e \"fs=require('fs');fs.rmSync('.next',{recursive:true,force:true})\" && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@capacitor-community/admob": "^8.0.0",
@@ -35,6 +36,7 @@
     "dotenv": "^17.4.2",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.3",
+    "patch-package": "^8.0.1",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.2"

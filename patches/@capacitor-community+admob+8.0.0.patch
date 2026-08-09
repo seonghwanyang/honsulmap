@@ -1,0 +1,20 @@
+diff --git a/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java b/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
+index c629139..00b79c4 100644
+--- a/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
++++ b/node_modules/@capacitor-community/admob/android/src/main/java/com/getcapacitor/community/admob/banner/BannerExecutor.java
+@@ -109,11 +109,13 @@ public class BannerExecutor extends Executor {
+                 rootView.setOnApplyWindowInsetsListener((v, insets) -> {
+                     int bottomInset = insets.getSystemWindowInsetBottom();
+                     int topInset = insets.getSystemWindowInsetTop();
++                    // PATCH(honsulmap): 인셋 갱신 시 사용자 margin이 유실되던 버그 — 인셋에 margin 가산.
++                    int insetDensityMargin = (int) (adOptions.margin * density);
+ 
+                     if ("TOP_CENTER".equals(adOptions.position)) {
+-                        mAdViewLayoutParams.setMargins(0, topInset, 0, 0);
++                        mAdViewLayoutParams.setMargins(0, topInset + insetDensityMargin, 0, 0);
+                     } else {
+-                        mAdViewLayoutParams.setMargins(0, 0, 0, bottomInset);
++                        mAdViewLayoutParams.setMargins(0, 0, 0, bottomInset + insetDensityMargin);
+                     }
+ 
+                     mAdViewLayout.setLayoutParams(mAdViewLayoutParams);
