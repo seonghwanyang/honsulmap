@@ -1210,8 +1210,15 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // Persistent name label to the right of the pin (Kakao-style), shown
       // only when the zoom-tiered collision pass (below) selected this spot.
       // White halo via text-shadow keeps it legible over the map, no bg box.
+      // 미니 스토리 카드 — fresh 핀의 이름라벨 오른쪽 8px, 윗변을 라벨 윗변에 맞춰
+      // 세로형(26×38, 스토리 비율)으로 아래로 늘어진다. 라벨 뜨는 핀에만 붙어
+      // 충돌 패스를 그대로 따라감. 탭하면 버블링으로 가게 패널이 열림.
+      const storyThumb =
+        isFresh && spot.latest_story_thumb
+          ? `<img src="${esc(spot.latest_story_thumb)}" alt="" onerror="this.remove()" style="position:absolute;left:calc(100% + 8px);top:0;width:26px;height:38px;object-fit:cover;border-radius:8px;border:1.5px solid #fff;box-shadow:0 0 0 1.5px #7C3AED,0 2px 5px rgba(0,0,0,0.25);background:#f3f4f6;pointer-events:auto;">`
+          : '';
       const rightLabel = showLabel
-        ? `<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:600;color:#111827;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff;pointer-events:none;">${name}</span>`
+        ? `<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:600;color:#111827;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff;pointer-events:none;">${name}${storyThumb}</span>`
         : '';
       // Purple story dot — fresh only. Stale spots had a story but it's
       // outside the 24h activity window, so we drop the dot/tipBadge to

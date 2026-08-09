@@ -192,6 +192,8 @@ export interface StoryWithSpot extends Story {
 export interface SpotWithStories extends Spot {
   stories: Story[];
   latest_story_at: string | null;
+  // 지도 핀 옆 미니 스토리 카드용 — fresh(24h) 최신 스토리 썸네일 (markers API만 채움).
+  latest_story_thumb?: string | null;
 }
 
 export interface PostCreateRequest {
