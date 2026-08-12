@@ -69,6 +69,12 @@ const AD_BANNERS: AdBanner[] = [
     alt: '노웨이브 혼술바 광고',
     // 전국 다지점 — 클릭 시 지도 화면 중심에서 가장 가까운 노웨이브로 이동.
   },
+  {
+    ig: 'honsoop',
+    src: '/ads/honsup.jpg',
+    alt: '애월 혼술바 혼숲 광고',
+    // 원본(1179x422) 상하 흰 여백을 6.35:1 가운데 크롭한 파일(public/ads/honsup.jpg).
+  },
 ];
 
 function AdBannerSlot({
