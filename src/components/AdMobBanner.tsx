@@ -14,7 +14,8 @@ const BANNER_AD_ID: Record<string, string> = {
 
 // 배치/겹침을 형 폰에서 안전하게 확인하는 동안 true → 구글 테스트 광고(클릭해도 안전, 크기 동일).
 // 확인 끝나면 false로 바꿔 '웹만 재배포'하면 실광고 노출 (네이티브 재빌드 불필요).
-const IS_TESTING = true;
+// 2026-08-13 실광고 전환. 문제 생기면 true로 되돌려 웹 재배포.
+const IS_TESTING = false;
 
 // 네비를 못 찾은 화면(예: 첫 진입이 /partner)에서도 어떤 기기에서든 네비를 안 덮도록
 // 넉넉히 잡는 안전 fallback(px). 네비가 보이는 화면에선 실제 측정값을 쓴다.
