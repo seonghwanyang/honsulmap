@@ -1,0 +1,31 @@
+# storiesig가 데이터센터 IP(GitHub 러너)에서도 응답하는지 검증하는 실험.
+# 수동 실행 전용 — 집 PC(주거 IP)에서 같은 핸들을 돌린 결과와 비교한다.
+# DB/시크릿 불필요, 아무것도 안 씀. 통과하면 스크래퍼의 서버(VPS) 이전 길이 열림.
+name: storiesig IP probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      handles:
+        description: 'IG handles (space-separated) — 집에서 스토리 확인된 핸들로'
+        required: false
+        default: 'with.yeonnam freewill.4_jeonpo salondemin_seoul ondo.bar'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: |
+          pip install -r worker/requirements.txt
+          # camoufox(파이어폭스 계열)가 필요로 하는 시스템 라이브러리
+          python -m playwright install-deps firefox
+          # 스텔스 브라우저 바이너리 다운로드
+          scrapling install
+      - name: Probe
+        run: python scripts/_probe_storiesig.py ${{ github.event.inputs.handles }}

@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import ClarityScript from '@/components/analytics/ClarityScript';
 import AdSenseScript from '@/components/ads/AdSenseScript';
 import AddToHomePrompt from '@/components/AddToHomePrompt';
+import AnalyticsIdentity from '@/components/AnalyticsIdentity';
 import PushRegistration from '@/components/PushRegistration';
 import AdMobBanner from '@/components/AdMobBanner';
 import AndroidBackHandler from '@/components/AndroidBackHandler';
@@ -176,6 +177,7 @@ export default function RootLayout({
         <Footer />
         <BottomNav />
         <AddToHomePrompt />
+        <AnalyticsIdentity />
         <PushRegistration />
         <AdMobBanner />
         <AndroidBackHandler />
