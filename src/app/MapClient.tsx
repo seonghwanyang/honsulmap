@@ -628,7 +628,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   };
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging) return;
-    setDragY(Math.max(0, e.clientY - dragStartYRef.current));
+    const delta = e.clientY - dragStartYRef.current;
+    // 아래로는 손끝을 그대로 따라오고, 위로는 고무줄처럼 저항(¼)하며 최대 60px만
+    // — 시트가 이미 화면을 거의 채우는 높이라 위엔 갈 공간이 없어서. 놓으면
+    // 임계값(80px) 미만이라 handleDragEnd가 제자리로 스프링백한다.
+    setDragY(delta >= 0 ? delta : Math.max(-60, delta * 0.25));
   };
 
   // 스크롤 컨테이너에서도 "최상단에서 아래로 당기면 닫기". 콘텐츠가 top(scrollTop<=0)
