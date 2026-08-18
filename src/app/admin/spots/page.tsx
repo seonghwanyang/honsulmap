@@ -8,6 +8,9 @@ import { REGIONS, CITIES } from '@/lib/types';
 // truth — the admin <Sel> shows the raw code, which is fine for editing.
 const REGION_VALUES = REGIONS.filter((r) => r.value !== 'all').map((r) => r.value);
 
+// 지역코드 → 도시코드 (스팟엔 city 필드가 없어 region으로 역산 — "서울 전체" 필터용).
+const REGION_CITY = new Map<string, string>(REGIONS.map((r) => [r.value, r.city ?? '']));
+
 interface AdminSpot {
   id: string;
   name: string;
@@ -62,7 +65,14 @@ export default function AdminSpotsPage() {
   }
 
   const filtered = spots.filter((s) => {
-    if (regionFilter !== 'all' && s.region !== regionFilter) return false;
+    if (regionFilter !== 'all') {
+      // 'city:seoul' = 서울 전체(하위 지역 모두), 그 외는 개별 지역코드 정확 일치.
+      if (regionFilter.startsWith('city:')) {
+        if (REGION_CITY.get(s.region) !== regionFilter.slice(5)) return false;
+      } else if (s.region !== regionFilter) {
+        return false;
+      }
+    }
     if (categoryFilter !== 'all' && s.category !== categoryFilter) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
@@ -160,6 +170,7 @@ export default function AdminSpotsPage() {
           <option value="all">전체 지역</option>
           {CITIES.map((c) => (
             <optgroup key={c.value} label={c.label}>
+              <option value={`city:${c.value}`}>{c.label} 전체</option>
               {REGIONS.filter((r) => r.city === c.value).map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}
