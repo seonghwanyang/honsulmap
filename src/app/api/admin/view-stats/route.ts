@@ -14,19 +14,16 @@ const AD_GROUPS = [
 ] as const;
 
 // 최초 광고(7/9)의 "전 7일" 윈도까지 커버하는 고정 시작일.
-const SINCE = '2026-06-25T00:00:00+09:00';
 const SINCE_DAY = '2026-06-25';
 
-// UTC timestamptz → KST 달력 일자
-const kstDay = (iso: string) => new Date(new Date(iso).getTime() + 9 * 3600_000).toISOString().slice(0, 10);
 const addDays = (day: string, n: number) => {
   const d = new Date(`${day}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
+const kstDay = (iso: string) => new Date(new Date(iso).getTime() + 9 * 3600_000).toISOString().slice(0, 10);
 
 type Daily = Record<string, number>;
-const bump = (m: Daily, k: string) => { m[k] = (m[k] ?? 0) + 1; };
 const windowStats = (daily: Daily, d0: string, d1: string) => {
   let sum = 0;
   let days = 0;
@@ -38,7 +35,7 @@ const pct = (before: number, after: number) => (before > 0 ? ((after - before) /
 // PostgREST Max Rows(1000) 대응 페이지네이션 수집.
 async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
   const out: T[] = [];
-  for (let from = 0; from <= 100_000; from += 1000) {
+  for (let from = 0; from <= 200_000; from += 1000) {
     const { data, error } = await page(from, from + 999);
     if (error) throw new Error(error.message);
     out.push(...(data ?? []));
@@ -53,15 +50,19 @@ export async function GET(request: NextRequest) {
 
   const sb = supabaseAdmin();
   try {
-    const [spots, viewRows, storyRows] = await Promise.all([
+    // 집계는 DB 뷰(spot_views_daily / story_counts_daily, KST 일별)에서 끝내고
+    // 라우트는 (spot_id, day, count) 소량 행만 읽는다. 원본 이벤트(수만 행)를
+    // 통째 나르던 예전 방식 대비 왕복/전송량이 한 자릿수로 줄어든다.
+    // 마이그레이션: src/data/migrations/2026-08-18_view_stats_daily.sql
+    const [spots, viewDaily, storyDaily] = await Promise.all([
       fetchAll<{ id: string; name: string; city: string | null; instagram_id: string | null }>(
         (a, b) => sb.from('spots').select('id, name, city, instagram_id').order('id').range(a, b),
       ),
-      fetchAll<{ spot_id: string; created_at: string }>(
-        (a, b) => sb.from('spot_views').select('spot_id, created_at').gte('created_at', SINCE).order('id').range(a, b),
+      fetchAll<{ spot_id: string; day: string; views: number }>(
+        (a, b) => sb.from('spot_views_daily').select('spot_id, day, views').gte('day', SINCE_DAY).order('spot_id').order('day').range(a, b),
       ),
-      fetchAll<{ spot_id: string; posted_at: string }>(
-        (a, b) => sb.from('stories').select('spot_id, posted_at').gte('posted_at', SINCE).order('id').range(a, b),
+      fetchAll<{ spot_id: string; day: string; stories: number }>(
+        (a, b) => sb.from('story_counts_daily').select('spot_id, day, stories').gte('day', SINCE_DAY).order('spot_id').order('day').range(a, b),
       ),
     ]);
 
@@ -76,27 +77,32 @@ export async function GET(request: NextRequest) {
     }
     const spotById = new Map(spots.map((s) => [s.id, s]));
 
-    // 일별 집계: 사이트 전체 + 스팟별 (비교군 계산에 스팟별이 필요)
+    // 사이트 전체 + 스팟별 일별 조회수 (뷰의 day는 이미 KST 일자)
     const siteDaily: Daily = {};
     const perSpotDaily = new Map<string, Daily>();
-    for (const r of viewRows) {
-      const day = kstDay(r.created_at);
-      bump(siteDaily, day);
+    let totalViews = 0;
+    for (const r of viewDaily) {
+      siteDaily[r.day] = (siteDaily[r.day] ?? 0) + r.views;
+      totalViews += r.views;
       let m = perSpotDaily.get(r.spot_id);
       if (!m) { m = {}; perSpotDaily.set(r.spot_id, m); }
-      bump(m, day);
+      m[r.day] = (m[r.day] ?? 0) + r.views;
     }
 
-    // 스팟별 스토리 업로드 일자 목록 (비교군 매칭용)
-    const perSpotStoryDays = new Map<string, string[]>();
-    for (const r of storyRows) {
-      if (!r.spot_id) continue;
-      let a = perSpotStoryDays.get(r.spot_id);
-      if (!a) { a = []; perSpotStoryDays.set(r.spot_id, a); }
-      a.push(kstDay(r.posted_at));
+    // 스팟별 일별 스토리 수 (비교군 매칭용)
+    const perSpotStory = new Map<string, Daily>();
+    for (const r of storyDaily) {
+      let m = perSpotStory.get(r.spot_id);
+      if (!m) { m = {}; perSpotStory.set(r.spot_id, m); }
+      m[r.day] = (m[r.day] ?? 0) + r.stories;
     }
-    const storyCountIn = (spotId: string, d0: string, d1: string) =>
-      (perSpotStoryDays.get(spotId) ?? []).filter((d) => d >= d0 && d <= d1).length;
+    const storyCountIn = (spotId: string, d0: string, d1: string) => {
+      const m = perSpotStory.get(spotId);
+      if (!m) return 0;
+      let sum = 0;
+      for (let d = d0; d <= d1; d = addDays(d, 1)) sum += m[d] ?? 0;
+      return sum;
+    };
 
     const sumDaily = (ids: string[]): Daily => {
       const out: Daily = {};
@@ -165,7 +171,7 @@ export async function GET(request: NextRequest) {
       generatedAt: new Date().toISOString(),
       sinceDay: SINCE_DAY,
       today,
-      totalViews: viewRows.length,
+      totalViews,
       siteDaily,
       groups,
     });

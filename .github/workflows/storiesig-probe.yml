@@ -28,4 +28,13 @@ jobs:
           # 스텔스 브라우저 바이너리 다운로드
           scrapling install
       - name: Probe
+        env:
+          PROBE_SHOTS: probe_shots
         run: python scripts/_probe_storiesig.py ${{ github.event.inputs.handles }}
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-shots
+          path: probe_shots/
+          if-no-files-found: ignore
