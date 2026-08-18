@@ -595,13 +595,6 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     setDragY(0);
   };
 
-  const handleDragMove = (e: React.TouchEvent) => {
-    if (!isDragging) return;
-    const delta = e.touches[0].clientY - dragStartYRef.current;
-    // Only allow downward drag
-    setDragY(Math.max(0, delta));
-  };
-
   const handleDragEnd = () => {
     if (!isDragging) return;
     setIsDragging(false);
@@ -621,6 +614,21 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // Spring back
       setDragY(0);
     }
+  };
+
+  // 핸들 드래그 — 마우스(PC)·터치 공통. touch 전용이던 걸 pointer로 확장해
+  // PC에서도 노치를 아래로 잡아채 닫힌다. setPointerCapture로 커서가 작은
+  // 핸들을 벗어나도 move/up이 계속 들어와 드래그가 유지된다.
+  const handlePointerDown = (e: React.PointerEvent) => {
+    dragStartYRef.current = e.clientY;
+    dragStartTimeRef.current = Date.now();
+    setIsDragging(true);
+    setDragY(0);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 캡처 미지원 무시 */ }
+  };
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    setDragY(Math.max(0, e.clientY - dragStartYRef.current));
   };
 
   // 스크롤 컨테이너에서도 "최상단에서 아래로 당기면 닫기". 콘텐츠가 top(scrollTop<=0)
@@ -2102,13 +2110,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       >
         {selectedSpot && (
           <>
-            {/* Drag handle — touch target for swipe-down-to-dismiss */}
+            {/* Drag handle — swipe/drag-down-to-dismiss (마우스·터치 공통 pointer) */}
             <div
               className="flex justify-center pt-2.5 pb-2"
               style={{ cursor: 'grab', touchAction: 'none' }}
-              onTouchStart={handleDragStart}
-              onTouchMove={handleDragMove}
-              onTouchEnd={handleDragEnd}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handleDragEnd}
+              onPointerCancel={handleDragEnd}
             >
               <div style={{ width: '44px', height: '5px', background: '#9ca3af', borderRadius: '3px' }} />
             </div>
