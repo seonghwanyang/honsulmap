@@ -272,16 +272,25 @@ function TablesEditor() {
                 mutateZone(z.key, (zz) => ({ ...zz, grid_cols: v, seats: zz.seats.filter((s) => s.col < v) }))
               }
             />
-            <button
-              onClick={() => {
-                if (!confirm(`'${z.name}' 구역을 삭제할까요?`)) return;
-                setZones((prev) => prev.filter((x) => x.key !== z.key));
-                setDirty(true);
-              }}
-              style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              구역 삭제
-            </button>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button
+                onClick={save}
+                disabled={saving || !dirty}
+                style={{ height: 34, padding: '0 16px', borderRadius: 9, fontSize: 12, fontWeight: 800, border: 'none', background: dirty ? '#111827' : '#f3f4f6', color: dirty ? '#fff' : '#9ca3af', cursor: dirty && !saving ? 'pointer' : 'default' }}
+              >
+                {saving ? '저장 중…' : dirty ? '저장' : '저장됨'}
+              </button>
+              <button
+                onClick={() => {
+                  if (!confirm(`'${z.name}' 구역을 삭제할까요?`)) return;
+                  setZones((prev) => prev.filter((x) => x.key !== z.key));
+                  setDirty(true);
+                }}
+                style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                구역 삭제
+              </button>
+            </div>
           </div>
 
           <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
