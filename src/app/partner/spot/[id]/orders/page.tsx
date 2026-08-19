@@ -25,6 +25,22 @@ interface Order {
   created_at: string;
   items: OrderItem[];
 }
+interface QuestClaim {
+  id: string;
+  status: 'claimed' | 'rewarded';
+  claimed_at: string;
+  title: string;
+  reward: string;
+  seat_label: string;
+}
+
+const LIVE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ready', label: '☕ 준비 중' },
+  { value: 'open', label: '🟢 자리 여유' },
+  { value: 'busy', label: '⚡ 빠르게 참' },
+  { value: 'full', label: '🔴 만석' },
+  { value: 'closed', label: '휴무' },
+];
 
 function beep() {
   try {
@@ -55,24 +71,61 @@ function OrdersBoard() {
   const { id } = useParams<{ id: string }>();
   const [orders, setOrders] = useState<Order[]>([]);
   const [seatTotals, setSeatTotals] = useState<Record<string, number>>({});
+  const [claims, setClaims] = useState<QuestClaim[]>([]);
+  const [liveStatus, setLiveStatus] = useState<string>('open');
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
   const knownIds = useRef<Set<string> | null>(null);
 
   const reload = useCallback(async () => {
-    const res = await fetch(`/api/partner/spots/${id}/orders`);
+    const [res, qRes] = await Promise.all([
+      fetch(`/api/partner/spots/${id}/orders`),
+      fetch(`/api/partner/spots/${id}/quests`),
+    ]);
     if (!res.ok) return;
     const d = await res.json();
+    const q = qRes.ok ? await qRes.json() : { claims: [] };
     const list: Order[] = d.orders ?? [];
-    // 첫 로드는 소리 없이, 이후 새 id 등장 시 비프
+    const claimList: QuestClaim[] = q.claims ?? [];
+    // 첫 로드는 소리 없이, 이후 새 주문/새 달성 등장 시 비프
     if (knownIds.current) {
-      if (list.some((o) => !knownIds.current!.has(o.id))) beep();
+      const fresh =
+        list.some((o) => !knownIds.current!.has(o.id)) ||
+        claimList.some((c) => !knownIds.current!.has(c.id));
+      if (fresh) beep();
     }
-    knownIds.current = new Set(list.map((o) => o.id));
+    knownIds.current = new Set([...list.map((o) => o.id), ...claimList.map((c) => c.id)]);
     setOrders(list);
     setSeatTotals(d.seat_totals ?? {});
+    setClaims(claimList);
     setLoading(false);
   }, [id]);
+
+  useEffect(() => {
+    fetch(`/api/partner/spots/${id}/tables`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.config?.live_status && setLiveStatus(d.config.live_status))
+      .catch(() => {});
+  }, [id]);
+
+  const setLive = async (v: string) => {
+    setLiveStatus(v);
+    await fetch(`/api/partner/spots/${id}/tables`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ live_status: v }),
+    });
+  };
+
+  const rewardClaim = async (claimId: string) => {
+    setClaims((prev) => prev.map((c) => (c.id === claimId ? { ...c, status: 'rewarded' } : c)));
+    await fetch(`/api/partner/spots/${id}/quests`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ claim_id: claimId }),
+    });
+    reload();
+  };
 
   useEffect(() => {
     reload();
@@ -119,14 +172,57 @@ function OrdersBoard() {
         }
       />
 
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Link href={`/partner/spot/${id}/tables`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
           ← 배치도
         </Link>
         <Link href={`/partner/spot/${id}/menu`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
           ← 메뉴
         </Link>
+        <Link href={`/partner/spot/${id}/quests`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
+          ← 퀘스트
+        </Link>
       </div>
+
+      {/* 라이브 상태 원터치 — 손님 페이지 배지에 즉시 반영 */}
+      <Card style={{ padding: '13px 16px' }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: '#6b7280', marginBottom: 9 }}>지금 가게 상태</div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          {LIVE_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => setLive(o.value)}
+              style={{ padding: '8px 13px', borderRadius: 999, fontSize: 12.5, fontWeight: 800, border: '1px solid', borderColor: liveStatus === o.value ? '#111827' : '#e5e7eb', background: liveStatus === o.value ? '#111827' : '#fff', color: liveStatus === o.value ? '#fff' : '#374151', cursor: 'pointer' }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {/* 퀘스트 달성 알림 */}
+      {claims.filter((c) => c.status === 'claimed').length > 0 && (
+        <Section label={`퀘스트 달성 ${claims.filter((c) => c.status === 'claimed').length}`}>
+          {claims
+            .filter((c) => c.status === 'claimed')
+            .map((c) => (
+              <Card key={c.id} style={{ padding: '14px 16px', borderLeft: '4px solid #f59e0b' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: '#111827' }}>Seat {c.seat_label}</span>
+                  <span style={{ fontSize: 11.5, color: '#9ca3af', fontWeight: 600 }}>{timeAgo(c.claimed_at)}</span>
+                </div>
+                <div style={{ fontSize: 13.5, color: '#111827', fontWeight: 700, marginTop: 6 }}>🎯 {c.title}</div>
+                <div style={{ fontSize: 12.5, color: '#7c3aed', fontWeight: 700, marginTop: 2 }}>보상: {c.reward}</div>
+                <button
+                  onClick={() => rewardClaim(c.id)}
+                  style={{ width: '100%', height: 42, marginTop: 10, borderRadius: 10, background: '#111827', color: '#fff', fontSize: 13.5, fontWeight: 800, border: 'none', cursor: 'pointer' }}
+                >
+                  보상 지급 완료
+                </button>
+              </Card>
+            ))}
+        </Section>
+      )}
 
       {waiting.length === 0 && working.length === 0 && (
         <Card dashed style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 13.5 }}>

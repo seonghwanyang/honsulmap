@@ -13,6 +13,7 @@ if (!spot) { console.log('spot not found'); process.exit(1); }
 
 if (mode === 'cleanup') {
   await sb.from('table_orders').delete().eq('spot_id', spot.id);
+  await sb.from('store_quests').delete().eq('spot_id', spot.id);
   await sb.from('table_sessions').delete().eq('spot_id', spot.id);
   await sb.from('store_zones').delete().eq('spot_id', spot.id);
   await sb.from('store_menu_categories').delete().eq('spot_id', spot.id);
@@ -35,4 +36,6 @@ const { data: items } = await sb.from('store_menu_items').insert([
   { category_id: cat.id, spot_id: spot.id, name: '직원 호출', price: 0, zero_action: 'call', sort: 1 },
 ]).select('id, name');
 
-console.log('SEEDED', spot.name, '| items:', items.map(i => `${i.name}=${i.id}`).join(' '));
+const { data: quest } = await sb.from('store_quests').insert({ spot_id: spot.id, title: '시그니처 3잔 도장깨기', reward: '1잔 무료', hidden: false, active: true }).select('id').single();
+
+console.log('SEEDED', spot.name, '| items:', items.map(i => `${i.name}=${i.id}`).join(' '), '| quest:', quest.id);

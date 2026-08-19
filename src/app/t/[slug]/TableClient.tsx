@@ -5,6 +5,7 @@
 // ₩0 아이템(호출·추천·신고·선물)은 장바구니 없이 원탭 전송.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import GamesTab from './GamesTab';
 
 type SeatType = 'seat' | 'buffer' | 'block';
 export interface Zone {
@@ -58,6 +59,13 @@ interface OrderRow {
   created_at: string;
   items: { item_name: string; price: number; qty: number; request: string | null; gift_target_seat: string | null }[];
 }
+interface Quest {
+  id: string;
+  title: string;
+  reward: string;
+  hidden: boolean;
+  my_status: 'claimed' | 'rewarded' | null;
+}
 
 const INK = '#111827';
 const MUTED = '#6b7280';
@@ -101,7 +109,9 @@ export default function TableClient({
   const orderOn = modes.order !== false;
   const storageKey = `hsm_t_${spot.id}`;
 
-  const [tab, setTab] = useState<'map' | 'menu' | 'orders'>('map');
+  const [tab, setTab] = useState<'map' | 'menu' | 'games' | 'orders'>('map');
+  const [quests, setQuests] = useState<Quest[]>([]);
+  const [questsOpen, setQuestsOpen] = useState(false);
   const [session, setSession] = useState<MySession | null>(null);
   const [sessions, setSessions] = useState<PublicSession[]>(initialSessions);
   const [liveStatus, setLiveStatus] = useState(liveInit);
@@ -173,6 +183,32 @@ export default function TableClient({
   useEffect(() => {
     if (tab === 'orders') refreshOrders();
   }, [tab, refreshOrders]);
+
+  // ── 퀘스트 ──
+  const refreshQuests = useCallback(() => {
+    fetch(`/api/t/${spot.slug}/quests${session ? `?sid=${session.id}` : ''}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setQuests(d.quests ?? []))
+      .catch(() => {});
+  }, [spot.slug, session]);
+
+  useEffect(() => {
+    refreshQuests();
+  }, [refreshQuests]);
+
+  const claimQuest = async (q: Quest) => {
+    if (!session) return setCheckinOpen(true);
+    if (!confirm(`'${q.title}' 달성으로 신고할까요?\n직원이 확인 후 보상을 드려요.`)) return;
+    const res = await fetch(`/api/t/${spot.slug}/quests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: session.id, quest_id: q.id }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok && res.status !== 409) return showToast(d.error || '전송에 실패했어요.');
+    showToast('달성 알림을 보냈어요! 직원이 곧 확인해요 🎉');
+    refreshQuests();
+  };
 
   const sessionBySeat = useMemo(() => {
     const m = new Map<string, PublicSession>();
@@ -290,6 +326,46 @@ export default function TableClient({
         </div>
       </div>
 
+      {/* ── 오늘의 퀘스트 배너 ── */}
+      {quests.length > 0 && tab !== 'games' && (
+        <div style={{ padding: '14px 16px 0' }}>
+          <button
+            onClick={() => setQuestsOpen(!questsOpen)}
+            style={{ width: '100%', textAlign: 'left', background: '#fff', border: `1.5px solid ${questsOpen ? INK : LINE}`, borderRadius: 14, padding: '13px 16px', cursor: 'pointer', fontSize: 13.5, fontWeight: 800, color: INK }}
+          >
+            🎯 오늘의 퀘스트 · {quests.length}개 {questsOpen ? '▲' : '▼'}
+          </button>
+          {questsOpen && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+              {quests.map((q) => (
+                <div key={q.id} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 800, color: INK }}>{q.title}</span>
+                    {q.hidden && (
+                      <span style={{ fontSize: 10, fontWeight: 800, color: '#92400e', background: '#fef3c7', borderRadius: 5, padding: '2px 6px' }}>🌙 HIDDEN</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: ACCENT }}>→ {q.reward}</span>
+                    <span style={{ marginLeft: 'auto' }}>
+                      {q.my_status === 'rewarded' ? (
+                        <span style={{ fontSize: 11.5, fontWeight: 800, color: '#16a34a' }}>보상 완료 ✓</span>
+                      ) : q.my_status === 'claimed' ? (
+                        <span style={{ fontSize: 11.5, fontWeight: 800, color: FAINT }}>확인 대기 중…</span>
+                      ) : (
+                        <button onClick={() => claimQuest(q)} style={{ height: 32, padding: '0 13px', borderRadius: 9, background: INK, color: '#fff', fontSize: 11.5, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
+                          달성했어요!
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── 탭 콘텐츠 ── */}
       <div style={{ padding: '16px 16px 0' }}>
         {tab === 'map' && (
@@ -304,6 +380,7 @@ export default function TableClient({
         {tab === 'menu' && (
           <MenuList categories={categories} orderOn={orderOn} cart={cart} onTap={tapMenuItem} />
         )}
+        {tab === 'games' && <GamesTab onGoMenu={() => setTab('menu')} />}
         {tab === 'orders' && (
           <OrdersView orders={myOrders} seatTotal={seatTotal} hasSession={!!session} onCheckin={() => setCheckinOpen(true)} />
         )}
@@ -320,8 +397,8 @@ export default function TableClient({
       )}
 
       {/* ── 하단 탭 ── */}
-      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${LINE}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        {([['map', '좌석'], ['menu', '메뉴'], ['orders', '내 주문']] as const).map(([key, label]) => (
+      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${LINE}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {([['map', '좌석'], ['menu', '메뉴'], ['games', '술게임'], ['orders', '내 주문']] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} style={{ height: 58, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: tab === key ? INK : FAINT }}>
             {label}
           </button>

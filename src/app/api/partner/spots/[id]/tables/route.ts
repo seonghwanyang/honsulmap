@@ -47,6 +47,32 @@ export async function GET(
   });
 }
 
+// 라이브 상태 원터치 (주문 보드에서 씀) — 배치도 전량 교체와 분리된 가벼운 갱신
+const LIVE_STATUSES = ['ready', 'open', 'busy', 'full', 'closed'] as const;
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const admin = await assertMember(id);
+  if (!admin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const body = await request.json().catch(() => ({}));
+  const live = typeof body.live_status === 'string' ? body.live_status : '';
+  if (!LIVE_STATUSES.includes(live as (typeof LIVE_STATUSES)[number]))
+    return NextResponse.json({ error: 'invalid status' }, { status: 400 });
+
+  const { error } = await admin
+    .from('store_table_config')
+    .upsert(
+      { spot_id: id, live_status: live, updated_at: new Date().toISOString() },
+      { onConflict: 'spot_id' },
+    );
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 interface SeatInput {
   label: string;
   row: number;

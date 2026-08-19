@@ -69,5 +69,26 @@ r = await fetch(`${BASE}/api/t/janzan-jeju/orders`, {
 });
 ok('no-session-401', r.status === 401);
 
+// 10. 퀘스트 목록 (비로그인도 열람 가능)
+r = await fetch(`${BASE}/api/t/janzan-jeju/quests`);
+d = await r.json();
+const questId = d.quests?.[0]?.id;
+ok('quests-list', r.status === 200 && !!questId && d.quests[0].my_status === null);
+
+// 11. 달성 신고 → 중복 409 → 상태 반영
+r = await fetch(`${BASE}/api/t/janzan-jeju/quests`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ session_id: sid, quest_id: questId }),
+});
+ok('quest-claim-201', r.status === 201);
+r = await fetch(`${BASE}/api/t/janzan-jeju/quests`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ session_id: sid, quest_id: questId }),
+});
+ok('quest-dup-409', r.status === 409);
+r = await fetch(`${BASE}/api/t/janzan-jeju/quests?sid=${sid}`);
+d = await r.json();
+ok('quest-my-status', d.quests?.[0]?.my_status === 'claimed');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
