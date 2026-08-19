@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthGate from '../AuthGate';
+import { useUser } from '@/lib/useUser';
+import { isTableTester } from '@/lib/tableTesters';
 import { CopyButton } from '../CopyButton';
 import NoticeBanner from '@/components/partner/NoticeBanner';
 import {
@@ -46,7 +48,7 @@ function isVip(until: string | null) {
   return !!until && new Date(until).getTime() > Date.now();
 }
 
-function SpotCard({ m }: { m: MemberSpot }) {
+function SpotCard({ m, tester }: { m: MemberSpot; tester: boolean }) {
   const spot = m.spot!;
   const vip = isVip(spot.vip_until);
   return (
@@ -93,25 +95,70 @@ function SpotCard({ m }: { m: MemberSpot }) {
         </div>
       </div>
 
-      <Link
-        href={`/partner/spot/${spot.id}`}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginTop: 16,
-          height: 44,
-          borderRadius: 11,
-          background: '#111827',
-          color: '#fff',
-          fontSize: 13.5,
-          fontWeight: 700,
-          letterSpacing: '-0.2px',
-          textDecoration: 'none',
-        }}
-      >
-        가게 관리하기
-      </Link>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+        <Link
+          href={`/partner/spot/${spot.id}`}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: 44,
+            borderRadius: 11,
+            background: '#111827',
+            color: '#fff',
+            fontSize: 13.5,
+            fontWeight: 700,
+            letterSpacing: '-0.2px',
+            textDecoration: 'none',
+          }}
+        >
+          가게 관리하기
+        </Link>
+        {tester && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link
+              href={`/partner/spot/${spot.id}/tables`}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: 42,
+                borderRadius: 11,
+                background: '#fff',
+                border: '1px solid #e5e7eb',
+                color: '#374151',
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: '-0.2px',
+                textDecoration: 'none',
+              }}
+            >
+              테이블 설정
+            </Link>
+            <Link
+              href={`/partner/spot/${spot.id}/orders`}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: 42,
+                borderRadius: 11,
+                background: '#fff',
+                border: '1px solid #e5e7eb',
+                color: '#374151',
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: '-0.2px',
+                textDecoration: 'none',
+              }}
+            >
+              주문 보드
+            </Link>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
@@ -214,6 +261,8 @@ function EmptyState() {
 function DashboardContent() {
   const [data, setData] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useUser();
+  const tester = isTableTester(user?.email);
 
   useEffect(() => {
     fetch('/api/partner/me')
@@ -254,7 +303,7 @@ function DashboardContent() {
           <SectionLabel count={spots.length}>내 가게</SectionLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {spots.map((m) => (
-              <SpotCard key={m.spot!.id} m={m} />
+              <SpotCard key={m.spot!.id} m={m} tester={tester} />
             ))}
           </div>
         </section>
