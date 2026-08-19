@@ -32,10 +32,10 @@ interface EditorZone {
 }
 
 const TOOLS: { value: Tool; label: string }[] = [
-  { value: 'seat', label: '좌석' },
-  { value: 'block', label: '테이블' },
-  { value: 'buffer', label: '대기석' },
-  { value: 'erase', label: '지우개' },
+  { value: 'seat', label: '🪑 좌석 추가' },
+  { value: 'block', label: '⬛ 테이블 추가' },
+  { value: 'buffer', label: '⏳ 대기석 추가' },
+  { value: 'erase', label: '🧹 지우기' },
 ];
 
 let localKey = 0;
@@ -349,7 +349,7 @@ function TablesEditor() {
                 </button>
               ))}
               <span style={{ alignSelf: 'center', fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
-                같은 도구로 다시 탭하면 지워져요
+                좌석은 번호 자동 · 테이블은 장식용 · 같은 걸 다시 탭하면 지워져요
               </span>
             </div>
 
