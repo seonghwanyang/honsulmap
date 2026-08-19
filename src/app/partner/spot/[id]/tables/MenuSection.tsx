@@ -43,8 +43,10 @@ const ZERO_LABEL: Record<Exclude<ZeroAction, null>, string> = {
 
 const ZERO_PRESET: EdItem[] = [
   { key: '', name: '직원 호출', priceStr: '0', description: '탭하면 직원이 갈게요', sold_out: false, zero_action: 'call' },
+  { key: '', name: '자리 바꿔주세요', priceStr: '0', description: '직원이 가면 원하는 자리를 말씀해주세요', sold_out: false, zero_action: 'call' },
   { key: '', name: '직원에게 추천받기', priceStr: '0', description: '취향을 말해주시면 한 잔 골라드려요', sold_out: false, zero_action: 'recommend' },
   { key: '', name: '그냥 이유없이 한 잔 드리고 싶어요', priceStr: '0', description: '다른 좌석에 익명으로 전달돼요', sold_out: false, zero_action: 'gift' },
+  { key: '', name: '진상 신고', priceStr: '0', description: '사장님만 볼 수 있어요. 조용히 도와드릴게요', sold_out: false, zero_action: 'report' },
   { key: '', name: '불편 신고', priceStr: '0', description: '내용은 사장님만 볼 수 있어요', sold_out: false, zero_action: 'report' },
 ];
 

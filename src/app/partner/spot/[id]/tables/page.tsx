@@ -93,8 +93,17 @@ function Section({
   onToggle: () => void;
   children: React.ReactNode;
 }) {
+  // 헤더와 내용이 한 박스 안에 — "이 헤더를 누르면 이 안의 내용이 접힌다"가
+  // 시각적으로 읽히게 한다. 내용 영역은 회색 배경으로 중첩 표현.
   return (
-    <section>
+    <section
+      style={{
+        background: '#fff',
+        border: `1.5px solid ${open ? '#111827' : '#e5e7eb'}`,
+        borderRadius: 16,
+        overflow: 'hidden',
+      }}
+    >
       <button
         onClick={onToggle}
         style={{
@@ -102,10 +111,9 @@ function Section({
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          background: '#fff',
-          border: `1.5px solid ${open ? '#111827' : '#e5e7eb'}`,
-          borderRadius: 14,
-          padding: '15px 18px',
+          background: 'none',
+          border: 'none',
+          padding: '16px 18px',
           cursor: 'pointer',
           textAlign: 'left',
         }}
@@ -119,7 +127,16 @@ function Section({
         <span style={{ marginLeft: 'auto', color: '#9ca3af', fontSize: 13, fontWeight: 800 }}>{open ? '▲ 접기' : '▼ 펼치기'}</span>
       </button>
       {/* 접혀도 unmount 금지 — 미저장 편집 보존 */}
-      <div style={{ display: open ? 'block' : 'none', paddingTop: 12 }}>{children}</div>
+      <div
+        style={{
+          display: open ? 'block' : 'none',
+          padding: 14,
+          background: '#f8f9fa',
+          borderTop: '1px solid #f0f1f3',
+        }}
+      >
+        {children}
+      </div>
     </section>
   );
 }
