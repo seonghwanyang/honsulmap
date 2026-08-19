@@ -35,7 +35,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
   const ctx = await loadContext(slug, request.nextUrl.searchParams.get('sid'));
   if ('error' in ctx) return ctx.error;
   const { session, admin } = ctx;
@@ -70,7 +71,8 @@ export async function POST(
     return NextResponse.json({ error: '주문이 너무 잦아요. 잠시 후 다시 시도해주세요.' }, { status: 429 });
   }
 
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
   const body = await request.json().catch(() => ({}));
   const ctx = await loadContext(slug, typeof body.session_id === 'string' ? body.session_id : null);
   if ('error' in ctx) return ctx.error;

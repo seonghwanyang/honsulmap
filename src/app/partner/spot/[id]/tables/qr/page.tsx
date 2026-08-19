@@ -35,7 +35,8 @@ function QrSheet() {
       for (const z of d.zones ?? []) {
         for (const s of z.seats ?? []) {
           if (s.seat_type === 'block') continue;
-          const url = `${origin}/t/${d.spot?.slug}?seat=${encodeURIComponent(s.label)}`;
+          // 한글 slug도 스캐너가 안전하게 읽도록 퍼센트 인코딩
+          const url = `${origin}/t/${encodeURIComponent(d.spot?.slug ?? '')}?seat=${encodeURIComponent(s.label)}`;
           const dataUrl = await QRCode.toDataURL(url, { width: 480, margin: 1, color: { dark: '#111827', light: '#ffffff' } });
           list.push({ label: s.label, zone: z.name, url, dataUrl });
         }

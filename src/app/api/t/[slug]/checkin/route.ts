@@ -28,7 +28,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
   const sid = request.nextUrl.searchParams.get('sid');
   if (!sid) return NextResponse.json({ error: 'sid required' }, { status: 400 });
 
@@ -64,7 +65,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
   const spot = await loadSpot(slug);
   if (!spot) return NextResponse.json({ error: '가게를 찾을 수 없어요.' }, { status: 404 });
 

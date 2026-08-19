@@ -8,7 +8,8 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
   const { data: spot } = await supabase
     .from('spots')
     .select('id')
