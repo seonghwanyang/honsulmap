@@ -1,9 +1,14 @@
 'use client';
 
 // 테이블 배치도 에디터 — 구역을 만들고 그리드 셀을 탭해서 좌석을 놓는다.
-// 자유 캔버스가 아니라 그리드 스냅: 표 그리듯 찍으면 손님 좌석맵이 된다.
+// 도구 팔레트는 구역 카드마다 있고, 같은 도구로 다시 탭하면 지워진다(토글).
+//
+// 저장은 두 층위로 분리:
+//  · [구역 저장]      — 그 구역만 반영. 다른 구역의 미저장 변경은 딸려가지
+//                       않도록 "마지막 저장 스냅샷 + 이 구역 교체"로 전송.
+//  · [모든 설정 저장] — 전체 반영. 구역 삭제·서비스 활성화는 여기서만 확정.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthGate from '../../../AuthGate';
@@ -26,15 +31,16 @@ interface EditorZone {
   seats: EditorSeat[];
 }
 
-const TOOLS: { value: Tool; label: string; hint: string }[] = [
-  { value: 'seat', label: '좌석', hint: '번호 자동' },
-  { value: 'block', label: '테이블', hint: '장식(스캔 불가)' },
-  { value: 'buffer', label: '대기석', hint: '자리이동 대기' },
-  { value: 'erase', label: '지우개', hint: '셀 비우기' },
+const TOOLS: { value: Tool; label: string }[] = [
+  { value: 'seat', label: '좌석' },
+  { value: 'block', label: '테이블' },
+  { value: 'buffer', label: '대기석' },
+  { value: 'erase', label: '지우개' },
 ];
 
 let localKey = 0;
 const newKey = () => `z${++localKey}`;
+const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
 function TablesEditor() {
   const { id } = useParams<{ id: string }>();
@@ -43,8 +49,12 @@ function TablesEditor() {
   const [spot, setSpot] = useState<{ name: string; slug: string } | null>(null);
   const [tool, setTool] = useState<Tool>('seat');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  // saving: 'all' 또는 저장 중인 구역 key
+  const [saving, setSaving] = useState<'all' | string | null>(null);
+  const [dirtyZones, setDirtyZones] = useState<Set<string>>(new Set());
+  const [globalDirty, setGlobalDirty] = useState(false);
+  // 서버에 저장돼 있는 상태의 스냅샷 — 구역별 저장의 기준점
+  const savedRef = useRef<EditorZone[]>([]);
 
   useEffect(() => {
     fetch(`/api/partner/spots/${id}/tables`)
@@ -53,27 +63,26 @@ function TablesEditor() {
         if (!d) return;
         setSpot(d.spot ?? null);
         setEnabled(!!d.config?.enabled);
-        setZones(
-          (d.zones ?? []).map(
-            (z: { name: string; grid_rows: number; grid_cols: number; seats: EditorSeat[] }) => ({
-              key: newKey(),
-              name: z.name,
-              grid_rows: z.grid_rows,
-              grid_cols: z.grid_cols,
-              seats: (z.seats ?? []).map((s) => ({
-                label: s.label,
-                row: s.row,
-                col: s.col,
-                seat_type: s.seat_type,
-              })),
-            }),
-          ),
+        const loaded: EditorZone[] = (d.zones ?? []).map(
+          (z: { name: string; grid_rows: number; grid_cols: number; seats: EditorSeat[] }) => ({
+            key: newKey(),
+            name: z.name,
+            grid_rows: z.grid_rows,
+            grid_cols: z.grid_cols,
+            seats: (z.seats ?? []).map((s) => ({
+              label: s.label,
+              row: s.row,
+              col: s.col,
+              seat_type: s.seat_type,
+            })),
+          }),
         );
+        setZones(loaded);
+        savedRef.current = clone(loaded);
       })
       .finally(() => setLoading(false));
   }, [id]);
 
-  // 전 구역 통틀어 다음 좌석 번호 (숫자 라벨 최대값 + 1)
   const nextSeatNo = useMemo(() => {
     let max = 0;
     for (const z of zones)
@@ -84,10 +93,17 @@ function TablesEditor() {
     return max + 1;
   }, [zones]);
 
-  const mutateZone = useCallback((key: string, fn: (z: EditorZone) => EditorZone) => {
-    setZones((prev) => prev.map((z) => (z.key === key ? fn(z) : z)));
-    setDirty(true);
+  const markZone = useCallback((key: string) => {
+    setDirtyZones((prev) => new Set(prev).add(key));
   }, []);
+
+  const mutateZone = useCallback(
+    (key: string, fn: (z: EditorZone) => EditorZone) => {
+      setZones((prev) => prev.map((z) => (z.key === key ? fn(z) : z)));
+      markZone(key);
+    },
+    [markZone],
+  );
 
   const tapCell = (zoneKey: string, row: number, col: number) => {
     mutateZone(zoneKey, (z) => {
@@ -111,43 +127,73 @@ function TablesEditor() {
           .map((s) => (s.seat_type === 'seat' ? { ...s, label: String(n++) } : s)),
       })),
     );
-    setDirty(true);
+    setDirtyZones((prev) => {
+      const next = new Set(prev);
+      zones.forEach((z) => next.add(z.key));
+      return next;
+    });
   };
 
   const addZone = () => {
+    const key = newKey();
     setZones((prev) => [
       ...prev,
-      { key: newKey(), name: `구역 ${prev.length + 1}`, grid_rows: 4, grid_cols: 7, seats: [] },
+      { key, name: `구역 ${prev.length + 1}`, grid_rows: 4, grid_cols: 7, seats: [] },
     ]);
-    setDirty(true);
+    markZone(key);
   };
 
-  const save = async () => {
-    setSaving(true);
+  const payload = (list: EditorZone[]) =>
+    list.map((z) => ({ name: z.name, grid_rows: z.grid_rows, grid_cols: z.grid_cols, seats: z.seats }));
+
+  const put = async (body: object) => {
     const res = await fetch(`/api/partner/spots/${id}/tables`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        enabled,
-        zones: zones.map((z) => ({
-          name: z.name,
-          grid_rows: z.grid_rows,
-          grid_cols: z.grid_cols,
-          seats: z.seats,
-        })),
-      }),
+      body: JSON.stringify(body),
     });
-    setSaving(false);
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
       alert(d.error || '저장에 실패했어요.');
-      return;
+      return false;
     }
-    setDirty(false);
+    return true;
+  };
+
+  // 전체 저장 — 삭제·활성화 포함 현재 화면 그대로 확정
+  const saveAll = async () => {
+    setSaving('all');
+    const ok = await put({ enabled, zones: payload(zones) });
+    setSaving(null);
+    if (!ok) return;
+    savedRef.current = clone(zones);
+    setDirtyZones(new Set());
+    setGlobalDirty(false);
+  };
+
+  // 구역 저장 — 스냅샷에서 이 구역만 교체해 전송 (다른 미저장 변경 미포함)
+  const saveZone = async (key: string) => {
+    const zone = zones.find((z) => z.key === key);
+    if (!zone) return;
+    const base = clone(savedRef.current);
+    const idx = base.findIndex((z) => z.key === key);
+    if (idx >= 0) base[idx] = clone(zone);
+    else base.push(clone(zone));
+    setSaving(key);
+    const ok = await put({ zones: payload(base) });
+    setSaving(null);
+    if (!ok) return;
+    savedRef.current = base;
+    setDirtyZones((prev) => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
   };
 
   if (loading) return <Spinner />;
 
+  const anyDirty = dirtyZones.size > 0 || globalDirty;
   const seatCount = zones.reduce(
     (acc, z) => acc + z.seats.filter((s) => s.seat_type === 'seat').length,
     0,
@@ -159,8 +205,12 @@ function TablesEditor() {
         title="테이블 배치도"
         subtitle={`${spot?.name ?? ''} · 셀을 탭해서 좌석을 배치하세요. 좌석 ${seatCount}개`}
         action={
-          <button onClick={save} disabled={saving || !dirty} style={buttonStyle('primary', { disabled: saving || !dirty })}>
-            {saving ? '저장 중…' : dirty ? '저장하기' : '저장됨'}
+          <button
+            onClick={saveAll}
+            disabled={saving !== null || !anyDirty}
+            style={buttonStyle('primary', { disabled: saving !== null || !anyDirty })}
+          >
+            {saving === 'all' ? '저장 중…' : anyDirty ? '모든 설정 저장' : '저장됨'}
           </button>
         }
       />
@@ -173,11 +223,12 @@ function TablesEditor() {
             checked={enabled}
             onChange={(e) => {
               setEnabled(e.target.checked);
-              setDirty(true);
+              setGlobalDirty(true);
             }}
             style={{ width: 18, height: 18, accentColor: '#111827' }}
           />
           테이블 서비스 활성화
+          <span style={{ fontWeight: 600, fontSize: 11.5, color: '#9ca3af' }}>(모든 설정 저장 시 반영)</span>
         </label>
         {spot && (
           <Link
@@ -203,30 +254,6 @@ function TablesEditor() {
         <Link href={`/partner/spot/${id}/tables/qr`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
           🖨 QR 인쇄 →
         </Link>
-      </div>
-
-      {/* 도구 팔레트 */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        {TOOLS.map((t) => (
-          <button
-            key={t.value}
-            onClick={() => setTool(t.value)}
-            style={{
-              padding: '9px 14px',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 700,
-              border: '1px solid',
-              borderColor: tool === t.value ? '#111827' : '#e5e7eb',
-              background: tool === t.value ? '#111827' : '#fff',
-              color: tool === t.value ? '#fff' : '#374151',
-              cursor: 'pointer',
-            }}
-          >
-            {t.label}
-            <span style={{ fontSize: 10.5, fontWeight: 600, opacity: 0.65, marginLeft: 5 }}>{t.hint}</span>
-          </button>
-        ))}
         <button
           onClick={renumber}
           style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5, marginLeft: 'auto' }}
@@ -235,98 +262,132 @@ function TablesEditor() {
         </button>
       </div>
 
-      {zones.map((z) => (
-        <Card key={z.key} style={{ padding: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-            <input
-              value={z.name}
-              onChange={(e) => mutateZone(z.key, (zz) => ({ ...zz, name: e.target.value }))}
-              maxLength={20}
-              style={{
-                width: 140,
-                height: 38,
-                padding: '0 12px',
-                borderRadius: 9,
-                border: '1px solid #e5e7eb',
-                fontSize: 13.5,
-                fontWeight: 700,
-                color: '#111827',
-                outline: 'none',
-              }}
-            />
-            <GridStepper
-              label="행"
-              value={z.grid_rows}
-              min={1}
-              max={20}
-              onChange={(v) =>
-                mutateZone(z.key, (zz) => ({ ...zz, grid_rows: v, seats: zz.seats.filter((s) => s.row < v) }))
-              }
-            />
-            <GridStepper
-              label="열"
-              value={z.grid_cols}
-              min={1}
-              max={12}
-              onChange={(v) =>
-                mutateZone(z.key, (zz) => ({ ...zz, grid_cols: v, seats: zz.seats.filter((s) => s.col < v) }))
-              }
-            />
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button
-                onClick={save}
-                disabled={saving || !dirty}
-                style={{ height: 34, padding: '0 16px', borderRadius: 9, fontSize: 12, fontWeight: 800, border: 'none', background: dirty ? '#111827' : '#f3f4f6', color: dirty ? '#fff' : '#9ca3af', cursor: dirty && !saving ? 'pointer' : 'default' }}
-              >
-                {saving ? '저장 중…' : dirty ? '저장' : '저장됨'}
-              </button>
-              <button
-                onClick={() => {
-                  if (!confirm(`'${z.name}' 구역을 삭제할까요?`)) return;
-                  setZones((prev) => prev.filter((x) => x.key !== z.key));
-                  setDirty(true);
+      {zones.map((z) => {
+        const zDirty = dirtyZones.has(z.key);
+        return (
+          <Card key={z.key} style={{ padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+              <input
+                value={z.name}
+                onChange={(e) => mutateZone(z.key, (zz) => ({ ...zz, name: e.target.value }))}
+                maxLength={20}
+                style={{
+                  width: 140,
+                  height: 38,
+                  padding: '0 12px',
+                  borderRadius: 9,
+                  border: '1px solid #e5e7eb',
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  color: '#111827',
+                  outline: 'none',
                 }}
-                style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                구역 삭제
-              </button>
+              />
+              <GridStepper
+                label="행"
+                value={z.grid_rows}
+                min={1}
+                max={20}
+                onChange={(v) =>
+                  mutateZone(z.key, (zz) => ({ ...zz, grid_rows: v, seats: zz.seats.filter((s) => s.row < v) }))
+                }
+              />
+              <GridStepper
+                label="열"
+                value={z.grid_cols}
+                min={1}
+                max={12}
+                onChange={(v) =>
+                  mutateZone(z.key, (zz) => ({ ...zz, grid_cols: v, seats: zz.seats.filter((s) => s.col < v) }))
+                }
+              />
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  onClick={() => saveZone(z.key)}
+                  disabled={saving !== null || !zDirty}
+                  style={{ height: 34, padding: '0 16px', borderRadius: 9, fontSize: 12, fontWeight: 800, border: 'none', background: zDirty ? '#111827' : '#f3f4f6', color: zDirty ? '#fff' : '#9ca3af', cursor: zDirty && saving === null ? 'pointer' : 'default' }}
+                >
+                  {saving === z.key ? '저장 중…' : zDirty ? '구역 저장' : '저장됨'}
+                </button>
+                <button
+                  onClick={() => {
+                    if (!confirm(`'${z.name}' 구역을 삭제할까요?\n삭제는 [모든 설정 저장]을 눌러야 최종 반영돼요.`)) return;
+                    setZones((prev) => prev.filter((x) => x.key !== z.key));
+                    setDirtyZones((prev) => {
+                      const next = new Set(prev);
+                      next.delete(z.key);
+                      return next;
+                    });
+                    setGlobalDirty(true);
+                  }}
+                  style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  구역 삭제
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${z.grid_cols}, minmax(38px, 1fr))`,
-                gap: 5,
-                minWidth: z.grid_cols * 43,
-              }}
-            >
-              {Array.from({ length: z.grid_rows * z.grid_cols }, (_, i) => {
-                const row = Math.floor(i / z.grid_cols);
-                const col = i % z.grid_cols;
-                const seat = z.seats.find((s) => s.row === row && s.col === col);
-                return (
-                  <button
-                    key={i}
-                    onClick={() => tapCell(z.key, row, col)}
-                    style={{
-                      aspectRatio: '1',
-                      borderRadius: 9,
-                      fontSize: 12,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      ...cellStyle(seat?.seat_type)
-                    }}
-                  >
-                    {seat?.seat_type === 'block' ? '' : seat?.label ?? ''}
-                  </button>
-                );
-              })}
+            {/* 구역별 도구 팔레트 */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+              {TOOLS.map((t) => (
+                <button
+                  key={t.value}
+                  onClick={() => setTool(t.value)}
+                  style={{
+                    padding: '7px 12px',
+                    borderRadius: 9,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    border: '1px solid',
+                    borderColor: tool === t.value ? '#111827' : '#e5e7eb',
+                    background: tool === t.value ? '#111827' : '#fff',
+                    color: tool === t.value ? '#fff' : '#374151',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+              <span style={{ alignSelf: 'center', fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
+                같은 도구로 다시 탭하면 지워져요
+              </span>
             </div>
-          </div>
-        </Card>
-      ))}
+
+            <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${z.grid_cols}, minmax(38px, 1fr))`,
+                  gap: 5,
+                  minWidth: z.grid_cols * 43,
+                }}
+              >
+                {Array.from({ length: z.grid_rows * z.grid_cols }, (_, i) => {
+                  const row = Math.floor(i / z.grid_cols);
+                  const col = i % z.grid_cols;
+                  const seat = z.seats.find((s) => s.row === row && s.col === col);
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => tapCell(z.key, row, col)}
+                      style={{
+                        aspectRatio: '1',
+                        borderRadius: 9,
+                        fontSize: 12,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        ...cellStyle(seat?.seat_type)
+                      }}
+                    >
+                      {seat?.seat_type === 'block' ? '' : seat?.label ?? ''}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
+        );
+      })}
 
       <button onClick={addZone} style={{ ...buttonStyle('outline'), alignSelf: 'flex-start' }}>
         <PlusIcon />
