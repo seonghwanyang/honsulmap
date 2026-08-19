@@ -187,6 +187,15 @@ function TablesEditor() {
         )}
       </Card>
 
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Link href={`/partner/spot/${id}/menu`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
+          메뉴 관리 →
+        </Link>
+        <Link href={`/partner/spot/${id}/orders`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
+          주문 보드 →
+        </Link>
+      </div>
+
       {/* 도구 팔레트 */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {TOOLS.map((t) => (
