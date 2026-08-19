@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { isTableTester } from '@/lib/tableTesters';
 
 // 메뉴 편집 (사장님) — 배치도와 같은 전량 교체 패턴.
 // GET은 네이버 수집 메뉴(spots.naver_menus)도 함께 내려 "가져오기" 시드로 쓴다.
@@ -11,7 +12,7 @@ async function assertMember(spotId: string) {
   const {
     data: { user },
   } = await sb.auth.getUser();
-  if (!user) return null;
+  if (!user || !isTableTester(user.email)) return null; // 베타: 테스터만
   const admin = supabaseAdmin();
   const { data } = await admin
     .from('spot_members')

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthGate from '../../../AuthGate';
+import TesterGate from '../../../TesterGate';
 import { Card, PageHeader, Spinner, buttonStyle } from '../../../ui';
 
 interface OrderItem {
@@ -304,7 +305,9 @@ function OrderCard({ o, onStatus, muted = false }: { o: Order; onStatus: (id: st
 export default function OrdersPage() {
   return (
     <AuthGate>
-      <OrdersBoard />
+      <TesterGate>
+        <OrdersBoard />
+      </TesterGate>
     </AuthGate>
   );
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart } from '@/lib/tableDay';
+import { isTableTester } from '@/lib/tableTesters';
 
 // 영업 마감 — 활성 세션 전부 종료 + 프로필 필드 즉시 익명화
 // ("개인정보는 영업 종료 후 만료" 약속의 집행 지점). 오늘 장사 요약을 돌려준다.
@@ -15,7 +16,8 @@ export async function POST(
   const {
     data: { user },
   } = await sb.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!user || !isTableTester(user.email))
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 }); // 베타: 테스터만
 
   const admin = supabaseAdmin();
   const { data: member } = await admin

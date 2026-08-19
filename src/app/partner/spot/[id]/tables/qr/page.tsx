@@ -8,6 +8,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import AuthGate from '../../../../AuthGate';
+import TesterGate from '../../../../TesterGate';
 import { Spinner, buttonStyle } from '../../../../ui';
 
 interface SeatQR {
@@ -103,7 +104,9 @@ function QrSheet() {
 export default function QrPage() {
   return (
     <AuthGate>
-      <QrSheet />
+      <TesterGate>
+        <QrSheet />
+      </TesterGate>
     </AuthGate>
   );
 }

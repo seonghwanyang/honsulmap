@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart } from '@/lib/tableDay';
+import { isTableTester } from '@/lib/tableTesters';
 
 // 주문 보드 (사장님) — 폴링 기반 (Realtime publication 설정 없이 동작).
 // GET: 오늘 영업분 주문 + 좌석별 합계. PATCH: 상태 변경.
@@ -12,7 +13,7 @@ async function assertMember(spotId: string) {
   const {
     data: { user },
   } = await sb.auth.getUser();
-  if (!user) return null;
+  if (!user || !isTableTester(user.email)) return null; // 베타: 테스터만
   const admin = supabaseAdmin();
   const { data } = await admin
     .from('spot_members')

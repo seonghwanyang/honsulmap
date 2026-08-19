@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart } from '@/lib/tableDay';
+import { isTableTester } from '@/lib/tableTesters';
 
 // 퀘스트 관리 (사장님) — 목록 교체(PUT), 오늘 달성 알림 조회(GET),
 // 보상 지급 처리(PATCH). 달성 카드는 주문 보드에 함께 뜬다.
@@ -11,7 +12,7 @@ async function assertMember(spotId: string) {
   const {
     data: { user },
   } = await sb.auth.getUser();
-  if (!user) return null;
+  if (!user || !isTableTester(user.email)) return null; // 베타: 테스터만
   const admin = supabaseAdmin();
   const { data } = await admin
     .from('spot_members')

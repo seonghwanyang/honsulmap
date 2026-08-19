@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthGate from '../../../AuthGate';
+import TesterGate from '../../../TesterGate';
 import { Card, PageHeader, Spinner, buttonStyle, PlusIcon } from '../../../ui';
 import MenuSection from './MenuSection';
 import QuestsSection from './QuestsSection';
@@ -540,7 +541,9 @@ function GridStepper({
 export default function TablesPage() {
   return (
     <AuthGate>
-      <TablesHub />
+      <TesterGate>
+        <TablesHub />
+      </TesterGate>
     </AuthGate>
   );
 }

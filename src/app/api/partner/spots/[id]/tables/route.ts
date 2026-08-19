@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { isTableTester } from '@/lib/tableTesters';
 
 // 배치도(구역+좌석) + 서비스 설정 조회/저장 — 사장님 에디터 전용.
 // 쓰기는 전량 교체(delete & insert): 배치도 수정은 영업 전 드물게 일어나는
@@ -11,7 +12,7 @@ async function assertMember(spotId: string) {
   const {
     data: { user },
   } = await sb.auth.getUser();
-  if (!user) return null;
+  if (!user || !isTableTester(user.email)) return null; // 베타: 테스터만
   const admin = supabaseAdmin();
   const { data } = await admin
     .from('spot_members')
