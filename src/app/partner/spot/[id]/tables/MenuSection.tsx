@@ -64,8 +64,17 @@ export default function MenuSection({
   const [saving, setSaving] = useState<'all' | string | null>(null);
   const [dirtyCats, setDirtyCats] = useState<Set<string>>(new Set());
   const [globalDirty, setGlobalDirty] = useState(false);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   // 서버에 저장돼 있는 상태의 스냅샷 — 카테고리별 저장의 기준점
   const savedRef = useRef<EdCat[]>([]);
+
+  const toggleCat = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   const anyDirty = dirtyCats.size > 0 || globalDirty;
   useEffect(() => {
@@ -235,16 +244,34 @@ export default function MenuSection({
 
       {cats.map((c) => {
         const cDirty = dirtyCats.has(c.key);
+        const cCollapsed = collapsed.has(c.key);
         return (
           <Card key={c.key} style={{ padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+            {/* 헤더 행 — 빈 공간 어디를 눌러도 접고 펼침 (입력·버튼은 전파 차단) */}
+            <div
+              onClick={() => toggleCat(c.key)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: cCollapsed ? 0 : 12, flexWrap: 'wrap', cursor: 'pointer' }}
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleCat(c.key);
+                }}
+                style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 12, fontWeight: 800, cursor: 'pointer', lineHeight: 1 }}
+              >
+                {cCollapsed ? '▼' : '▲'}
+              </button>
               <input
                 value={c.name}
+                onClick={(e) => e.stopPropagation()}
                 onChange={(e) => mutCat(c.key, (cc) => ({ ...cc, name: e.target.value.slice(0, 20) }))}
-                style={{ width: 150, height: 40, padding: '0 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14, fontWeight: 800, color: '#111827', outline: 'none' }}
+                style={{ width: 150, height: 40, padding: '0 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14, fontWeight: 800, color: '#111827', outline: 'none', cursor: 'text' }}
               />
               <span style={{ fontSize: 11.5, color: '#9ca3af', fontWeight: 600 }}>{c.items.length}개</span>
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, cursor: 'default' }}
+              >
                 <button
                   onClick={() => saveCat(c.key)}
                   disabled={saving !== null || !cDirty}
@@ -261,6 +288,8 @@ export default function MenuSection({
               </div>
             </div>
 
+            {!cCollapsed && (
+            <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {c.items.map((it) => (
                 <div key={it.key} style={{ border: '1px solid #f0f1f3', borderRadius: 12, padding: 12 }}>
@@ -318,6 +347,8 @@ export default function MenuSection({
               <PlusIcon size={14} />
               메뉴 추가
             </button>
+            </>
+            )}
           </Card>
         );
       })}
