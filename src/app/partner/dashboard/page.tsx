@@ -93,11 +93,10 @@ function SpotCard({ m }: { m: MemberSpot }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
         <Link
           href={`/partner/spot/${spot.id}`}
           style={{
-            flex: 1,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -113,27 +112,48 @@ function SpotCard({ m }: { m: MemberSpot }) {
         >
           가게 관리하기
         </Link>
-        <Link
-          href={`/partner/spot/${spot.id}/tables`}
-          style={{
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '0 16px',
-            height: 44,
-            borderRadius: 11,
-            background: '#fff',
-            border: '1px solid #e5e7eb',
-            color: '#374151',
-            fontSize: 13.5,
-            fontWeight: 700,
-            letterSpacing: '-0.2px',
-            textDecoration: 'none',
-          }}
-        >
-          테이블
-        </Link>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link
+            href={`/partner/spot/${spot.id}/tables`}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 42,
+              borderRadius: 11,
+              background: '#fff',
+              border: '1px solid #e5e7eb',
+              color: '#374151',
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: '-0.2px',
+              textDecoration: 'none',
+            }}
+          >
+            테이블 설정
+          </Link>
+          <Link
+            href={`/partner/spot/${spot.id}/orders`}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 42,
+              borderRadius: 11,
+              background: '#fff',
+              border: '1px solid #e5e7eb',
+              color: '#374151',
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: '-0.2px',
+              textDecoration: 'none',
+            }}
+          >
+            주문 보드
+          </Link>
+        </div>
       </div>
     </Card>
   );

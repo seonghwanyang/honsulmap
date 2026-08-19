@@ -174,13 +174,7 @@ function OrdersBoard() {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Link href={`/partner/spot/${id}/tables`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
-          ← 배치도
-        </Link>
-        <Link href={`/partner/spot/${id}/menu`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
-          ← 메뉴
-        </Link>
-        <Link href={`/partner/spot/${id}/quests`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
-          ← 퀘스트
+          ← 테이블 설정 (배치도·메뉴·퀘스트)
         </Link>
       </div>
 
