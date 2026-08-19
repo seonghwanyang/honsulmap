@@ -26,7 +26,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
   const ctx = await loadCtx(slug, request.nextUrl.searchParams.get('sid'));
   if ('error' in ctx) return ctx.error;
   const { spot, admin, session } = ctx;
@@ -57,7 +58,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
   const body = await request.json().catch(() => ({}));
   const ctx = await loadCtx(slug, typeof body.session_id === 'string' ? body.session_id : null);
   if ('error' in ctx) return ctx.error;

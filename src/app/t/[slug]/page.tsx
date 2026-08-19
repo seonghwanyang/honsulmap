@@ -14,7 +14,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug); // 한글 slug (예: 끌림365-게스트하우스)
   const { data: spot } = await supabase.from('spots').select('name').eq('slug', slug).maybeSingle();
   return {
     title: spot ? `${spot.name} 테이블 | 혼술맵` : '테이블 | 혼술맵',
@@ -29,7 +30,8 @@ export default async function TablePage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ seat?: string }>;
 }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
   const { seat } = await searchParams;
 
   const { data: spot } = await supabase
