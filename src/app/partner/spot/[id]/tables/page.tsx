@@ -91,8 +91,11 @@ function TablesEditor() {
 
   const tapCell = (zoneKey: string, row: number, col: number) => {
     mutateZone(zoneKey, (z) => {
+      const existing = z.seats.find((s) => s.row === row && s.col === col);
       const rest = z.seats.filter((s) => !(s.row === row && s.col === col));
       if (tool === 'erase') return { ...z, seats: rest };
+      // 같은 도구로 놓인 셀을 다시 탭하면 지워진다 (토글) — 다른 타입이면 교체
+      if (existing?.seat_type === tool) return { ...z, seats: rest };
       const label = tool === 'seat' ? String(nextSeatNo) : tool === 'block' ? '테이블' : '대기';
       return { ...z, seats: [...rest, { label, row, col, seat_type: tool }] };
     });
