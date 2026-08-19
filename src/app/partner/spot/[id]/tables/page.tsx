@@ -222,6 +222,14 @@ function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChang
     markZone(key);
   };
 
+  const toggleZone = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   const payload = (list: EditorZone[]) =>
     list.map((z) => ({ name: z.name, grid_rows: z.grid_rows, grid_cols: z.grid_cols, seats: z.seats }));
 
@@ -328,30 +336,31 @@ function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChang
         const zSeatCount = z.seats.filter((s) => s.seat_type === 'seat').length;
         return (
           <Card key={z.key} style={{ padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {/* 헤더 행 — 빈 공간 어디를 눌러도 접고 펼침 (입력·버튼은 전파 차단) */}
+            <div
+              onClick={() => toggleZone(z.key)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', cursor: 'pointer' }}
+            >
               <button
-                onClick={() =>
-                  setCollapsed((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(z.key)) next.delete(z.key);
-                    else next.add(z.key);
-                    return next;
-                  })
-                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleZone(z.key);
+                }}
                 style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 12, fontWeight: 800, cursor: 'pointer', lineHeight: 1 }}
               >
                 {zCollapsed ? '▼' : '▲'}
               </button>
               <input
                 value={z.name}
+                onClick={(e) => e.stopPropagation()}
                 onChange={(e) => mutateZone(z.key, (zz) => ({ ...zz, name: e.target.value }))}
                 maxLength={20}
-                style={{ width: 130, height: 38, padding: '0 12px', borderRadius: 9, border: '1px solid #e5e7eb', fontSize: 13.5, fontWeight: 700, color: '#111827', outline: 'none' }}
+                style={{ width: 130, height: 38, padding: '0 12px', borderRadius: 9, border: '1px solid #e5e7eb', fontSize: 13.5, fontWeight: 700, color: '#111827', outline: 'none', cursor: 'text' }}
               />
               {zCollapsed ? (
                 <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 700 }}>좌석 {zSeatCount}개</span>
               ) : (
-                <>
+                <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, cursor: 'default' }}>
                   <GridStepper
                     label="행"
                     value={z.grid_rows}
@@ -366,9 +375,12 @@ function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChang
                     max={12}
                     onChange={(v) => mutateZone(z.key, (zz) => ({ ...zz, grid_cols: v, seats: zz.seats.filter((s) => s.col < v) }))}
                   />
-                </>
+                </span>
               )}
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, cursor: 'default' }}
+              >
                 <button
                   onClick={() => saveZone(z.key)}
                   disabled={saving !== null || !zDirty}
