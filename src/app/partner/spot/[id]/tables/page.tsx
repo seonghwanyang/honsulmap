@@ -49,10 +49,27 @@ function TablesHub() {
   const { id } = useParams<{ id: string }>();
   const [open, setOpen] = useState<Record<SectionKey, boolean>>({ layout: true, menu: false, quests: false });
   const [dirtyMap, setDirtyMap] = useState<Record<SectionKey, boolean>>({ layout: false, menu: false, quests: false });
+  // 서비스 활성화 — 헤더 토글, 체크 즉시 저장. null = 로딩 전
+  const [enabled, setEnabled] = useState<boolean | null>(null);
 
   const setDirty = useCallback((key: SectionKey) => (d: boolean) => {
     setDirtyMap((prev) => (prev[key] === d ? prev : { ...prev, [key]: d }));
   }, []);
+
+  const handleConfigLoaded = useCallback((v: boolean) => setEnabled(v), []);
+
+  const toggleEnabled = async (next: boolean) => {
+    setEnabled(next);
+    const res = await fetch(`/api/partner/spots/${id}/tables`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: next }),
+    });
+    if (!res.ok) {
+      setEnabled(!next);
+      alert('활성화 저장에 실패했어요. 다시 시도해주세요.');
+    }
+  };
 
   const toggle = (key: SectionKey) => setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -62,14 +79,20 @@ function TablesHub() {
         title="테이블 설정"
         subtitle="배치도·메뉴·퀘스트를 한 곳에서 세팅하세요. 영업 중엔 주문 보드를 켜두면 돼요."
         action={
-          <Link href={`/partner/spot/${id}/orders`} style={buttonStyle('primary')}>
-            주문 보드 열기 →
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: enabled ? '#111827' : '#6b7280' }}>
+              {enabled ? '서비스 ON' : '서비스 OFF'}
+              <ToggleSwitch on={!!enabled} disabled={enabled === null} onChange={toggleEnabled} />
+            </label>
+            <Link href={`/partner/spot/${id}/orders`} style={buttonStyle('primary')}>
+              주문 보드 열기 →
+            </Link>
+          </div>
         }
       />
 
       <Section title="🪑 좌석 배치도" open={open.layout} dirty={dirtyMap.layout} onToggle={() => toggle('layout')}>
-        <LayoutSection spotId={id} onDirtyChange={setDirty('layout')} />
+        <LayoutSection spotId={id} onDirtyChange={setDirty('layout')} onConfigLoaded={handleConfigLoaded} />
       </Section>
       <Section title="🍶 메뉴판" open={open.menu} dirty={dirtyMap.menu} onToggle={() => toggle('menu')}>
         <MenuSection spotId={id} onDirtyChange={setDirty('menu')} />
@@ -142,11 +165,61 @@ function Section({
   );
 }
 
+// iOS풍 토글 스위치 — 헤더의 서비스 ON/OFF용
+function ToggleSwitch({
+  on,
+  disabled,
+  onChange,
+}: {
+  on: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <button
+      onClick={() => !disabled && onChange(!on)}
+      aria-pressed={on}
+      style={{
+        width: 46,
+        height: 26,
+        borderRadius: 999,
+        border: 'none',
+        cursor: disabled ? 'default' : 'pointer',
+        background: disabled ? '#e5e7eb' : on ? '#111827' : '#d1d5db',
+        position: 'relative',
+        transition: 'background 0.15s ease',
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          top: 3,
+          left: on ? 23 : 3,
+          width: 20,
+          height: 20,
+          borderRadius: '50%',
+          background: '#fff',
+          transition: 'left 0.15s ease',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+        }}
+      />
+    </button>
+  );
+}
+
 // ═══ 배치도 섹션 ═══
 
-function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChange: (d: boolean) => void }) {
+function LayoutSection({
+  spotId,
+  onDirtyChange,
+  onConfigLoaded,
+}: {
+  spotId: string;
+  onDirtyChange: (d: boolean) => void;
+  onConfigLoaded: (enabled: boolean) => void;
+}) {
   const [zones, setZones] = useState<EditorZone[]>([]);
-  const [enabled, setEnabled] = useState(false);
   const [spot, setSpot] = useState<{ name: string; slug: string } | null>(null);
   const [tool, setTool] = useState<Tool>('seat');
   const [loading, setLoading] = useState(true);
@@ -167,7 +240,7 @@ function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChang
       .then((d) => {
         if (!d) return;
         setSpot(d.spot ?? null);
-        setEnabled(!!d.config?.enabled);
+        onConfigLoaded(!!d.config?.enabled);
         const loaded: EditorZone[] = (d.zones ?? []).map(
           (z: { name: string; grid_rows: number; grid_cols: number; seats: EditorSeat[] }) => ({
             key: newKey(),
@@ -181,7 +254,7 @@ function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChang
         savedRef.current = clone(loaded);
       })
       .finally(() => setLoading(false));
-  }, [spotId]);
+  }, [spotId, onConfigLoaded]);
 
   const nextSeatNo = useMemo(() => {
     let max = 0;
@@ -265,24 +338,10 @@ function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChang
     return true;
   };
 
-  // 활성화 토글 — 체크 즉시 저장 (전체 저장에 묶였다가 놓치는 사고 방지)
-  const toggleEnabled = async (next: boolean) => {
-    setEnabled(next);
-    const res = await fetch(`/api/partner/spots/${spotId}/tables`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: next }),
-    });
-    if (!res.ok) {
-      setEnabled(!next);
-      alert('활성화 저장에 실패했어요. 다시 시도해주세요.');
-    }
-  };
-
   // 전체 저장 — 삭제 포함 현재 화면 그대로 확정
   const saveAll = async () => {
     setSaving('all');
-    const ok = await put({ enabled, zones: payload(zones) });
+    const ok = await put({ zones: payload(zones) });
     setSaving(null);
     if (!ok) return;
     savedRef.current = clone(zones);
@@ -316,29 +375,6 @@ function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChang
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* 서비스 on/off + 미리보기 */}
-      <Card style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: '#111827' }}>
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(e) => toggleEnabled(e.target.checked)}
-            style={{ width: 18, height: 18, accentColor: '#111827' }}
-          />
-          테이블 서비스 활성화
-          <span style={{ fontWeight: 600, fontSize: 11.5, color: '#9ca3af' }}>(체크 즉시 반영)</span>
-        </label>
-        {spot && (
-          <Link
-            href={`/t/${spot.slug}`}
-            target="_blank"
-            style={{ fontSize: 12.5, fontWeight: 700, color: '#2563eb', textDecoration: 'none', marginLeft: 'auto' }}
-          >
-            손님 페이지 미리보기 → /t/{spot.slug}
-          </Link>
-        )}
-      </Card>
-
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <button
           onClick={saveAll}
@@ -350,6 +386,15 @@ function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChang
         <Link href={`/partner/spot/${spotId}/tables/qr`} style={{ ...buttonStyle('outline'), height: 40, padding: '0 14px', fontSize: 12.5 }}>
           🖨 QR 인쇄 →
         </Link>
+        {spot && (
+          <Link
+            href={`/t/${spot.slug}`}
+            target="_blank"
+            style={{ ...buttonStyle('outline'), height: 40, padding: '0 14px', fontSize: 12.5, color: '#2563eb' }}
+          >
+            손님 페이지 미리보기 →
+          </Link>
+        )}
         <button onClick={renumber} style={{ ...buttonStyle('outline'), height: 40, padding: '0 14px', fontSize: 12.5, marginLeft: 'auto' }}>
           번호 다시 매기기
         </button>
