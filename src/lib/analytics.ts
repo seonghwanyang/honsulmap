@@ -15,7 +15,7 @@ declare global {
   }
 }
 
-export type EntrySource = 'map' | 'feed' | 'search' | 'community' | 'direct';
+export type EntrySource = 'map' | 'feed' | 'search' | 'community' | 'direct' | 'ad_banner';
 export type StorySurface = 'map_sheet' | 'spot_page' | 'feed';
 export type FilterSurface = 'map' | 'feed' | 'community';
 export type IgSurface =
@@ -129,6 +129,10 @@ export type EventParams = {
   favorite_added: { spot_id: string };
   feed_load_more: { region: string; loaded: number };
   gps_centered: { lat: number; lng: number };
+  // 직판 배너 — ad_id: 배너 식별자, slot_position: 로테이션 순번(1=최근접), city: 서버 지오.
+  // 클릭 후 전환은 배너로 연 가게의 entry_source='ad_banner'로 이어붙는다(instagram_link_clicked 등).
+  ad_impression: { ad_id: string; slot_position: number; city: string };
+  ad_click: { ad_id: string; slot_position: number; city: string };
   pwa_installed: { platform?: string };
   pwa_launch_standalone: { platform?: string };
 };

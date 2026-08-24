@@ -40,9 +40,10 @@ const AD_ROTATE_SLIDE_MS = 400; // 슬라이드 전환 시간 (업계 300~400ms 
 const AD_ROTATE_EASING = 'cubic-bezier(0.05, 0.7, 0.1, 1)';
 // scope: 'national'(전체광고, 전국 노출) | 'local'(지역광고, 화면 중심 30km 내에서만 노출).
 // ig=단일지점 클릭 / brand=다지점(최근접 클릭). scope 미지정=national.
-type AdBanner = { ig?: string; brand?: RegExp; src: string; alt: string; imgStyle?: CSSProperties; scope?: 'national' | 'local' };
+type AdBanner = { id: string; ig?: string; brand?: RegExp; src: string; alt: string; imgStyle?: CSSProperties; scope?: 'national' | 'local' };
 const AD_BANNERS: AdBanner[] = [
   {
+    id: 'jimuninsik',
     brand: /^jimuninsik/,
     src: '/ads/jimuninsik_banner3.jpg',
     alt: '지문인식 혼술바 광고',
@@ -52,24 +53,28 @@ const AD_BANNERS: AdBanner[] = [
     imgStyle: { objectPosition: 'center 49%' },
   },
   {
+    id: 'the_editor',
     brand: /^the_editor/,
     src: '/ads/the_editor_seogwipo.jpg',
     alt: '서귀포 혼술바 엮은이 광고',
     // 원본 상하 흰 여백 제거 후 크림 배경 1206×190 캔버스로 재조판한 파일.
   },
   {
+    id: 'dalbam_itaewon',
     ig: 'dalbam_seoul_itaewon',
     src: '/ads/dalbam_itaewon.jpg',
     alt: '달밤 이태원 혼술바 광고',
     // 원본(1284x642) 타이틀+서브타이틀 중앙 밴드를 6.35:1로 크롭한 파일.
   },
   {
+    id: 'nowave',
     brand: /^nowavebar/,
     src: '/ads/nowave.jpg',
     alt: '노웨이브 혼술바 광고',
     // 전국 다지점 — 클릭 시 지도 화면 중심에서 가장 가까운 노웨이브로 이동.
   },
   {
+    id: 'honsoop',
     ig: 'honsoop',
     src: '/ads/honsup.jpg',
     alt: '애월 혼술바 혼숲 광고',
@@ -80,9 +85,11 @@ const AD_BANNERS: AdBanner[] = [
 function AdBannerSlot({
   banners,
   onOpen,
+  city,
 }: {
   banners: AdBanner[];
   onOpen: (ad: AdBanner) => void;
+  city: string;
 }) {
   // 캐러셀식 상시 이동이 아니라 "정지 → 짧은 슬라이드" 반복.
   // 무한 루프용 클론: 트랙 끝에 첫 배너를 붙이고, 클론 도착 시 무전환 점프로 0번 복귀.
@@ -102,14 +109,28 @@ function AdBannerSlot({
     const t = setTimeout(goNext, AD_ROTATE_HOLD_MS + AD_ROTATE_SLIDE_MS);
     return () => clearTimeout(t);
   }, [idx, n, goNext]);
+  // 노출 추적 — 배너가 정지 상태로 보이기 시작할 때 1회. 무한루프 클론 프레임(idx>=n)·
+  // 백그라운드 탭(document.hidden)·연속 동일 배너는 제외.
+  const lastImpRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    if (idx >= n) return;
+    const ad = banners[idx];
+    if (!ad || lastImpRef.current === ad.id) return;
+    lastImpRef.current = ad.id;
+    track('ad_impression', { ad_id: ad.id, slot_position: idx + 1, city });
+  }, [idx, n, banners, city]);
   if (n === 0) return null;
-  const track = n > 1 ? [...banners, banners[0]] : banners;
+  const slides = n > 1 ? [...banners, banners[0]] : banners;
   const current = banners[idx % n];
   return (
     <div style={{ flex: 1, minWidth: 0, maxWidth: 480, margin: '0 auto' }}>
       <button
         type="button"
-        onClick={() => onOpen(current)}
+        onClick={() => {
+          track('ad_click', { ad_id: current.id, slot_position: (idx % n) + 1, city });
+          onOpen(current);
+        }}
         aria-label={`${current.alt} — 가게 보기`}
         style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', overflow: 'hidden', borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}
       >
@@ -127,7 +148,7 @@ function AdBannerSlot({
             }
           }}
         >
-          {track.map((ad, i) => (
+          {slides.map((ad, i) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={`${ad.src}-${i}`}
@@ -1863,6 +1884,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           </button>
         <AdBannerSlot
           banners={orderedAds}
+          city={initialCity}
           onOpen={(ad) => {
             // 단일 지점(ig) 또는 브랜드(전국 다지점 → 지도 화면 중심 최근접) 해석.
             let target: SpotWithStories | undefined;
@@ -1893,7 +1915,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             }
             setSelectedSpot(null);
             setSheetOpen(false);
-            setTimeout(() => openSpotPanel(t, 'map'), 700);
+            setTimeout(() => openSpotPanel(t, 'ad_banner'), 700);
           }}
         />
           {hotOpen && (
