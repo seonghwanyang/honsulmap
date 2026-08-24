@@ -48,7 +48,8 @@ export async function GET(
   });
 }
 
-// 라이브 상태 원터치 (주문 보드에서 씀) — 배치도 전량 교체와 분리된 가벼운 갱신
+// 가벼운 설정 갱신 (배치도 전량 교체와 분리) — 라이브 상태 원터치(주문 보드),
+// 서비스 활성화 토글(설정 허브). 체크 즉시 저장되므로 전체 저장에 묶이지 않는다.
 const LIVE_STATUSES = ['ready', 'open', 'busy', 'full', 'closed'] as const;
 
 export async function PATCH(
@@ -60,14 +61,21 @@ export async function PATCH(
   if (!admin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
-  const live = typeof body.live_status === 'string' ? body.live_status : '';
-  if (!LIVE_STATUSES.includes(live as (typeof LIVE_STATUSES)[number]))
-    return NextResponse.json({ error: 'invalid status' }, { status: 400 });
+  const patch: Record<string, unknown> = {};
+
+  if (typeof body.enabled === 'boolean') patch.enabled = body.enabled;
+  if (typeof body.live_status === 'string') {
+    if (!LIVE_STATUSES.includes(body.live_status as (typeof LIVE_STATUSES)[number]))
+      return NextResponse.json({ error: 'invalid status' }, { status: 400 });
+    patch.live_status = body.live_status;
+  }
+  if (!Object.keys(patch).length)
+    return NextResponse.json({ error: 'no fields' }, { status: 400 });
 
   const { error } = await admin
     .from('store_table_config')
     .upsert(
-      { spot_id: id, live_status: live, updated_at: new Date().toISOString() },
+      { spot_id: id, ...patch, updated_at: new Date().toISOString() },
       { onConflict: 'spot_id' },
     );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -265,7 +265,21 @@ function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChang
     return true;
   };
 
-  // 전체 저장 — 삭제·활성화 포함 현재 화면 그대로 확정
+  // 활성화 토글 — 체크 즉시 저장 (전체 저장에 묶였다가 놓치는 사고 방지)
+  const toggleEnabled = async (next: boolean) => {
+    setEnabled(next);
+    const res = await fetch(`/api/partner/spots/${spotId}/tables`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: next }),
+    });
+    if (!res.ok) {
+      setEnabled(!next);
+      alert('활성화 저장에 실패했어요. 다시 시도해주세요.');
+    }
+  };
+
+  // 전체 저장 — 삭제 포함 현재 화면 그대로 확정
   const saveAll = async () => {
     setSaving('all');
     const ok = await put({ enabled, zones: payload(zones) });
@@ -308,14 +322,11 @@ function LayoutSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChang
           <input
             type="checkbox"
             checked={enabled}
-            onChange={(e) => {
-              setEnabled(e.target.checked);
-              setGlobalDirty(true);
-            }}
+            onChange={(e) => toggleEnabled(e.target.checked)}
             style={{ width: 18, height: 18, accentColor: '#111827' }}
           />
           테이블 서비스 활성화
-          <span style={{ fontWeight: 600, fontSize: 11.5, color: '#9ca3af' }}>(전체 저장 시 반영)</span>
+          <span style={{ fontWeight: 600, fontSize: 11.5, color: '#9ca3af' }}>(체크 즉시 반영)</span>
         </label>
         {spot && (
           <Link
