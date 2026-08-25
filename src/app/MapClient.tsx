@@ -80,6 +80,20 @@ const AD_BANNERS: AdBanner[] = [
     alt: '애월 혼술바 혼숲 광고',
     // 원본(1179x422) 상하 흰 여백을 6.35:1 가운데 크롭한 파일(public/ads/honsup.jpg).
   },
+  {
+    id: 'the_kkeullim',
+    ig: 'the_kkeullim',
+    src: '/ads/the-kkeullim.jpg',
+    alt: '더 끌림 혼술바 광고',
+    // 원본(1916x821, 2.33:1)을 6.35:1 가운데 크롭 — 타이틀·부제·핸들 유지, 큰 글자 상단만 소폭 잘림.
+  },
+  {
+    id: 'cclim_jeju',
+    ig: 'cclim_jeju',
+    src: '/ads/cclim.jpg',
+    alt: '끌림365 게스트하우스 광고',
+    // 원본(2520x400, 6.30:1)이 슬롯(6.35:1)과 거의 일치 — 크롭 거의 없음.
+  },
 ];
 
 function AdBannerSlot({

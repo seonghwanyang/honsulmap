@@ -1,9 +1,19 @@
 'use client';
 
-// 술게임 — 도감(규칙)이 아니라 폰 1대로 바로 도는 플레이 툴.
-// 결과 화면의 "벌칙주 고르러 가기"가 메뉴 탭으로 연결된다 (게임→매출 고리).
+// 혼술바 게임 탭 — 아이스브레이킹이 본질.
+// 대화 게임(WNRS×아론 3단계 구조)이 메인, 벌칙 게임은 서브.
+// 멀티폰 동기화가 필요한 게임(라이어·바 전체 판)은 잠금 타일로 예고.
 
 import { useEffect, useRef, useState } from 'react';
+import {
+  TALK_LV1,
+  TALK_LV2,
+  TALK_LV3,
+  BALANCE,
+  FIRST_IMPRESSION,
+  NEVER_EVER,
+  shuffle,
+} from './gamesData';
 
 const INK = '#111827';
 const MUTED = '#6b7280';
@@ -11,58 +21,115 @@ const FAINT = '#9ca3af';
 const LINE = '#e5e7eb';
 const ACCENT = '#7c3aed';
 
-const QUESTIONS = [
-  '오늘 혼술/술자리 나온 진짜 이유는?',
-  '최근에 제일 창피했던 순간은?',
-  '이상형을 세 단어로 말하면?',
-  '인생 최고의 술안주는?',
-  '지금 옆 사람 첫인상 솔직하게?',
-  '휴대폰에서 마지막으로 검색한 것은?',
-  '살면서 제일 잘한 소비는?',
-  '요즘 나를 제일 웃게 하는 것은?',
-  '술버릇 솔직하게 고백하기',
-  '내일 지구가 망하면 오늘 뭐 할래?',
-  '첫사랑 이야기 30초 요약',
-  '나의 TMI 하나 공개하기',
-];
+const QUESTIONS_TO_UNLOCK = 6; // 레벨당 이만큼 답하면 다음 레벨 해금 (WNRS 룰 축소판)
 
 const RULES: { title: string; people: string; tags: string[]; body: string; penalty: string }[] = [
   { title: '메두사 게임', people: '3~8명', tags: ['입문', '텐션업'], body: '모두 고개를 숙였다가 "하나 둘 셋!"에 동시에 한 사람을 바라본다. 서로 눈이 마주친 사람끼리 짠하고 마신다. 아무도 안 마주치면 다시.', penalty: '같이 한 잔' },
   { title: '양세찬 게임', people: '3~6명', tags: ['입문', '처음 만난 사람'], body: '각자 이마에 인물 이름을 붙이고, 질문을 던져 자기 이마의 인물을 맞힌다. 못 맞히고 턴이 끝나면 마신다.', penalty: '한 잔' },
-  { title: '폭탄 돌리기', people: '3~8명', tags: ['텐션업'], body: '폭탄 타이머를 켜고 질문에 답하며 폰을 옆으로 넘긴다. 터질 때 들고 있는 사람이 마신다. (아래 폭탄 타이머로 바로 플레이)', penalty: '데킬라 또는 같이 한 잔' },
+  { title: '폭탄 돌리기', people: '3~8명', tags: ['텐션업'], body: '폭탄 타이머를 켜고 질문에 답하며 폰을 옆으로 넘긴다. 터질 때 들고 있는 사람이 마신다. (폭탄 타이머로 바로 플레이)', penalty: '데킬라 또는 같이 한 잔' },
   { title: '랭킹 게임', people: '4~8명', tags: ['처음 만난 사람', '텐션업'], body: '술래를 정하고 나머지끼리 특정 순위를 몰래 합의한다(예: 가장 늦게 결혼할 것 같은 사람). 술래가 순위를 추측해서 맞히면 통과, 틀리면 마신다.', penalty: '한 잔' },
   { title: '빙고 게임', people: '3~6명', tags: ['입문', '단체'], body: '주제를 정하고 3x3 빙고판을 그린다. 돌아가며 단어를 말하고, 마지막까지 빙고를 못 만든 사람이 마신다.', penalty: '벌주 한 잔' },
 ];
 
-type Tool = 'home' | 'roulette' | 'bomb' | 'ladder' | 'cards' | 'rules';
+type Tool =
+  | 'home'
+  | 'talk'
+  | 'telepathy'
+  | 'impression'
+  | 'never'
+  | 'eye'
+  | 'roulette'
+  | 'bomb'
+  | 'ladder'
+  | 'rules';
 
 export default function GamesTab({ onGoMenu }: { onGoMenu: () => void }) {
   const [tool, setTool] = useState<Tool>('home');
-  if (tool === 'roulette') return <Roulette onBack={() => setTool('home')} onGoMenu={onGoMenu} />;
-  if (tool === 'bomb') return <Bomb onBack={() => setTool('home')} onGoMenu={onGoMenu} />;
-  if (tool === 'ladder') return <Ladder onBack={() => setTool('home')} onGoMenu={onGoMenu} />;
-  if (tool === 'cards') return <Cards onBack={() => setTool('home')} />;
-  if (tool === 'rules') return <Rules onBack={() => setTool('home')} />;
+  const back = () => setTool('home');
 
-  const items: { key: Tool; emoji: string; title: string; desc: string }[] = [
+  if (tool === 'talk') return <TalkCards onBack={back} onEye={() => setTool('eye')} />;
+  if (tool === 'telepathy') return <Telepathy onBack={back} />;
+  if (tool === 'impression') return <FirstImpression onBack={back} />;
+  if (tool === 'never') return <NeverEver onBack={back} />;
+  if (tool === 'eye') return <EyeContact onBack={back} />;
+  if (tool === 'roulette') return <Roulette onBack={back} onGoMenu={onGoMenu} />;
+  if (tool === 'bomb') return <Bomb onBack={back} onGoMenu={onGoMenu} />;
+  if (tool === 'ladder') return <Ladder onBack={back} onGoMenu={onGoMenu} />;
+  if (tool === 'rules') return <Rules onBack={back} />;
+
+  const talk: { key: Tool; emoji: string; title: string; desc: string }[] = [
+    { key: 'talk', emoji: '🗣', title: '대화 카드', desc: '얕은 물부터 딥토크까지 — 3단계 질문으로 말 트기' },
+    { key: 'telepathy', emoji: '🔮', title: '텔레파시 밸런스', desc: '동시에 골라서 통하면 통과, 어긋나면 같이 한 잔' },
+    { key: 'impression', emoji: '👀', title: '첫인상 퀴즈', desc: '상대를 얼마나 읽었나 — 첫인상 맞히기 10문항' },
+    { key: 'never', emoji: '🙅', title: '한번도 게임', desc: '나는 한 번도 ○○한 적 없다 — 해당되면 접고 마시기' },
+    { key: 'eye', emoji: '👁', title: '눈맞춤 챌린지', desc: '말없이 1분 — 웃거나 눈 돌리면 패배' },
+  ];
+  const party: { key: Tool; emoji: string; title: string; desc: string }[] = [
     { key: 'roulette', emoji: '🎯', title: '벌칙 룰렛', desc: '이름 넣고 돌리면 오늘의 희생자 결정' },
     { key: 'bomb', emoji: '💣', title: '폭탄 타이머', desc: '터질 때 들고 있는 사람이 마신다' },
     { key: 'ladder', emoji: '🪜', title: '사다리타기', desc: '벌칙·계산 담당 공정하게 뽑기' },
-    { key: 'cards', emoji: '🃏', title: '질문 카드', desc: '어색할 때 한 장씩 — 아이스브레이킹' },
     { key: 'rules', emoji: '📖', title: '술게임 도감', desc: '메두사·양세찬·랭킹… 규칙 모음' },
   ];
+  const locked: { emoji: string; title: string; desc: string }[] = [
+    { emoji: '🕵️', title: '라이어 게임', desc: '각자 폰에 비밀 단어 — 한 명만 다른 단어' },
+    { emoji: '🤫', title: 'TMI 맞히기', desc: '이 바의 익명 TMI, 누구 것인지 투표' },
+    { emoji: '💬', title: '오늘의 질문', desc: '바 전체가 같은 질문에 익명으로 답하기' },
+    { emoji: '🎲', title: '휴먼 빙고', desc: '"INFP 있다" — 물어봐야 채워지는 빙고' },
+  ];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {items.map((g) => (
-        <button key={g.key} onClick={() => setTool(g.key)} style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, padding: '15px 16px', cursor: 'pointer' }}>
-          <span style={{ fontSize: 26 }}>{g.emoji}</span>
-          <span>
-            <span style={{ display: 'block', fontSize: 14.5, fontWeight: 800, color: INK }}>{g.title}</span>
-            <span style={{ display: 'block', fontSize: 12, color: MUTED, marginTop: 2 }}>{g.desc}</span>
-          </span>
-        </button>
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Section2 label="🍸 말 트기 — 옆자리와">
+        {talk.map((g) => (
+          <GameCard key={g.key} emoji={g.emoji} title={g.title} desc={g.desc} onClick={() => setTool(g.key)} />
+        ))}
+      </Section2>
+
+      <Section2 label="🍻 다 같이 — 텐션업">
+        {party.map((g) => (
+          <GameCard key={g.key} emoji={g.emoji} title={g.title} desc={g.desc} onClick={() => setTool(g.key)} />
+        ))}
+      </Section2>
+
+      <Section2 label="🔒 곧 열려요 — 혼술맵 앱 전용">
+        {locked.map((g) => (
+          <div
+            key={g.title}
+            style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#fff', border: `1px dashed #d1d5db`, borderRadius: 14, padding: '14px 16px', opacity: 0.65 }}
+          >
+            <span style={{ fontSize: 24, filter: 'grayscale(0.5)' }}>{g.emoji}</span>
+            <span style={{ minWidth: 0, flex: 1 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: INK }}>{g.title}</span>
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: '#92400e', background: '#fef3c7', borderRadius: 5, padding: '2px 6px' }}>준비 중</span>
+              </span>
+              <span style={{ display: 'block', fontSize: 11.5, color: FAINT, marginTop: 2 }}>{g.desc}</span>
+            </span>
+          </div>
+        ))}
+      </Section2>
     </div>
+  );
+}
+
+function Section2({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 style={{ fontSize: 12.5, fontWeight: 800, color: MUTED, margin: '2px 2px 8px' }}>{label}</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>
+    </section>
+  );
+}
+
+function GameCard({ emoji, title, desc, onClick }: { emoji: string; title: string; desc: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, padding: '14px 16px', cursor: 'pointer' }}>
+      <span style={{ fontSize: 25 }}>{emoji}</span>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 14.5, fontWeight: 800, color: INK }}>{title}</span>
+        <span style={{ display: 'block', fontSize: 12, color: MUTED, marginTop: 2 }}>{desc}</span>
+      </span>
+    </button>
   );
 }
 
@@ -86,6 +153,335 @@ function PenaltyCta({ name, onGoMenu }: { name: string; onGoMenu: () => void }) 
   );
 }
 
+const bigBtn: React.CSSProperties = { width: '100%', height: 52, borderRadius: 13, background: INK, color: '#fff', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer' };
+const outBtn: React.CSSProperties = { width: '100%', height: 46, borderRadius: 12, background: '#fff', border: `1px solid ${LINE}`, fontSize: 13.5, fontWeight: 800, color: INK, cursor: 'pointer' };
+
+// ═══ 🗣 대화 카드 — WNRS×아론 3단계 ═══
+function TalkCards({ onBack, onEye }: { onBack: () => void; onEye: () => void }) {
+  const LEVELS: { no: 1 | 2 | 3; name: string; desc: string; bank: readonly string[] }[] = [
+    { no: 1, name: '얕은 물', desc: '첫인상 · 취향', bank: TALK_LV1 },
+    { no: 2, name: '연결', desc: '경험 · 가치관', bank: TALK_LV2 },
+    { no: 3, name: '딥토크', desc: '성찰 · 솔직', bank: TALK_LV3 },
+  ];
+  const decksRef = useRef<Record<number, string[]>>({});
+  const [level, setLevel] = useState<1 | 2 | 3>(1);
+  const [unlocked, setUnlocked] = useState<1 | 2 | 3>(1);
+  const [idx, setIdx] = useState(0);
+  const [answered, setAnswered] = useState<Record<number, number>>({ 1: 0, 2: 0, 3: 0 });
+  const [turn, setTurn] = useState<0 | 1>(0);
+  const [passes, setPasses] = useState(0);
+
+  if (!decksRef.current[1]) {
+    decksRef.current = { 1: shuffle(TALK_LV1), 2: shuffle(TALK_LV2), 3: shuffle(TALK_LV3) };
+  }
+  const deck = decksRef.current[level]!;
+  const card = deck[idx % deck.length];
+  const done = answered[level] ?? 0;
+  const canUnlockNext = level === unlocked && level < 3 && done >= QUESTIONS_TO_UNLOCK;
+  const lv3Finished = level === 3 && done >= deck.length;
+
+  const advance = (passed: boolean) => {
+    setAnswered((prev) => ({ ...prev, [level]: (prev[level] ?? 0) + 1 }));
+    setIdx((i) => i + 1);
+    setTurn((t) => (t === 0 ? 1 : 0));
+    if (passed) setPasses((p) => p + 1);
+  };
+
+  const goLevel = (no: 1 | 2 | 3) => {
+    setLevel(no);
+    setIdx(0);
+  };
+
+  return (
+    <Frame title="🗣 대화 카드" onBack={onBack}>
+      <p style={{ fontSize: 12, color: MUTED, lineHeight: 1.6, marginBottom: 12 }}>
+        번갈아 <b>둘 다</b> 답해요 — 서로 주고받아야 가까워집니다.
+        <br />
+        답하기 곤란하면 패스 = 같이 한 잔 🍻
+      </p>
+
+      {/* 레벨 선택 */}
+      <div style={{ display: 'flex', gap: 7, marginBottom: 14 }}>
+        {LEVELS.map((l) => {
+          const isLocked = l.no > unlocked;
+          const active = level === l.no;
+          return (
+            <button
+              key={l.no}
+              onClick={() => !isLocked && goLevel(l.no)}
+              style={{ flex: 1, padding: '9px 4px', borderRadius: 11, border: '1.5px solid', borderColor: active ? INK : LINE, background: active ? INK : '#fff', color: isLocked ? FAINT : active ? '#fff' : INK, cursor: isLocked ? 'default' : 'pointer' }}
+            >
+              <span style={{ display: 'block', fontSize: 12.5, fontWeight: 800 }}>
+                {isLocked ? '🔒 ' : ''}Lv{l.no} {l.name}
+              </span>
+              <span style={{ display: 'block', fontSize: 9.5, fontWeight: 600, opacity: 0.75, marginTop: 1 }}>{l.desc}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 카드 */}
+      <div style={{ minHeight: 170, borderRadius: 18, background: level === 3 ? INK : '#fff', border: `2px solid ${level === 3 ? INK : ACCENT}`, display: 'grid', placeItems: 'center', padding: '26px 22px', textAlign: 'center' }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: level === 3 ? '#a78bfa' : ACCENT, marginBottom: 10 }}>
+            {turn === 0 ? '🅰 먼저 답하고 → 🅱' : '🅱 먼저 답하고 → 🅰'}
+          </div>
+          <div style={{ fontSize: 17.5, fontWeight: 800, color: level === 3 ? '#fff' : INK, lineHeight: 1.55, wordBreak: 'keep-all' }}>{card}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '10px 2px 14px', fontSize: 11.5, fontWeight: 700, color: FAINT }}>
+        <span>
+          Lv{level} · {done}장 답함
+          {level === unlocked && level < 3 && done < QUESTIONS_TO_UNLOCK && ` (다음 레벨까지 ${QUESTIONS_TO_UNLOCK - done}장)`}
+        </span>
+        {passes > 0 && <span>패스 {passes}번 = 🍻 {passes}잔</span>}
+      </div>
+
+      {canUnlockNext ? (
+        <button
+          onClick={() => {
+            const next = (level + 1) as 2 | 3;
+            setUnlocked(next);
+            goLevel(next);
+          }}
+          style={{ ...bigBtn, background: ACCENT }}
+        >
+          🔓 Lv{level + 1} {LEVELS[level].name} 열기 — 더 깊이
+        </button>
+      ) : lv3Finished ? (
+        <button onClick={onEye} style={{ ...bigBtn, background: ACCENT }}>
+          👁 마지막 관문: 1분 눈맞춤 챌린지
+        </button>
+      ) : (
+        <button onClick={() => advance(false)} style={bigBtn}>
+          둘 다 답했어요 → 다음 카드
+        </button>
+      )}
+      <button onClick={() => advance(true)} style={{ ...outBtn, marginTop: 8 }}>
+        패스… 대신 같이 한 잔 🍻
+      </button>
+    </Frame>
+  );
+}
+
+// ═══ 🔮 텔레파시 밸런스 ═══
+function Telepathy({ onBack }: { onBack: () => void }) {
+  const deckRef = useRef<[string, string][]>(shuffle(BALANCE));
+  const [idx, setIdx] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [best, setBest] = useState(0);
+  const [result, setResult] = useState<'hit' | 'miss' | null>(null);
+  const [a, b] = deckRef.current[idx % deckRef.current.length];
+
+  const judge = (hit: boolean) => {
+    setResult(hit ? 'hit' : 'miss');
+    if (hit) {
+      const s = streak + 1;
+      setStreak(s);
+      if (s > best) setBest(s);
+      if (navigator.vibrate) navigator.vibrate(60);
+    } else {
+      setStreak(0);
+    }
+  };
+  const next = () => {
+    setResult(null);
+    setIdx((i) => i + 1);
+  };
+
+  return (
+    <Frame title="🔮 텔레파시 밸런스" onBack={onBack}>
+      <p style={{ fontSize: 12, color: MUTED, lineHeight: 1.6, marginBottom: 14 }}>
+        각자 마음속으로 고르고, <b>"하나 둘 셋!"에 동시에 손가락으로 가리키세요.</b>
+        <br />
+        통하면 다음으로, 어긋나면 같이 한 잔 🍻
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, minHeight: 130 }}>
+        <div style={{ flex: 1, borderRadius: 16, border: `2px solid ${INK}`, background: '#fff', display: 'grid', placeItems: 'center', padding: 16, textAlign: 'center' }}>
+          <span style={{ fontSize: 17, fontWeight: 800, color: INK, wordBreak: 'keep-all' }}>{a}</span>
+        </div>
+        <span style={{ alignSelf: 'center', fontSize: 13, fontWeight: 800, color: FAINT }}>vs</span>
+        <div style={{ flex: 1, borderRadius: 16, border: `2px solid ${INK}`, background: '#fff', display: 'grid', placeItems: 'center', padding: 16, textAlign: 'center' }}>
+          <span style={{ fontSize: 17, fontWeight: 800, color: INK, wordBreak: 'keep-all' }}>{b}</span>
+        </div>
+      </div>
+
+      <div style={{ textAlign: 'center', margin: '12px 0', fontSize: 12.5, fontWeight: 800, color: streak >= 3 ? ACCENT : MUTED }}>
+        {result === 'hit' && streak >= 3 ? `🔮 ${streak}연속! 소름 돋게 통하는데요?` : result === 'hit' ? `통했다! ${streak}연속` : result === 'miss' ? '어긋났네요 — 같이 한 잔 🍻' : `현재 ${streak}연속 · 최고 ${best}연속`}
+      </div>
+
+      {result === null ? (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => judge(true)} style={{ ...bigBtn, flex: 1, background: ACCENT }}>🔮 통했다</button>
+          <button onClick={() => judge(false)} style={{ ...bigBtn, flex: 1, background: '#fff', color: INK, border: `1.5px solid ${LINE}` }}>❌ 어긋남</button>
+        </div>
+      ) : (
+        <button onClick={next} style={bigBtn}>다음 질문</button>
+      )}
+    </Frame>
+  );
+}
+
+// ═══ 👀 첫인상 퀴즈 ═══
+function FirstImpression({ onBack }: { onBack: () => void }) {
+  const [idx, setIdx] = useState(0);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [score, setScore] = useState(0);
+  const [finished, setFinished] = useState(false);
+  const total = FIRST_IMPRESSION.length;
+  const q = FIRST_IMPRESSION[idx];
+
+  const judge = (correct: boolean) => {
+    if (correct) setScore((s) => s + 1);
+    setPicked(null);
+    if (idx + 1 >= total) setFinished(true);
+    else setIdx((i) => i + 1);
+  };
+  const restart = () => {
+    setIdx(0);
+    setPicked(null);
+    setScore(0);
+    setFinished(false);
+  };
+
+  if (finished) {
+    const verdict = score >= 8 ? '소름… 관상가세요? 👁' : score >= 5 ? '꽤 통하는데요? 이제 확인해볼 차례 🍻' : '하나도 몰랐네요 — 이제부터 알아가면 되죠 😎';
+    return (
+      <Frame title="👀 첫인상 퀴즈" onBack={onBack}>
+        <div style={{ borderRadius: 18, border: `2px solid ${ACCENT}`, background: '#fff', padding: '34px 22px', textAlign: 'center' }}>
+          <div style={{ fontSize: 38, fontWeight: 800, color: INK }}>
+            {score}<span style={{ fontSize: 18, color: FAINT }}> / {total}</span>
+          </div>
+          <div style={{ fontSize: 14.5, fontWeight: 800, color: ACCENT, marginTop: 10, lineHeight: 1.5 }}>{verdict}</div>
+        </div>
+        <button onClick={restart} style={{ ...bigBtn, marginTop: 14 }}>역할 바꿔서 한 판 더</button>
+      </Frame>
+    );
+  }
+
+  return (
+    <Frame title="👀 첫인상 퀴즈" onBack={onBack}>
+      <p style={{ fontSize: 12, color: MUTED, lineHeight: 1.6, marginBottom: 14 }}>
+        한 사람이 폰을 들고 <b>상대를 첫인상만으로 맞혀보세요.</b> 고르면 상대가 정답 판정!
+      </p>
+      <div style={{ fontSize: 11.5, fontWeight: 800, color: FAINT, marginBottom: 8 }}>
+        {idx + 1} / {total} · 현재 {score}개 적중
+      </div>
+      <div style={{ borderRadius: 16, border: `2px solid ${INK}`, background: '#fff', padding: '20px 18px', marginBottom: 12 }}>
+        <div style={{ fontSize: 16.5, fontWeight: 800, color: INK, wordBreak: 'keep-all' }}>{q.q}</div>
+      </div>
+      {picked === null ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {q.options.map((o) => (
+            <button key={o} onClick={() => setPicked(o)} style={outBtn}>
+              {o}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div style={{ textAlign: 'center', fontSize: 13.5, fontWeight: 800, color: INK, margin: '4px 0 12px' }}>
+            선택: <span style={{ color: ACCENT }}>{picked}</span> — 맞았나요?
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => judge(true)} style={{ ...bigBtn, flex: 1, background: ACCENT }}>⭕ 맞았어요</button>
+            <button onClick={() => judge(false)} style={{ ...bigBtn, flex: 1, background: '#fff', color: INK, border: `1.5px solid ${LINE}` }}>❌ 틀렸어요</button>
+          </div>
+        </>
+      )}
+    </Frame>
+  );
+}
+
+// ═══ 🙅 한번도 게임 ═══
+function NeverEver({ onBack }: { onBack: () => void }) {
+  const deckRef = useRef<string[]>(shuffle(NEVER_EVER));
+  const [idx, setIdx] = useState(0);
+  const card = deckRef.current[idx % deckRef.current.length];
+
+  return (
+    <Frame title="🙅 한번도 게임" onBack={onBack}>
+      <p style={{ fontSize: 12, color: MUTED, lineHeight: 1.6, marginBottom: 14 }}>
+        다 같이 손가락 5개를 펴고 시작 — <b>해당되는 사람은 손가락을 접고 마십니다.</b>
+        <br />
+        먼저 다 접는 사람이 오늘의 경험왕 👑
+      </p>
+      <div style={{ minHeight: 150, borderRadius: 18, border: `2px solid ${ACCENT}`, background: '#fff', display: 'grid', placeItems: 'center', padding: '26px 22px', textAlign: 'center' }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: ACCENT, marginBottom: 8 }}>나는 한 번도…</div>
+          <div style={{ fontSize: 17.5, fontWeight: 800, color: INK, lineHeight: 1.5, wordBreak: 'keep-all' }}>{card}</div>
+        </div>
+      </div>
+      <div style={{ textAlign: 'center', fontSize: 11.5, fontWeight: 700, color: FAINT, margin: '10px 0 12px' }}>
+        {(idx % deckRef.current.length) + 1} / {deckRef.current.length}
+      </div>
+      <button onClick={() => setIdx((i) => i + 1)} style={bigBtn}>다음 카드</button>
+    </Frame>
+  );
+}
+
+// ═══ 👁 눈맞춤 챌린지 ═══
+function EyeContact({ onBack }: { onBack: () => void }) {
+  const [state, setState] = useState<'idle' | 'run' | 'done'>('idle');
+  const [left, setLeft] = useState(60);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const start = () => {
+    setState('run');
+    setLeft(60);
+    timer.current = setInterval(() => {
+      setLeft((l) => {
+        if (l <= 1) {
+          if (timer.current) clearInterval(timer.current);
+          setState('done');
+          if (navigator.vibrate) navigator.vibrate([120, 60, 200]);
+          return 0;
+        }
+        return l - 1;
+      });
+    }, 1000);
+  };
+  useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
+
+  return (
+    <Frame title="👁 눈맞춤 챌린지" onBack={onBack}>
+      <p style={{ fontSize: 12, color: MUTED, lineHeight: 1.6, marginBottom: 14 }}>
+        아서 아론의 그 실험 — 낯선 사이도 가까워진다는 마지막 관문.
+        <br />
+        <b>말하기 금지 · 웃으면 패배 · 눈 돌려도 패배.</b> 진 사람이 한 잔 🍻
+      </p>
+      {state === 'idle' && (
+        <button onClick={start} style={{ ...bigBtn, height: 120, fontSize: 18 }}>
+          👁 1분 시작 — 폰을 사이에 두고
+        </button>
+      )}
+      {state === 'run' && (
+        <div style={{ height: 200, borderRadius: 18, background: INK, display: 'grid', placeItems: 'center' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 54, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{left}</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#a78bfa', marginTop: 4 }}>서로의 눈만 보세요 · 웃으면 집니다</div>
+          </div>
+        </div>
+      )}
+      {state === 'done' && (
+        <>
+          <div style={{ height: 170, borderRadius: 18, background: '#f5f3ff', border: `2px solid ${ACCENT}`, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 20 }}>
+            <div>
+              <div style={{ fontSize: 40 }}>🎉</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginTop: 6 }}>1분 성공! 이제 남남은 아니네요</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: MUTED, marginTop: 4 }}>건배로 마무리 🥂 (중간에 웃은 사람은 한 잔)</div>
+            </div>
+          </div>
+          <button onClick={() => setState('idle')} style={{ ...outBtn, marginTop: 12 }}>한 번 더</button>
+        </>
+      )}
+    </Frame>
+  );
+}
+
+// ═══ 이름 입력 공용 ═══
 function NameChips({ names, setNames }: { names: string[]; setNames: (n: string[]) => void }) {
   const [input, setInput] = useState('');
   const add = () => {
@@ -118,7 +514,7 @@ function NameChips({ names, setNames }: { names: string[]; setNames: (n: string[
   );
 }
 
-// 🎯 벌칙 룰렛 — 이름들이 빠르게 돌다가 감속하며 한 명에 멈춤
+// ═══ 🎯 벌칙 룰렛 ═══
 function Roulette({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void }) {
   const [names, setNames] = useState<string[]>([]);
   const [current, setCurrent] = useState('');
@@ -155,7 +551,7 @@ function Roulette({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => vo
           {winner ? `${winner} 당첨!` : current || '?'}
         </span>
       </div>
-      <button onClick={spin} disabled={names.length < 2 || spinning} style={{ width: '100%', height: 52, borderRadius: 13, background: names.length < 2 ? '#e5e7eb' : INK, color: '#fff', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
+      <button onClick={spin} disabled={names.length < 2 || spinning} style={{ ...bigBtn, background: names.length < 2 ? '#e5e7eb' : INK }}>
         {spinning ? '돌아가는 중…' : '돌리기!'}
       </button>
       {winner && <PenaltyCta name={winner} onGoMenu={onGoMenu} />}
@@ -163,7 +559,7 @@ function Roulette({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => vo
   );
 }
 
-// 💣 폭탄 타이머 — 랜덤 20~75초, 남은 시간 비공개
+// ═══ 💣 폭탄 타이머 ═══
 function Bomb({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void }) {
   const [state, setState] = useState<'idle' | 'ticking' | 'boom'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,7 +580,7 @@ function Bomb({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void }
         시작을 누르고 질문에 답하며 폰을 옆으로 넘기세요. 언제 터질지는 아무도 몰라요 (20~75초).
       </p>
       {state === 'idle' && (
-        <button onClick={start} style={{ width: '100%', height: 120, borderRadius: 18, background: INK, color: '#fff', fontSize: 20, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
+        <button onClick={start} style={{ ...bigBtn, height: 120, fontSize: 20 }}>
           💣 시작 — 폰 돌리기!
         </button>
       )}
@@ -200,11 +596,9 @@ function Bomb({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void }
             <span style={{ fontSize: 52 }}>💥</span>
             <span style={{ fontSize: 18, fontWeight: 800, color: '#dc2626' }}>펑! 들고 있는 사람 당첨!</span>
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-            <button onClick={() => setState('idle')} style={{ flex: 1, height: 48, borderRadius: 12, background: '#fff', border: `1px solid ${LINE}`, fontSize: 14, fontWeight: 800, color: INK, cursor: 'pointer' }}>
-              다시 하기
-            </button>
-          </div>
+          <button onClick={() => setState('idle')} style={{ ...outBtn, marginTop: 14 }}>
+            다시 하기
+          </button>
           <PenaltyCta name="당첨자" onGoMenu={onGoMenu} />
         </>
       )}
@@ -212,14 +606,14 @@ function Bomb({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void }
   );
 }
 
-// 🪜 사다리타기 — 한 명만 당첨 (벌칙/계산 담당)
+// ═══ 🪜 사다리타기 ═══
 function Ladder({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void }) {
   const [names, setNames] = useState<string[]>([]);
   const [revealed, setRevealed] = useState<string | null>(null);
   const [opened, setOpened] = useState<Set<string>>(new Set());
   const winnerRef = useRef('');
 
-  const shuffle = () => {
+  const shuffleLadder = () => {
     if (names.length < 2) return;
     winnerRef.current = names[Math.floor(Math.random() * names.length)];
     setOpened(new Set());
@@ -230,7 +624,7 @@ function Ladder({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void
     <Frame title="🪜 사다리타기" onBack={onBack}>
       <NameChips names={names} setNames={setNames} />
       {revealed !== 'ready' ? (
-        <button onClick={shuffle} disabled={names.length < 2} style={{ width: '100%', height: 52, marginTop: 20, borderRadius: 13, background: names.length < 2 ? '#e5e7eb' : INK, color: '#fff', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
+        <button onClick={shuffleLadder} disabled={names.length < 2} style={{ ...bigBtn, marginTop: 20, background: names.length < 2 ? '#e5e7eb' : INK }}>
           사다리 섞기
         </button>
       ) : (
@@ -251,7 +645,7 @@ function Ladder({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void
               );
             })}
           </div>
-          <button onClick={shuffle} style={{ width: '100%', height: 44, marginTop: 12, borderRadius: 11, background: '#fff', border: `1px solid ${LINE}`, fontSize: 13, fontWeight: 800, color: INK, cursor: 'pointer' }}>
+          <button onClick={shuffleLadder} style={{ ...outBtn, marginTop: 12 }}>
             다시 섞기
           </button>
           {[...opened].includes(winnerRef.current) && <PenaltyCta name={winnerRef.current} onGoMenu={onGoMenu} />}
@@ -261,33 +655,7 @@ function Ladder({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void
   );
 }
 
-// 🃏 질문 카드
-function Cards({ onBack }: { onBack: () => void }) {
-  const [q, setQ] = useState('');
-  const [used, setUsed] = useState<Set<number>>(new Set());
-  const draw = () => {
-    const remain = QUESTIONS.map((_, i) => i).filter((i) => !used.has(i));
-    const pool = remain.length ? remain : QUESTIONS.map((_, i) => i);
-    if (!remain.length) setUsed(new Set());
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    setUsed((prev) => new Set(prev).add(pick));
-    setQ(QUESTIONS[pick]);
-  };
-  return (
-    <Frame title="🃏 질문 카드" onBack={onBack}>
-      <div style={{ minHeight: 150, borderRadius: 18, background: '#fff', border: `2px solid ${q ? ACCENT : LINE}`, display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}>
-        <span style={{ fontSize: q ? 18 : 14, fontWeight: 800, color: q ? INK : FAINT, lineHeight: 1.5 }}>
-          {q || '카드를 뽑아서 나온 질문에 답해요.\n답 못 하면 마시기!'}
-        </span>
-      </div>
-      <button onClick={draw} style={{ width: '100%', height: 52, marginTop: 16, borderRadius: 13, background: INK, color: '#fff', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
-        카드 뽑기
-      </button>
-    </Frame>
-  );
-}
-
-// 📖 도감
+// ═══ 📖 도감 ═══
 function Rules({ onBack }: { onBack: () => void }) {
   return (
     <Frame title="📖 술게임 도감" onBack={onBack}>
