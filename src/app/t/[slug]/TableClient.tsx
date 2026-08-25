@@ -380,7 +380,7 @@ export default function TableClient({
         {tab === 'menu' && (
           <MenuList categories={categories} orderOn={orderOn} cart={cart} onTap={tapMenuItem} />
         )}
-        {tab === 'games' && <GamesTab onGoMenu={() => setTab('menu')} />}
+        {tab === 'games' && <GamesTab onGoMenu={() => setTab('menu')} spotSlug={spot.slug} />}
         {tab === 'orders' && (
           <OrdersView orders={myOrders} seatTotal={seatTotal} hasSession={!!session} onCheckin={() => setCheckinOpen(true)} />
         )}

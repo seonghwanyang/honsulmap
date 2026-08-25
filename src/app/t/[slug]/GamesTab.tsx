@@ -5,6 +5,7 @@
 // 멀티폰 동기화가 필요한 게임(라이어·바 전체 판)은 잠금 타일로 예고.
 
 import { useEffect, useRef, useState } from 'react';
+import LiarGame from './LiarGame';
 import {
   TALK_LV1,
   TALK_LV2,
@@ -33,6 +34,7 @@ const RULES: { title: string; people: string; tags: string[]; body: string; pena
 
 type Tool =
   | 'home'
+  | 'liar'
   | 'talk'
   | 'telepathy'
   | 'impression'
@@ -43,10 +45,11 @@ type Tool =
   | 'ladder'
   | 'rules';
 
-export default function GamesTab({ onGoMenu }: { onGoMenu: () => void }) {
+export default function GamesTab({ onGoMenu, spotSlug }: { onGoMenu: () => void; spotSlug: string }) {
   const [tool, setTool] = useState<Tool>('home');
   const back = () => setTool('home');
 
+  if (tool === 'liar') return <LiarGame onBack={back} spotSlug={spotSlug} />;
   if (tool === 'talk') return <TalkCards onBack={back} onEye={() => setTool('eye')} />;
   if (tool === 'telepathy') return <Telepathy onBack={back} />;
   if (tool === 'impression') return <FirstImpression onBack={back} />;
@@ -71,7 +74,6 @@ export default function GamesTab({ onGoMenu }: { onGoMenu: () => void }) {
     { key: 'rules', emoji: '📖', title: '술게임 도감', desc: '메두사·양세찬·랭킹… 규칙 모음' },
   ];
   const locked: { emoji: string; title: string; desc: string }[] = [
-    { emoji: '🕵️', title: '라이어 게임', desc: '각자 폰에 비밀 단어 — 한 명만 다른 단어' },
     { emoji: '🤫', title: 'TMI 맞히기', desc: '이 바의 익명 TMI, 누구 것인지 투표' },
     { emoji: '💬', title: '오늘의 질문', desc: '바 전체가 같은 질문에 익명으로 답하기' },
     { emoji: '🎲', title: '휴먼 빙고', desc: '"INFP 있다" — 물어봐야 채워지는 빙고' },
@@ -79,6 +81,10 @@ export default function GamesTab({ onGoMenu }: { onGoMenu: () => void }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Section2 label="📱 각자 폰으로 — 다 같이 접속">
+        <GameCard emoji="🕵️" title="라이어 게임" desc="방 코드로 모여요 — 한 명만 제시어를 모른다 (3~8명)" onClick={() => setTool('liar')} />
+      </Section2>
+
       <Section2 label="🍸 말 트기 — 옆자리와">
         {talk.map((g) => (
           <GameCard key={g.key} emoji={g.emoji} title={g.title} desc={g.desc} onClick={() => setTool(g.key)} />
