@@ -74,7 +74,7 @@ export default function WelcomeModal({ onFindNearby, onReportSpot }: Props) {
         {/* Feature bullets */}
         <div className="flex flex-col gap-3 mb-6">
           <Feature icon={<ZapIcon />}>
-            실시간 인스타 스토리로 가게 분위기 확인
+            실시간 현황으로 가게 분위기 확인
           </Feature>
           <Feature icon={<CupIcon />}>
             혼술바 + 게스트하우스 한곳에서
@@ -118,7 +118,7 @@ export default function WelcomeModal({ onFindNearby, onReportSpot }: Props) {
           className="text-xs text-center mt-4"
           style={{ color: '#9ca3af', lineHeight: 1.5 }}
         >
-          인스타 스토리 + 사용자 제보 기반 · 방문 전 확인을 권장해요
+          실시간 현황 + 사용자 제보 기반 · 방문 전 확인을 권장해요
         </p>
 
         <a

@@ -52,7 +52,7 @@ export async function generateMetadata({
 
   const typeWord = spotTypeWord(spots);
   const title = `${cityLabel} ${typeWord} 실시간 지도`;
-  const description = `${cityLabel} ${typeWord} ${spots.length}곳의 위치·분위기·인스타 실시간 스토리 현황을 동네별로 정리했습니다.`;
+  const description = `${cityLabel} ${typeWord} ${spots.length}곳의 위치·분위기·실시간 현황을 동네별로 정리했습니다.`;
   return {
     title,
     description,
@@ -150,14 +150,14 @@ export default async function RegionPage({
           {cityLabel} {typeWord} 실시간 지도
         </h1>
         <p className="text-xs mb-4" style={{ color: '#9ca3af' }}>
-          {regionGroups.length}개 동네 · {spots.length}곳 등록 · 인스타 스토리 실시간 현황
+          {regionGroups.length}개 동네 · {spots.length}곳 등록 · 실시간 현황 제공
         </p>
 
         <p className="text-sm mb-4" style={{ color: '#374151', lineHeight: 1.7 }}>
           {cityLabel}에서 혼자 술 마시기 좋은 곳을 찾는다면, 혼술맵에 등록된 {cityLabel}{' '}
           {countPhrase}을 동네별로 확인하세요. 혼술바는 혼자 온 손님끼리도 옆자리와
-          자연스럽게 대화가 이어지는 공간입니다. 각 가게의 공개 인스타그램 스토리를 모아
-          지금 어디가 활기찬지 실시간으로 보여줍니다.
+          자연스럽게 대화가 이어지는 공간입니다. 각 가게의 실시간 현황을 모아
+          지금 어디가 활기찬지 한눈에 보여줍니다.
         </p>
 
         <Link

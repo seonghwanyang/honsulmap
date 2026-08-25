@@ -378,7 +378,7 @@ function MapSheetStory({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={story.thumbnail_url || story.media_url}
-          alt={`스토리 ${relativeTime(story.posted_at)}`}
+          alt={`현황 ${relativeTime(story.posted_at)}`}
           className="w-full h-full object-cover"
           // Always eager — we want all 5 thumbnails (which are small)
           // up immediately so the panel feels populated before videos
@@ -2123,7 +2123,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
                         className="text-xs font-medium px-2 py-0.5 ml-2 flex-shrink-0"
                         style={{ background: '#EDE9FE', color: '#7C3AED', borderRadius: '999px' }}
                       >
-                        스토리
+                        현황
                       </span>
                     )}
                   </button>

@@ -205,7 +205,7 @@ export default function MyPage() {
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>새 소식·혜택 알림</div>
               <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2, lineHeight: 1.5 }}>
-                찜한 가게의 새 스토리·혜택을 알림으로 받아요 (마케팅 수신 동의)
+                찜한 가게의 새 현황·혜택을 알림으로 받아요 (마케팅 수신 동의)
               </div>
             </div>
             <button
@@ -314,7 +314,7 @@ export default function MyPage() {
                         </span>
                         {s.has_fresh_story && (
                           <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 700, color: '#7c3aed', background: '#ede9fe', borderRadius: 999, padding: '2px 7px' }}>
-                            새 스토리
+                            새 현황
                           </span>
                         )}
                       </div>

@@ -10,7 +10,7 @@ import { usePathname } from 'next/navigation';
 const NOTICE_ID = '2026-06-17-stories';
 const NOTICE_TITLE = '안내';
 const NOTICE_TEXT =
-  '일부 가게의 실시간 스토리 업데이트가 일시적으로 지연되고 있어요. 빠르게 복구 중이니 조금만 기다려 주세요 🙏';
+  '일부 가게의 실시간 현황 업데이트가 일시적으로 지연되고 있어요. 빠르게 복구 중이니 조금만 기다려 주세요 🙏';
 
 export default function NoticeModal() {
   const pathname = usePathname();

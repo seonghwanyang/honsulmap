@@ -78,7 +78,7 @@ export async function generateMetadata({
   const displayLabel = titleArea ? titleArea.label : getRegionLabel(ctx.district);
   const typeWord = spotTypeWord(spots);
   const title = `${displayLabel} ${typeWord} 실시간 지도`;
-  const description = `${ctx.cityLabel} ${displayLabel} ${typeWord} ${spots.length}곳의 위치·분위기·인스타 실시간 스토리 현황 정리.`;
+  const description = `${ctx.cityLabel} ${displayLabel} ${typeWord} ${spots.length}곳의 위치·분위기·실시간 현황 정리.`;
   return {
     title,
     description,
@@ -237,13 +237,13 @@ export default async function DistrictPage({
           {displayLabel} {typeWord} 실시간 지도
         </h1>
         <p className="text-xs mb-4" style={{ color: '#9ca3af' }}>
-          {cityLabel} {regionLabel} · {spots.length}곳 등록 · 인스타 스토리 실시간 현황
+          {cityLabel} {regionLabel} · {spots.length}곳 등록 · 실시간 현황 제공
         </p>
 
         <p className="text-sm mb-4" style={{ color: '#374151', lineHeight: 1.7 }}>
           {cityLabel} {displayLabel}에서 혼자 술 마시기 좋은 곳을 찾는다면, 혼술맵에 등록된{' '}
-          {displayLabel} {typeWord} {spots.length}곳을 확인하세요.{aliasPhrase} 각 가게의 공개
-          인스타그램 스토리를 모아 지금 어디가 활기찬지 실시간으로 보여줍니다.
+          {displayLabel} {typeWord} {spots.length}곳을 확인하세요.{aliasPhrase} 각 가게의
+          실시간 현황을 모아 지금 어디가 활기찬지 한눈에 보여줍니다.
         </p>
 
         <Link

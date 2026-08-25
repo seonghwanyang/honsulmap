@@ -88,7 +88,7 @@ export default function MarketingConsentPrompt() {
           새 소식·혜택, 알림으로 받아보세요
         </h2>
         <p style={{ fontSize: 13.5, color: '#6b7280', textAlign: 'center', lineHeight: 1.6, marginTop: 8 }}>
-          찜한 가게의 새 스토리와 사장님 혜택을
+          찜한 가게의 새 현황과 사장님 혜택을
           <br />
           가장 먼저 알려드려요.
         </p>
