@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { CITIES } from '@/lib/types';
 
 export default function Footer() {
   const pathname = usePathname();
@@ -50,6 +51,17 @@ export default function Footer() {
         <Link href="/account-deletion" style={{ color: '#6b7280', textDecoration: 'underline' }}>
           계정 삭제
         </Link>
+      </div>
+      <div className="mt-1">
+        지역별 혼술바:{' '}
+        {CITIES.map((c, i) => (
+          <span key={c.value}>
+            {i > 0 && ' · '}
+            <Link href={`/region/${c.value}`} style={{ color: '#6b7280', textDecoration: 'underline' }}>
+              {c.label}
+            </Link>
+          </span>
+        ))}
       </div>
     </footer>
   );

@@ -480,9 +480,9 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
 
       {/* Spot info block — mirrors the map sheet header exactly */}
       <div className="px-4 pt-2 pb-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
-        <h2 className="font-bold text-base truncate" style={{ color: '#111827' }}>
+        <h1 className="font-bold text-base truncate" style={{ color: '#111827' }}>
           {spot.name}
-        </h2>
+        </h1>
         <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
           {getRegionLabel(spot.region)} · {getCategoryLabel(spot.category)}
           {storyTotal > 0 && ` · 스토리 ${storyTotal}개`}
