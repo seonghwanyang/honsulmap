@@ -141,6 +141,15 @@ export const NEVER_EVER = [
   '길에서 아는 사람인 줄 알고 인사해본 적 없다',
 ] as const;
 
+// ── 라이어 게임 제시어 뱅크 (카테고리별) ──
+export const LIAR_TOPICS: { category: string; words: string[] }[] = [
+  { category: '술', words: ['소맥', '하이볼', '막걸리', '데킬라', '와인', '폭탄주', '소주', '수제맥주', '위스키', '뱅쇼'] },
+  { category: '안주', words: ['치킨', '곱창', '회', '감자전', '나초', '어묵탕', '골뱅이무침', '치즈플래터', '육회', '두부김치'] },
+  { category: '장소', words: ['노래방', '한강', '편의점', '찜질방', '클럽', '피시방', '포장마차', '루프탑', '캠핑장', '영화관'] },
+  { category: '일상', words: ['우산', '에어팟', '고데기', '체크카드', '충전기', '립밤', '텀블러', '마스크', '이어폰', '손거울'] },
+  { category: '여행', words: ['제주도', '부산', '경주', '강릉', '여수', '전주', '속초', '도쿄', '다낭', '방콕'] },
+];
+
 export function shuffle<T>(arr: readonly T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
