@@ -13,8 +13,14 @@ const MIN_PLAYERS = 3;
 const norm = (s: string) => s.replace(/\s+/g, '').toLowerCase();
 
 function friendly(error: unknown) {
-  const msg = error instanceof Error ? error.message : String(error);
-  if (msg.includes('does not exist'))
+  // Supabase PostgrestError는 Error 인스턴스가 아니라 plain object — message를 직접 꺼낸다
+  const msg =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === 'object' && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : String(error);
+  if (msg.includes('does not exist') || msg.includes('Could not find the table'))
     return NextResponse.json({ error: '게임이 아직 준비 중이에요. 잠시 후 다시 시도해주세요.' }, { status: 503 });
   return NextResponse.json({ error: msg }, { status: 500 });
 }
