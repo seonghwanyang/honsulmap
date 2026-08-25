@@ -1771,7 +1771,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   }, [selectedSpot?.id, showFullStories, isLoadingStories, activeStories.length]);
 
   return (
-    <div className="relative w-full" style={{ height: '100dvh', background: '#f8f9fa' }}>
+    <div className="relative" style={{ height: '100dvh', background: '#f8f9fa', width: '100vw', marginLeft: 'calc(-50vw + 50%)' }}>
+      {/* 지도만 body의 max-w-screen-md(768px) 틀을 뚫고 화면 폭 전체로. 데스크톱
+          좌우 흰 여백 제거. 모바일(≤768px)에선 marginLeft=0이라 무영향. */}
       {/* 로컬 디버그: 현재 줌 표시 — next dev에서만, production 빌드에선 코드째 제거됨 */}
       {process.env.NODE_ENV === 'development' && (
         <div style={{ position: 'fixed', left: 10, bottom: 140, zIndex: 9999, background: '#111827', color: '#fff', fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, opacity: 0.85, pointerEvents: 'none' }}>
@@ -2721,7 +2723,7 @@ export default function MapClient({ initialCity }: { initialCity: City }) {
   return (
     <Suspense
       fallback={
-        <div className="w-full flex items-center justify-center" style={{ height: '100dvh', background: '#f8f9fa' }}>
+        <div className="flex items-center justify-center" style={{ height: '100dvh', background: '#f8f9fa', width: '100vw', marginLeft: 'calc(-50vw + 50%)' }}>
           <span className="text-sm" style={{ color: '#9ca3af' }}>로딩 중...</span>
         </div>
       }
