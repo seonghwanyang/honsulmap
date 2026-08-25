@@ -1965,7 +1965,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       )}
 
       {/* FAB buttons */}
-      <div className="absolute z-30 flex flex-col gap-2" style={{ bottom: '100px', right: '16px' }}>
+      {/* bottom: 웹은 --admob-banner-top 미설정 → 100px 유지. 네이티브 앱은
+          AdMobBanner가 배너 실제 윗변 높이를 이 변수에 넣어 FAB이 배너 위로 12px 상승. */}
+      <div
+        className="absolute z-30 flex flex-col gap-2"
+        style={{ bottom: 'max(100px, calc(var(--admob-banner-top, 0px) + 12px))', right: '16px' }}
+      >
         <button
           onClick={() => setRequestOpen(true)}
           className="w-11 h-11 flex items-center justify-center shadow-lg"
