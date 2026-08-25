@@ -51,12 +51,16 @@ function TablesHub() {
   const [dirtyMap, setDirtyMap] = useState<Record<SectionKey, boolean>>({ layout: false, menu: false, quests: false });
   // 서비스 활성화 — 헤더 토글, 체크 즉시 저장. null = 로딩 전
   const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [spot, setSpot] = useState<{ name: string; slug: string } | null>(null);
 
   const setDirty = useCallback((key: SectionKey) => (d: boolean) => {
     setDirtyMap((prev) => (prev[key] === d ? prev : { ...prev, [key]: d }));
   }, []);
 
-  const handleConfigLoaded = useCallback((v: boolean) => setEnabled(v), []);
+  const handleConfigLoaded = useCallback((v: boolean, s: { name: string; slug: string } | null) => {
+    setEnabled(v);
+    setSpot(s);
+  }, []);
 
   const toggleEnabled = async (next: boolean) => {
     setEnabled(next);
@@ -90,6 +94,22 @@ function TablesHub() {
           </div>
         }
       />
+
+      {/* 가게 단위 퀵 액션 — 특정 섹션(배치도)의 하위 개념이 아니라 허브 레벨 */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Link href={`/partner/spot/${id}/tables/qr`} style={{ ...buttonStyle('outline'), height: 40, padding: '0 14px', fontSize: 12.5 }}>
+          🖨 QR 인쇄
+        </Link>
+        {spot && (
+          <Link
+            href={`/t/${spot.slug}`}
+            target="_blank"
+            style={{ ...buttonStyle('outline'), height: 40, padding: '0 14px', fontSize: 12.5, color: '#2563eb' }}
+          >
+            손님 페이지 미리보기 →
+          </Link>
+        )}
+      </div>
 
       <Section title="🪑 좌석 배치도" open={open.layout} dirty={dirtyMap.layout} onToggle={() => toggle('layout')}>
         <LayoutSection spotId={id} onDirtyChange={setDirty('layout')} onConfigLoaded={handleConfigLoaded} />
@@ -217,10 +237,9 @@ function LayoutSection({
 }: {
   spotId: string;
   onDirtyChange: (d: boolean) => void;
-  onConfigLoaded: (enabled: boolean) => void;
+  onConfigLoaded: (enabled: boolean, spot: { name: string; slug: string } | null) => void;
 }) {
   const [zones, setZones] = useState<EditorZone[]>([]);
-  const [spot, setSpot] = useState<{ name: string; slug: string } | null>(null);
   const [tool, setTool] = useState<Tool>('seat');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<'all' | string | null>(null);
@@ -239,8 +258,7 @@ function LayoutSection({
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return;
-        setSpot(d.spot ?? null);
-        onConfigLoaded(!!d.config?.enabled);
+        onConfigLoaded(!!d.config?.enabled, d.spot ?? null);
         const loaded: EditorZone[] = (d.zones ?? []).map(
           (z: { name: string; grid_rows: number; grid_cols: number; seats: EditorSeat[] }) => ({
             key: newKey(),
@@ -383,18 +401,6 @@ function LayoutSection({
         >
           {saving === 'all' ? '저장 중…' : anyDirty ? '배치도 전체 저장' : '저장됨'}
         </button>
-        <Link href={`/partner/spot/${spotId}/tables/qr`} style={{ ...buttonStyle('outline'), height: 40, padding: '0 14px', fontSize: 12.5 }}>
-          🖨 QR 인쇄 →
-        </Link>
-        {spot && (
-          <Link
-            href={`/t/${spot.slug}`}
-            target="_blank"
-            style={{ ...buttonStyle('outline'), height: 40, padding: '0 14px', fontSize: 12.5, color: '#2563eb' }}
-          >
-            손님 페이지 미리보기 →
-          </Link>
-        )}
         <button onClick={renumber} style={{ ...buttonStyle('outline'), height: 40, padding: '0 14px', fontSize: 12.5, marginLeft: 'auto' }}>
           번호 다시 매기기
         </button>
