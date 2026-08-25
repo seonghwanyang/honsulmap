@@ -53,7 +53,7 @@ export async function generateMetadata({
   const descBase = `${regionLabel}에 위치한 ${cityLabel} ${categoryLabel} ${spot.name}`;
   const address = spot.address ? ` · ${spot.address}` : '';
   const memo = spot.memo ? ` · ${spot.memo}` : '';
-  const description = `${descBase}${address}${memo}. 인스타 실시간 스토리, 분위기 투표, 후기까지 제공하는 혼술맵.`.slice(0, 180);
+  const description = `${descBase}${address}${memo}. 실시간 현황, 분위기 투표, 후기까지 제공하는 혼술맵.`.slice(0, 180);
 
   const image = spot.image_urls?.[0];
 

@@ -39,11 +39,12 @@ function marginAboveNav(): number {
 export default function AdMobBanner() {
   useEffect(() => {
     let shown = false;
+    let sizeListener: { remove: () => Promise<void> } | null = null;
     (async () => {
       const { Capacitor } = await import('@capacitor/core');
       if (!Capacitor.isNativePlatform()) return; // 웹 무시
 
-      const { AdMob, BannerAdPosition, BannerAdSize } = await import(
+      const { AdMob, BannerAdPosition, BannerAdSize, BannerAdPluginEvents } = await import(
         '@capacitor-community/admob'
       );
 
@@ -63,11 +64,27 @@ export default function AdMobBanner() {
         // 플러그인 미탑재 구버전 앱(운영사이트를 로드하지만 네이티브에 AdMob 없음)에선
         // initialize가 'not implemented'로 거부됨 → 아래 catch에서 조용히 무시.
         await AdMob.initialize({ initializeForTesting: IS_TESTING });
+
+        // 배너 실제 높이를 받아 '배너 윗변의 화면 바닥 기준 높이'(margin+height)를
+        // CSS 변수 --admob-banner-top 으로 노출한다. 지도 우하단 FAB(가게제안/현재위치/
+        // 목록)이 이 값 위로 자동 상승해 네이티브 배너에 가려지지 않게 한다(웹은 변수 없음→원위치).
+        const usedMargin = marginAboveNav();
+        sizeListener = await AdMob.addListener(
+          BannerAdPluginEvents.SizeChanged,
+          (size: { width: number; height: number }) => {
+            const h = size?.height ?? 0;
+            document.documentElement.style.setProperty(
+              '--admob-banner-top',
+              h > 0 ? `${usedMargin + h}px` : '0px',
+            );
+          },
+        );
+
         await AdMob.showBanner({
           adId,
           adSize: BannerAdSize.ADAPTIVE_BANNER,
           position: BannerAdPosition.BOTTOM_CENTER,
-          margin: marginAboveNav(),
+          margin: usedMargin,
           isTesting: IS_TESTING,
         });
         shown = true;
@@ -77,10 +94,19 @@ export default function AdMobBanner() {
     })();
 
     return () => {
-      if (!shown) return;
+      // 배너가 사라지면 FAB도 원위치로.
+      document.documentElement.style.removeProperty('--admob-banner-top');
       (async () => {
         const { Capacitor } = await import('@capacitor/core');
         if (!Capacitor.isNativePlatform()) return;
+        if (sizeListener) {
+          try {
+            await sizeListener.remove();
+          } catch {
+            // 이미 해제됨 — 무시
+          }
+        }
+        if (!shown) return;
         const { AdMob } = await import('@capacitor-community/admob');
         try {
           await AdMob.removeBanner();

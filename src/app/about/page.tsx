@@ -7,7 +7,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
 export const metadata: Metadata = {
   title: '혼술맵 소개',
   description:
-    '혼술맵은 전국 혼술바·게스트하우스의 인스타그램 스토리를 지도 한 곳에 모아, 지금 어디가 활기찬지 한눈에 보여주는 서비스입니다.',
+    '혼술맵은 전국 혼술바·게스트하우스의 실시간 현황을 지도 한 곳에 모아, 지금 어디가 활기찬지 한눈에 보여주는 서비스입니다.',
   alternates: { canonical: '/about' },
   openGraph: {
     title: '혼술맵 소개',
@@ -95,7 +95,7 @@ export default function AboutPage() {
             <strong style={{ color: '#111827' }}> 한 번에 비교할 방법이 없었습니다</strong>.
           </p>
           <p>
-            그래서 직접 만들었습니다. 가게 인스타 스토리를 지도 위에 얹어, 마커
+            그래서 직접 만들었습니다. 가게의 실시간 현황을 지도 위에 얹어, 마커
             하나를 누르면 그 매장의 최신 분위기를 바로 볼 수 있게요. 가게마다
             팔로우할 필요 없이, 지도 한 장이면 됩니다.
           </p>
@@ -114,7 +114,7 @@ export default function AboutPage() {
             가게가 여기저기 흩어져 있으면 더 번거롭습니다.
           </p>
           <p>
-            혼술맵은 전국의 혼술바·게스트하우스 공개 스토리를 지도 한 곳에
+            혼술맵은 전국의 혼술바·게스트하우스 실시간 현황을 지도 한 곳에
             모았습니다. <strong style={{ color: '#111827' }}>지금 어디가 활기찬지, 어디가 한산한지 지도에서 한눈에</strong>{' '}
             확인할 수 있고, 마음에 드는 곳을 골라 바로 길찾기로 이어집니다.
           </p>
@@ -122,7 +122,7 @@ export default function AboutPage() {
 
         <Section title="커뮤니티">
           <p className="mb-3">
-            지도 위 스토리만으로는 부족한 정보들이 있습니다. &quot;방금 다녀왔는데
+            지도 위 현황만으로는 부족한 정보들이 있습니다. &quot;방금 다녀왔는데
             오늘은 좀 조용해요&quot;, &quot;여기는 와인이 진짜 괜찮아요&quot;,
             &quot;게하 파티 일정 공유합니다&quot; 같은 것들이요.
           </p>
@@ -140,7 +140,7 @@ export default function AboutPage() {
             가게가 노출되지 않습니다.
           </p>
           <p className="mb-2">
-            문의·제휴·기능 제안·업장 정보 수정·스토리 삭제 요청은 모두
+            문의·제휴·기능 제안·업장 정보 수정·현황 삭제 요청은 모두
             <strong style={{ color: '#111827' }}> contact@higgsi.com</strong> 으로 메일을 보내주시거나,
             혼술맵 인스타 <strong style={{ color: '#111827' }}>@honsulmap</strong> 으로
             DM 주시면 확인 후 빠르게 답장 드립니다.

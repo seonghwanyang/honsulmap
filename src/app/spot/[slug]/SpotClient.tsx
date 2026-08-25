@@ -272,7 +272,7 @@ function SpotPageStory({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={story.thumbnail_url || story.media_url}
-          alt={`스토리 ${relativeTime(story.posted_at)}`}
+          alt={`현황 ${relativeTime(story.posted_at)}`}
           className="w-full h-full object-cover"
           loading="lazy"
         />
@@ -485,7 +485,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
         </h1>
         <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
           {getRegionLabel(spot.region)} · {getCategoryLabel(spot.category)}
-          {storyTotal > 0 && ` · 스토리 ${storyTotal}개`}
+          {storyTotal > 0 && ` · 현황 ${storyTotal}개`}
         </p>
 
         {/* Action chips — 상세보기 dropped (we are the detail page) */}
@@ -632,7 +632,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
         {activeStories.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16">
             <span style={{ fontSize: '40px', opacity: 0.3 }}>📷</span>
-            <p className="text-sm" style={{ color: '#9ca3af' }}>현재 활성 스토리가 없습니다</p>
+            <p className="text-sm" style={{ color: '#9ca3af' }}>지금 올라온 현황이 없습니다</p>
             {instagramUrl && (
               <a
                 href={instagramUrl}
@@ -679,7 +679,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
                 className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold"
                 style={{ background: '#111827', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
               >
-                🔒 로그인하고 스토리 보기
+                🔒 로그인하고 현황 보기
               </button>
               <span className="text-xs" style={{ color: '#4b5563' }}>
                 로그인하시면 다른 가게의 현황을 더 볼 수 있어요
@@ -725,7 +725,7 @@ export default function SpotPage({ initialSpot = null }: { initialSpot?: Spot | 
               >
                 {loadingMoreStories
                   ? '불러오는 중…'
-                  : `이전 스토리 더 보기 (${storyTotal - activeStories.length})`}
+                  : `이전 현황 더 보기 (${storyTotal - activeStories.length})`}
               </button>
             )}
           </div>

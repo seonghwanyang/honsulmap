@@ -312,7 +312,7 @@ export default function HotSpotCarousel() {
         >
           {spots.length === 0 ? (
             <span className="text-[11px]" style={{ color: '#9ca3af' }}>
-              아직 올라온 스토리가 없어요
+              아직 올라온 현황이 없어요
             </span>
           ) : (
             // Double the list when there's enough to loop so the

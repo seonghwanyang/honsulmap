@@ -65,7 +65,7 @@ export async function generateMetadata({
 
   const typeWord = spotTypeWord(spots);
   const title = `${area.label} ${typeWord} 실시간 지도`;
-  const description = `${area.label}(${area.aliases.join('·')}) ${typeWord} ${spots.length}곳 — 위치·분위기·인스타 실시간 스토리 현황.`;
+  const description = `${area.label}(${area.aliases.join('·')}) ${typeWord} ${spots.length}곳 — 위치·분위기·실시간 현황.`;
   return {
     title,
     description,
@@ -180,14 +180,14 @@ export default async function AreaPage({
           {area.label} {typeWord} 실시간 지도
         </h1>
         <p className="text-xs mb-4" style={{ color: '#9ca3af' }}>
-          {cityLabel} {districtLabelText} {area.label} · {spots.length}곳 등록 · 인스타 스토리 실시간 현황
+          {cityLabel} {districtLabelText} {area.label} · {spots.length}곳 등록 · 실시간 현황 제공
         </p>
 
         <p className="text-sm mb-4" style={{ color: '#374151', lineHeight: 1.7 }}>
           {area.label}({area.aliases.join('·')}) 일대에서 혼자 술 마시기 좋은 곳을 찾는다면,{' '}
           {cityLabel} {districtLabelText} {area.label}의 {typeWord} {spots.length}곳을
-          확인하세요. 각 가게의 공개 인스타그램 스토리를 모아 지금 어디가 활기찬지
-          실시간으로 보여줍니다.
+          확인하세요. 각 가게의 실시간 현황을 모아 지금 어디가 활기찬지
+          한눈에 보여줍니다.
         </p>
 
         <Link

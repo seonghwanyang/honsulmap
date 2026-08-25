@@ -61,7 +61,7 @@ export default function FeedCard({ spot }: FeedCardProps) {
               borderRadius: '999px',
             }}
           >
-            스토리 {recentStories.length}
+            현황 {recentStories.length}
           </span>
         )}
       </div>
