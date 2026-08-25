@@ -11,8 +11,11 @@
 import { headers } from 'next/headers';
 import MapClient from './MapClient';
 import { supabase } from '@/lib/supabase';
-import { getRegionLabel, getCategoryLabel } from '@/lib/utils';
+import { getRegionLabel, getCategoryLabel, jsonLdScript } from '@/lib/utils';
+import { CITIES } from '@/lib/types';
 import type { City, Spot } from '@/lib/types';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
 
 // ISO 3166-2 KR subdivision codes: KR-49 = Jeju, KR-26 = Busan.
 const JEJU_REGION_CODE = '49';
@@ -48,8 +51,25 @@ export default async function MapPage() {
     detectInitialCity(),
     getSeoSpots(),
   ]);
+  // ItemList mirrors the sr-only crawler list below — same 30 spots.
+  const itemListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: '전국 혼술바·파티·게스트하우스 추천',
+    numberOfItems: spots.length,
+    itemListElement: spots.map((s, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: s.name,
+      url: `${SITE_URL}/spot/${encodeURIComponent(s.slug)}`,
+    })),
+  };
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(itemListJsonLd) }}
+      />
       <MapClient initialCity={initialCity} />
       <section aria-label="혼술맵 등록 가게 목록" className="sr-only">
         <h1>전국 혼술바·파티·게스트하우스 실시간 현황 지도</h1>
@@ -57,6 +77,13 @@ export default async function MapPage() {
           전국의 혼술바·게스트하우스를 인스타 스토리 기반 실시간 현황으로 모았습니다.
           홍대·강남·광안리·서면·애월·서귀포 등 지금 핫한 곳을 지도에서 한눈에 확인하세요.
         </p>
+        <nav aria-label="지역별 혼술바 목록">
+          {CITIES.map((c) => (
+            <a key={c.value} href={`/region/${c.value}`}>
+              {c.label} 혼술바
+            </a>
+          ))}
+        </nav>
         <ul>
           {spots.map((s) => (
             <li key={s.id}>

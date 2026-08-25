@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { Spot } from '@/lib/types';
-import { getRegionLabel } from '@/lib/utils';
+import { getRegionLabel, jsonLdScript } from '@/lib/utils';
 import SpotClient from './SpotClient';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://honsulmap.com';
@@ -57,9 +57,22 @@ export async function generateMetadata({
 
   const image = spot.image_urls?.[0];
 
+  // Thin-content guard: a spot with no Naver enrichment (rating/menus/
+  // photos), no memo, and no hours is just a name+address shell. Keep those
+  // out of the index so Google doesn't read the catalog as scaled thin
+  // content — they reindex automatically once enriched. (AdSense "low value
+  // content" mitigation.)
+  const isThin =
+    spot.naver_rating == null &&
+    !spot.naver_menus?.length &&
+    !spot.naver_photos?.length &&
+    !spot.memo?.trim() &&
+    !spot.business_hours?.trim();
+
   return {
     title,
     description,
+    ...(isThin && { robots: { index: false, follow: true } }),
     keywords: [
       spot.name,
       `${spot.name} 위치`,
@@ -124,7 +137,7 @@ export default async function SpotPage({
       {jsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
         />
       )}
       <SpotClient initialSpot={spot} />

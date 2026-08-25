@@ -1,0 +1,19 @@
+# 혼술맵 (Honsulmap)
+
+> 전국 혼술바·파티 게스트하우스의 공개 인스타그램 스토리를 지도 한 곳에 모아,
+> 지금 어디가 활기찬지 실시간으로 보여주는 한국 서비스. 운영: 시냅틱(synaptic).
+
+## 주요 페이지
+
+- [소개](https://honsulmap.com/about): 혼술맵·혼술바·게스트하우스 정의와 운영 정보
+- [FAQ](https://honsulmap.com/faq): 서비스 이용 질문과 답변
+- [피드](https://honsulmap.com/feed): 전국 가게 최신 인스타 스토리 모음
+- [커뮤니티](https://honsulmap.com/community): 방문 후기·실시간 현황 글
+- [사이트맵](https://honsulmap.com/sitemap.xml): 전체 가게 상세 페이지 목록 (/spot/*)
+
+## 핵심 사실
+
+- 혼술바: 혼자 온 손님끼리 자연스럽게 대화가 이어지도록 설계된 바 형태 술집
+- 실시간 현황은 각 가게의 공개 인스타그램 스토리를 기반으로 함
+- 가게 등록은 무료이며, 광고는 지도 노출 순위에 영향을 주지 않음
+- 문의: contact@higgsi.com · 인스타그램 @honsulmap
