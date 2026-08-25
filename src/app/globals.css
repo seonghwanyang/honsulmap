@@ -33,8 +33,10 @@ html,
 body {
   /* Block the browser pull-to-refresh that fires when a user drags the
      spot detail sheet down toward the top of the viewport. The page
-     reload was discarding the open spot. */
-  overscroll-behavior-y: none;
+     reload was discarding the open spot.
+     x: 스토리 시트를 좌우로 스와이프할 때 100vw 지도가 가로로 밀려(페이지
+     가로 스크롤) 좌우 흰 배경이 드러나던 것 차단. */
+  overscroll-behavior: none;
 }
 
 body {
@@ -52,6 +54,9 @@ body {
 }
 html {
   -webkit-touch-callout: none;
+  /* 가로 스크롤 자체를 차단 — 풀블리드(100vw) 지도가 옆으로 밀려 흰 여백이
+     보이는 것 방지. clip은 스크롤 컨테이너를 안 만들어 sticky 헤더를 안 깨뜨림. */
+  overflow-x: clip;
 }
 
 /* Bottom nav safe area (홈 인디케이터만큼 여유) — env 미지원 대비 fallback 우선 */
