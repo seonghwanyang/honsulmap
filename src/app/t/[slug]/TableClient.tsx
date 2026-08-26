@@ -86,6 +86,20 @@ const VIBES = ['차분함', '적당히 활발함', '텐션 높음'];
 const MBTIS = ['INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP'];
 const STATUS_LABEL: Record<string, string> = { new: '접수 대기', accepted: '준비 중', done: '완료', canceled: '취소됨' };
 
+// 랜딩(다크) 전용 고스트 버튼
+const GHOST_BTN: React.CSSProperties = {
+  flex: 1,
+  height: 50,
+  borderRadius: 14,
+  background: 'transparent',
+  border: '1px solid rgba(255,255,255,0.18)',
+  color: 'rgba(255,255,255,0.85)',
+  fontSize: 14,
+  fontWeight: 700,
+  cursor: 'pointer',
+  letterSpacing: '-0.2px',
+};
+
 export default function TableClient({
   spot,
   modes,
@@ -109,6 +123,9 @@ export default function TableClient({
   const orderOn = modes.order !== false;
   const storageKey = `hsm_t_${spot.id}`;
 
+  // 손님 여정 (우우 벤치마크): 랜딩(브랜드+라이브 상태+큰 버튼 3개) → 체크인 → 홈.
+  // 세션이 이미 있으면(재방문) 랜딩 건너뛰고 바로 홈.
+  const [view, setView] = useState<'landing' | 'main'>('landing');
   const [tab, setTab] = useState<'map' | 'menu' | 'games' | 'orders'>('map');
   const [quests, setQuests] = useState<Quest[]>([]);
   const [questsOpen, setQuestsOpen] = useState(false);
@@ -139,8 +156,10 @@ export default function TableClient({
     fetch(`/api/t/${spot.slug}/checkin?sid=${sid}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.session) setSession(d.session);
-        else localStorage.removeItem(storageKey);
+        if (d?.session) {
+          setSession(d.session);
+          setView('main'); // 재방문 — 랜딩 생략하고 바로 홈
+        } else localStorage.removeItem(storageKey);
       })
       .catch(() => {});
   }, [spot.slug, storageKey]);
@@ -301,14 +320,98 @@ export default function TableClient({
     }
   };
 
+  // ═══ 랜딩 — 가게의 문 앞 (우우 여정 벤치마크: 브랜드 → 체크인/메뉴/게임) ═══
+  if (view === 'landing' && !session) {
+    return (
+      <div style={{ minHeight: '100dvh', background: INK, display: 'flex', flexDirection: 'column', padding: '0 26px' }}>
+        <div style={{ paddingTop: 'max(30px, env(safe-area-inset-top))', textAlign: 'center' }}>
+          <span style={{ fontSize: 10.5, fontWeight: 800, color: 'rgba(255,255,255,0.35)', letterSpacing: '3px' }}>
+            HONSULMAP TABLE
+          </span>
+        </div>
+
+        <div style={{ flex: 1, display: 'grid', placeItems: 'center', textAlign: 'center', padding: '30px 0' }}>
+          <div>
+            <h1 style={{ fontSize: 30, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1.3, wordBreak: 'keep-all' }}>
+              {spot.name}
+            </h1>
+            <div style={{ width: 28, height: 1, background: 'rgba(255,255,255,0.25)', margin: '20px auto' }} />
+            <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.8 }}>
+              혼자 와도, 어색하지 않게.
+            </p>
+            <div style={{ marginTop: 24, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 15px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa' }} />
+              {LIVE_LABEL[liveStatus] ?? liveStatus}
+            </div>
+            {seatParam && (
+              <div style={{ marginTop: 16, fontSize: 12, fontWeight: 800, color: '#a78bfa', letterSpacing: '2.5px' }}>
+                SEAT {seatParam}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ paddingBottom: 'calc(30px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button
+            onClick={() => setCheckinOpen(true)}
+            style={{ height: 56, borderRadius: 16, background: '#fff', color: INK, fontSize: 15.5, fontWeight: 800, border: 'none', cursor: 'pointer', letterSpacing: '-0.2px' }}
+          >
+            좌석 체크인
+          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => { setView('main'); setTab('menu'); }} style={GHOST_BTN}>메뉴 보기</button>
+            <button onClick={() => { setView('main'); setTab('games'); }} style={GHOST_BTN}>술게임</button>
+          </div>
+          <p style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 8 }}>
+            주문은 후불 · 계산은 좌석 번호로 카운터에서
+          </p>
+        </div>
+
+        {checkinOpen && (
+          <CheckinSheet
+            slug={spot.slug}
+            social={social}
+            seatParam={seatParam}
+            onClose={() => setCheckinOpen(false)}
+            onDone={(s) => {
+              setSession(s);
+              localStorage.setItem(storageKey, s.id);
+              setCheckinOpen(false);
+              setView('main');
+              setTab('map');
+              refreshState();
+              showToast(`Seat ${s.seat_label} 체크인 완료!`);
+            }}
+          />
+        )}
+        {toast && (
+          <div style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: '#fff', color: INK, fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+            {toast}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: '100dvh', background: '#f8f9fa', paddingBottom: 120 }}>
       {/* ── 헤더 ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${LINE}`, padding: '13px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: FAINT, letterSpacing: '0.3px' }}>혼술맵 테이블</div>
-            <h1 style={{ fontSize: 18, fontWeight: 800, color: INK, letterSpacing: '-0.4px', marginTop: 1 }}>{spot.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {!session && (
+              <button
+                onClick={() => setView('landing')}
+                aria-label="처음으로"
+                style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${LINE}`, background: '#fff', color: MUTED, fontSize: 15, fontWeight: 800, cursor: 'pointer', lineHeight: 1 }}
+              >
+                ‹
+              </button>
+            )}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: FAINT, letterSpacing: '0.3px' }}>혼술맵 테이블</div>
+              <h1 style={{ fontSize: 18, fontWeight: 800, color: INK, letterSpacing: '-0.4px', marginTop: 1 }}>{spot.name}</h1>
+            </div>
           </div>
           {session ? (
             <div style={{ textAlign: 'right' }}>
@@ -416,6 +519,8 @@ export default function TableClient({
             setSession(s);
             localStorage.setItem(storageKey, s.id);
             setCheckinOpen(false);
+            setView('main');
+            setTab('map');
             refreshState();
             showToast(`Seat ${s.seat_label} 체크인 완료!`);
           }}
