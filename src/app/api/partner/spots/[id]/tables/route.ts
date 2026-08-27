@@ -69,6 +69,25 @@ export async function PATCH(
       return NextResponse.json({ error: 'invalid status' }, { status: 400 });
     patch.live_status = body.live_status;
   }
+
+  // 체크인 선택지 커스텀 (null = 기본 목록으로 복귀)
+  for (const key of ['checkin_purposes', 'checkin_vibes'] as const) {
+    if (!(key in body)) continue;
+    const v = body[key];
+    if (v === null) {
+      patch[key] = null;
+    } else if (
+      Array.isArray(v) &&
+      v.length >= 2 &&
+      v.length <= 12 &&
+      v.every((x) => typeof x === 'string' && x.trim().length > 0 && x.length <= 30)
+    ) {
+      patch[key] = v.map((x: string) => x.trim());
+    } else {
+      return NextResponse.json({ error: '선택지는 2~12개, 각 30자 이내로 해주세요.' }, { status: 400 });
+    }
+  }
+
   if (!Object.keys(patch).length)
     return NextResponse.json({ error: 'no fields' }, { status: 400 });
 

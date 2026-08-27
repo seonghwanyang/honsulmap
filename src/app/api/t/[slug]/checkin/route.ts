@@ -3,15 +3,16 @@ import { createHash } from 'crypto';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { sessionExpiry } from '@/lib/tableDay';
 
-// 좌석 체크인 — 우우 방식: 좌석 + 휴대폰 뒤 4자리(해시만 저장)로 시작.
-// 같은 좌석에 활성 세션이 있으면 phone4가 일치할 때만 재입장(세션 복구).
+// 좌석 체크인 — 좌석 번호만 입력하면 시작. 사람 구분은 브라우저가 조용히
+// 발급한 디바이스 UUID(해시만 저장 — phone4_hash 컬럼 재사용)로 한다.
+// 같은 좌석에 활성 세션이 있으면 같은 기기일 때만 재입장(세션 복구).
 // 세션은 다음날 새벽 6시(KST)에 만료 — "영업 종료 후 자동 만료" 약속의 실체.
 
 const PROFILE_FIELDS =
   'id, seat_id, gender, age_band, mbti, purpose, vibe, tmi, drink_pref, is_public, checked_in_at';
 
-function hashPhone4(phone4: string, spotId: string) {
-  return createHash('sha256').update(`${phone4}:${spotId}:honsulmap-table`).digest('hex');
+function hashDevice(deviceId: string, spotId: string) {
+  return createHash('sha256').update(`${deviceId}:${spotId}:honsulmap-table`).digest('hex');
 }
 
 async function loadSpot(slug: string) {
@@ -81,12 +82,12 @@ export async function POST(
 
   const body = await request.json().catch(() => ({}));
   const seatLabel = typeof body.seat_label === 'string' ? body.seat_label.trim() : '';
-  const phone4 = typeof body.phone4 === 'string' ? body.phone4.trim() : '';
+  const deviceId = typeof body.device_id === 'string' ? body.device_id.trim() : '';
   const social = (config.modes as { social?: boolean } | null)?.social !== false;
 
   if (!seatLabel) return NextResponse.json({ error: '좌석 번호를 입력해주세요.' }, { status: 400 });
-  if (!/^\d{4}$/.test(phone4))
-    return NextResponse.json({ error: '휴대폰 뒤 4자리를 입력해주세요.' }, { status: 400 });
+  if (!deviceId || deviceId.length > 80)
+    return NextResponse.json({ error: '잘못된 접근이에요. 새로고침 후 다시 시도해주세요.' }, { status: 400 });
 
   const gender = body.gender === 'm' || body.gender === 'f' ? body.gender : null;
   if (social && !gender)
@@ -106,7 +107,7 @@ export async function POST(
   if (!seat)
     return NextResponse.json({ error: '없는 좌석 번호예요. 좌석 옆 번호를 확인해주세요.' }, { status: 404 });
 
-  const phoneHash = hashPhone4(phone4, spot.id);
+  const phoneHash = hashDevice(deviceId, spot.id);
 
   // 좌석 점유 확인 — 내 세션이면 복구, 남의 세션이면 409
   const { data: existing } = await admin
