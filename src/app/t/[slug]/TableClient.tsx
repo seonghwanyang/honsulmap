@@ -81,8 +81,17 @@ const LIVE_LABEL: Record<string, string> = {
   closed: '오늘은 휴무예요',
 };
 const AGE_BANDS = ['20대 초반', '20대 중반', '20대 후반', '30대 초반', '30대 중반', '30대 후반', '40대+'];
-const PURPOSES = ['편하게 대화하고 싶어요', '새로운 사람 만나고 싶어요', '말 걸어주시면 감사하겠습니다', '조용히 마시고 싶어요'];
-const VIBES = ['차분함', '적당히 활발함', '텐션 높음'];
+const PURPOSES = [
+  '편하게 대화하고 싶어요',
+  '새로운 사람 만나고 싶어요',
+  '말 걸어주시면 감사하겠습니다',
+  '조용히 마시고 싶어요',
+  '오늘은 좀 털어놓고 싶어요',
+  '술친구 찾는 중이에요',
+  '여행 중이라 다 낯설어요',
+  '일단 한잔하러 왔어요',
+];
+const VIBES = ['조용조용', '차분함', '잔잔한 수다', '적당히 활발함', '텐션 높음', '오늘만큼은 파티', '분위기 따라가요'];
 const MBTIS = ['INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP'];
 const STATUS_LABEL: Record<string, string> = { new: '접수 대기', accepted: '준비 중', done: '완료', canceled: '취소됨' };
 

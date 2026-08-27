@@ -53,8 +53,10 @@ const NAV_ITEMS = [
 export default function BottomNav() {
   const pathname = usePathname();
   // The owner portal (사장님 센터) has its own nav (sidebar / drawer) — the
-  // consumer nav pill should not float over it.
-  if (pathname.startsWith('/partner')) return null;
+  // consumer nav pill should not float over it. The table service customer
+  // page (/t/*) is a standalone in-store experience with its own bottom tabs;
+  // the global pill would cover its check-in sheet and nav.
+  if (pathname.startsWith('/partner') || pathname.startsWith('/t/')) return null;
 
   // NOTE: 안드로이드에서 body 레벨 fixed 요소가 네이버 지도 캔버스 레이어 위에
   // 있으면 합성 단계에서 떨어져 안 그려지는 버그가 있다 (로드 직후 0.1초만
