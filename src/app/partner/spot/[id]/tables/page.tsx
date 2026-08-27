@@ -10,6 +10,7 @@ import Link from 'next/link';
 import AuthGate from '../../../AuthGate';
 import TesterGate from '../../../TesterGate';
 import { Card, PageHeader, Spinner, buttonStyle, PlusIcon } from '../../../ui';
+import { DEFAULT_PURPOSES, DEFAULT_VIBES } from '@/lib/checkinDefaults';
 import MenuSection from './MenuSection';
 import QuestsSection from './QuestsSection';
 
@@ -43,12 +44,12 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
 // ═══ 허브 ═══
 
-type SectionKey = 'layout' | 'menu' | 'quests';
+type SectionKey = 'layout' | 'menu' | 'quests' | 'checkin';
 
 function TablesHub() {
   const { id } = useParams<{ id: string }>();
-  const [open, setOpen] = useState<Record<SectionKey, boolean>>({ layout: true, menu: false, quests: false });
-  const [dirtyMap, setDirtyMap] = useState<Record<SectionKey, boolean>>({ layout: false, menu: false, quests: false });
+  const [open, setOpen] = useState<Record<SectionKey, boolean>>({ layout: true, menu: false, quests: false, checkin: false });
+  const [dirtyMap, setDirtyMap] = useState<Record<SectionKey, boolean>>({ layout: false, menu: false, quests: false, checkin: false });
   // 서비스 활성화 — 헤더 토글, 체크 즉시 저장. null = 로딩 전
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [spot, setSpot] = useState<{ name: string; slug: string } | null>(null);
@@ -120,7 +121,156 @@ function TablesHub() {
       <Section title="🎯 오늘의 퀘스트" open={open.quests} dirty={dirtyMap.quests} onToggle={() => toggle('quests')}>
         <QuestsSection spotId={id} onDirtyChange={setDirty('quests')} />
       </Section>
+      <Section title="🙋 체크인 선택지" open={open.checkin} dirty={dirtyMap.checkin} onToggle={() => toggle('checkin')}>
+        <CheckinSection spotId={id} onDirtyChange={setDirty('checkin')} />
+      </Section>
     </div>
+  );
+}
+
+// ═══ 체크인 선택지 편집 — 오늘의 목적·선호 분위기를 가게 톤에 맞게 ═══
+// 기본 목록은 가이드일 뿐, 전부 지우고 새로 써도 된다. 비우면 기본값 복귀.
+
+function CheckinSection({ spotId, onDirtyChange }: { spotId: string; onDirtyChange: (d: boolean) => void }) {
+  const [purposes, setPurposes] = useState<string[]>([]);
+  const [vibes, setVibes] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirtyState] = useState(false);
+
+  useEffect(() => {
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    fetch(`/api/partner/spots/${spotId}/tables`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        const p = d.config?.checkin_purposes as string[] | null | undefined;
+        const v = d.config?.checkin_vibes as string[] | null | undefined;
+        setPurposes(p?.length ? p : [...DEFAULT_PURPOSES]);
+        setVibes(v?.length ? v : [...DEFAULT_VIBES]);
+      })
+      .finally(() => setLoading(false));
+  }, [spotId]);
+
+  const patch = async (body: object) => {
+    setSaving(true);
+    const res = await fetch(`/api/partner/spots/${spotId}/tables`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || '저장에 실패했어요.');
+      return false;
+    }
+    return true;
+  };
+
+  const save = async () => {
+    if (await patch({ checkin_purposes: purposes, checkin_vibes: vibes })) setDirtyState(false);
+  };
+  const reset = async () => {
+    if (!confirm('혼술맵 기본 목록으로 되돌릴까요?')) return;
+    if (await patch({ checkin_purposes: null, checkin_vibes: null })) {
+      setPurposes([...DEFAULT_PURPOSES]);
+      setVibes([...DEFAULT_VIBES]);
+      setDirtyState(false);
+    }
+  };
+
+  if (loading) return <Spinner label="체크인 설정 불러오는 중…" />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11.5, color: '#9ca3af', fontWeight: 600 }}>
+          손님이 체크인할 때 고르는 항목이에요. 가게 톤에 맞게 바꿔보세요 (각 2~12개).
+        </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button onClick={reset} disabled={saving} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
+            기본값 복원
+          </button>
+          <button
+            onClick={save}
+            disabled={saving || !dirty || purposes.length < 2 || vibes.length < 2}
+            style={{ ...buttonStyle('primary', { disabled: saving || !dirty || purposes.length < 2 || vibes.length < 2 }), height: 38, padding: '0 18px', fontSize: 12.5 }}
+          >
+            {saving ? '저장 중…' : dirty ? '선택지 저장' : '저장됨'}
+          </button>
+        </div>
+      </div>
+
+      <OptionListEditor
+        title="오늘의 목적"
+        items={purposes}
+        onChange={(next) => {
+          setPurposes(next);
+          setDirtyState(true);
+        }}
+      />
+      <OptionListEditor
+        title="선호 분위기"
+        items={vibes}
+        onChange={(next) => {
+          setVibes(next);
+          setDirtyState(true);
+        }}
+      />
+    </div>
+  );
+}
+
+function OptionListEditor({
+  title,
+  items,
+  onChange,
+}: {
+  title: string;
+  items: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [input, setInput] = useState('');
+  const add = () => {
+    const v = input.trim().slice(0, 30);
+    if (!v || items.includes(v) || items.length >= 12) return;
+    onChange([...items, v]);
+    setInput('');
+  };
+  return (
+    <Card style={{ padding: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 800, color: '#111827', marginBottom: 10 }}>
+        {title} <span style={{ fontWeight: 600, fontSize: 11, color: '#9ca3af' }}>({items.length}/12)</span>
+      </div>
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 12 }}>
+        {items.map((it) => (
+          <button
+            key={it}
+            onClick={() => onChange(items.filter((x) => x !== it))}
+            title="탭하면 삭제"
+            style={{ padding: '8px 13px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, background: '#f3f4f6', border: 'none', color: '#111827', cursor: 'pointer' }}
+          >
+            {it} ×
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value.slice(0, 30))}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          placeholder="새 선택지 입력 (30자 이내)"
+          style={{ flex: 1, height: 42, padding: '0 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 13, color: '#111827', outline: 'none' }}
+        />
+        <button onClick={add} style={{ width: 64, borderRadius: 10, background: '#111827', color: '#fff', fontSize: 13, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
+          추가
+        </button>
+      </div>
+    </Card>
   );
 }
 

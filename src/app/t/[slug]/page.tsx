@@ -45,7 +45,8 @@ export default async function TablePage({
   const admin = supabaseAdmin();
   const [{ data: config }, { data: zones }, { data: seats }, { data: cats }, { data: items }, { data: sessions }] =
     await Promise.all([
-      supabase.from('store_table_config').select('enabled, modes, live_status').eq('spot_id', spot.id).maybeSingle(),
+      // select * — 마이그레이션 전후 컬럼 차이에 안전 (없는 컬럼을 지명하면 쿼리 전체가 죽는다)
+      supabase.from('store_table_config').select('*').eq('spot_id', spot.id).maybeSingle(),
       supabase.from('store_zones').select('id, name, grid_rows, grid_cols').eq('spot_id', spot.id).order('sort'),
       supabase.from('store_seats').select('id, zone_id, label, "row", col, seat_type').eq('spot_id', spot.id).eq('active', true),
       supabase.from('store_menu_categories').select('id, name').eq('spot_id', spot.id).order('sort'),
@@ -91,6 +92,8 @@ export default async function TablePage({
       categories={categories}
       initialSessions={publicSessions}
       seatParam={seat ?? null}
+      checkinPurposes={(config.checkin_purposes as string[] | null) ?? null}
+      checkinVibes={(config.checkin_vibes as string[] | null) ?? null}
     />
   );
 }

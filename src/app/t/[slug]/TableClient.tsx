@@ -5,6 +5,7 @@
 // ₩0 아이템(호출·추천·신고·선물)은 장바구니 없이 원탭 전송.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DEFAULT_PURPOSES, DEFAULT_VIBES } from '@/lib/checkinDefaults';
 import GamesTab from './GamesTab';
 
 type SeatType = 'seat' | 'buffer' | 'block';
@@ -81,17 +82,22 @@ const LIVE_LABEL: Record<string, string> = {
   closed: '오늘은 휴무예요',
 };
 const AGE_BANDS = ['20대 초반', '20대 중반', '20대 후반', '30대 초반', '30대 중반', '30대 후반', '40대+'];
-const PURPOSES = [
-  '편하게 대화하고 싶어요',
-  '새로운 사람 만나고 싶어요',
-  '말 걸어주시면 감사하겠습니다',
-  '조용히 마시고 싶어요',
-  '오늘은 좀 털어놓고 싶어요',
-  '술친구 찾는 중이에요',
-  '여행 중이라 다 낯설어요',
-  '일단 한잔하러 왔어요',
-];
-const VIBES = ['조용조용', '차분함', '잔잔한 수다', '적당히 활발함', '텐션 높음', '오늘만큼은 파티', '분위기 따라가요'];
+// 체크인 선택지 기본값 — 사장님이 테이블 설정에서 가게별로 덮어쓸 수 있다
+const PURPOSES = DEFAULT_PURPOSES;
+const VIBES = DEFAULT_VIBES;
+
+// 브라우저가 조용히 발급하는 익명 디바이스 ID — 좌석 주인 판별용 (입력 0개 체크인)
+function getDeviceId(): string {
+  let id = localStorage.getItem('hsm_device');
+  if (!id) {
+    id =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem('hsm_device', id);
+  }
+  return id;
+}
 const MBTIS = ['INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP'];
 const STATUS_LABEL: Record<string, string> = { new: '접수 대기', accepted: '준비 중', done: '완료', canceled: '취소됨' };
 
@@ -118,6 +124,8 @@ export default function TableClient({
   categories,
   initialSessions,
   seatParam,
+  checkinPurposes,
+  checkinVibes,
 }: {
   spot: { id: string; name: string; slug: string };
   modes: { order?: boolean; social?: boolean };
@@ -127,7 +135,11 @@ export default function TableClient({
   categories: MenuCategory[];
   initialSessions: PublicSession[];
   seatParam: string | null;
+  checkinPurposes: string[] | null;
+  checkinVibes: string[] | null;
 }) {
+  const purposeOptions = checkinPurposes?.length ? checkinPurposes : PURPOSES;
+  const vibeOptions = checkinVibes?.length ? checkinVibes : VIBES;
   const social = modes.social !== false;
   const orderOn = modes.order !== false;
   const storageKey = `hsm_t_${spot.id}`;
@@ -381,6 +393,8 @@ export default function TableClient({
             slug={spot.slug}
             social={social}
             seatParam={seatParam}
+            purposes={purposeOptions}
+            vibes={vibeOptions}
             onClose={() => setCheckinOpen(false)}
             onDone={(s) => {
               setSession(s);
@@ -523,6 +537,8 @@ export default function TableClient({
           slug={spot.slug}
           social={social}
           seatParam={seatParam}
+          purposes={purposeOptions}
+          vibes={vibeOptions}
           onClose={() => setCheckinOpen(false)}
           onDone={(s) => {
             setSession(s);
@@ -821,17 +837,20 @@ function CheckinSheet({
   slug,
   social,
   seatParam,
+  purposes,
+  vibes,
   onClose,
   onDone,
 }: {
   slug: string;
   social: boolean;
   seatParam: string | null;
+  purposes: string[];
+  vibes: string[];
   onClose: () => void;
   onDone: (s: MySession) => void;
 }) {
   const [seatLabel, setSeatLabel] = useState(seatParam ?? '');
-  const [phone4, setPhone4] = useState('');
   const [gender, setGender] = useState<'m' | 'f' | ''>('');
   const [ageBand, setAgeBand] = useState('');
   const [more, setMore] = useState(false);
@@ -852,7 +871,7 @@ function CheckinSheet({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         seat_label: seatLabel,
-        phone4,
+        device_id: getDeviceId(),
         gender: gender || undefined,
         age_band: ageBand || undefined,
         mbti: mbti || undefined,
@@ -878,9 +897,6 @@ function CheckinSheet({
       <label style={fieldLabel}>좌석 번호</label>
       <input value={seatLabel} onChange={(e) => setSeatLabel(e.target.value)} placeholder="예: 7 (좌석 옆 번호)" inputMode="numeric" style={textInput} />
 
-      <label style={fieldLabel}>휴대폰 뒤 4자리 <span style={{ fontWeight: 600, color: FAINT }}>(재접속용)</span></label>
-      <input value={phone4} onChange={(e) => setPhone4(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="0000" inputMode="numeric" style={textInput} />
-
       {social && (
         <>
           <label style={fieldLabel}>성별</label>
@@ -904,9 +920,9 @@ function CheckinSheet({
               <label style={fieldLabel}>MBTI</label>
               <ChipRow options={MBTIS} value={mbti} onChange={setMbti} />
               <label style={fieldLabel}>오늘의 목적</label>
-              <ChipRow options={PURPOSES} value={purpose} onChange={setPurpose} />
+              <ChipRow options={purposes} value={purpose} onChange={setPurpose} />
               <label style={fieldLabel}>선호 분위기</label>
-              <ChipRow options={VIBES} value={vibe} onChange={setVibe} />
+              <ChipRow options={vibes} value={vibe} onChange={setVibe} />
               <label style={fieldLabel}>TMI 한 줄</label>
               <input value={tmi} onChange={(e) => setTmi(e.target.value.slice(0, 60))} placeholder="예: 오늘 처음 혼술 도전" style={textInput} />
               <label style={fieldLabel}>선호 술</label>
