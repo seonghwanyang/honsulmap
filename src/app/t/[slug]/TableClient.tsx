@@ -495,8 +495,8 @@ export default function TableClient({
   return (
     <div style={{ minHeight: '100dvh', background: DARK_BG, paddingBottom: 120 }}>
       <style>{STYLES}</style>
-      {/* ── 헤더 ── */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(14,14,17,0.66)', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${LINE}`, padding: '13px 18px' }}>
+      {/* ── 헤더 — 고정 아님, 콘텐츠와 함께 스크롤 (하단 탭바가 상시 내비 역할) ── */}
+      <div style={{ borderBottom: `1px solid ${LINE}`, padding: '13px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {!session && (
@@ -606,6 +606,17 @@ export default function TableClient({
         {tab === 'orders' && (
           <OrdersView orders={myOrders} seatTotal={seatTotal} hasSession={!!session} onCheckin={() => setCheckinOpen(true)} />
         )}
+
+        {/* ── 스크롤 끝 푸터 — 끊긴 느낌 없이 페이지를 닫아주는 마침표 ── */}
+        <div style={{ padding: '34px 0 6px', textAlign: 'center' }}>
+          <div style={{ width: 28, height: 1, background: 'rgba(255,255,255,0.13)', margin: '0 auto 14px' }} />
+          <div className={marcellus.className} style={{ fontSize: 10, letterSpacing: '3px', color: 'rgba(255,255,255,0.3)' }}>
+            POWERED BY HONSULMAP
+          </div>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.32)', marginTop: 7 }}>
+            주문은 후불 · 계산은 좌석 번호로 카운터에서
+          </p>
+        </div>
       </div>
 
       {/* ── 장바구니 바 ── */}
