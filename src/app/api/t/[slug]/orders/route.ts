@@ -112,12 +112,9 @@ export async function POST(
     typeof body.client_key === 'string' && body.client_key.length > 0 && body.client_key.length <= 64
       ? body.client_key
       : null;
-  const baseRow = { spot_id: spot.id, session_id: session.id, seat_label: seat?.label ?? '?', total };
-  let ins = await admin
-    .from('table_orders')
-    .insert(clientKey ? { ...baseRow, client_key: clientKey } : baseRow)
-    .select('id')
-    .single();
+  const baseRow: Record<string, unknown> = { spot_id: spot.id, session_id: session.id, seat_label: seat?.label ?? '?', total };
+  if (clientKey) baseRow.client_key = clientKey;
+  let ins = await admin.from('table_orders').insert(baseRow).select('id').single();
   if (ins.error && clientKey) {
     const msg = ins.error.message ?? '';
     if (ins.error.code === '23505' || msg.includes('duplicate')) {
@@ -130,6 +127,7 @@ export async function POST(
     }
     // 마이그레이션(2026-08-30_order_client_key.sql) 전 — 키 없이 재시도
     if (msg.includes('client_key')) {
+      delete baseRow.client_key;
       ins = await admin.from('table_orders').insert(baseRow).select('id').single();
     }
   }
