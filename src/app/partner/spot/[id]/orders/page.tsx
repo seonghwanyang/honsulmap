@@ -285,8 +285,8 @@ function OrdersBoard() {
 
   if (loading) return <Spinner />;
 
-  const waiting = orders.filter((o) => o.status === 'new');
-  const working = orders.filter((o) => o.status === 'accepted');
+  // 간편 흐름 — 접수 단계 없이 새 주문은 한 섹션, [확인]/[취소] 원탭 처리.
+  const active = orders.filter((o) => o.status === 'new' || o.status === 'accepted');
   const finished = orders.filter((o) => o.status === 'done' || o.status === 'canceled');
 
   return (
@@ -389,14 +389,13 @@ function OrdersBoard() {
         </Section>
       )}
 
-      {waiting.length === 0 && working.length === 0 && (
+      {active.length === 0 && (
         <Card dashed style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 13.5 }}>
           대기 중인 주문이 없어요. 새 주문이 오면 여기에 소리와 함께 떠요.
         </Card>
       )}
 
-      {waiting.length > 0 && <Section label={`접수 대기 ${waiting.length}`}>{waiting.map((o) => <OrderCard key={o.id} o={o} onStatus={setStatus} />)}</Section>}
-      {working.length > 0 && <Section label={`준비 중 ${working.length}`}>{working.map((o) => <OrderCard key={o.id} o={o} onStatus={setStatus} />)}</Section>}
+      {active.length > 0 && <Section label={`새 주문 ${active.length}`}>{active.map((o) => <OrderCard key={o.id} o={o} onStatus={setStatus} />)}</Section>}
 
       {/* 미니 좌석맵 — 지금 홀 상황 (읽기 전용, 5초 폴링 반영) */}
       {zones.length > 0 && (
@@ -511,13 +510,8 @@ function OrderCard({ o, onStatus, muted = false }: { o: Order; onStatus: (id: st
       ))}
       {(o.status === 'new' || o.status === 'accepted') && (
         <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>
-          {o.status === 'new' && (
-            <button onClick={() => onStatus(o.id, 'accepted')} style={{ flex: 1, height: 42, borderRadius: 10, background: '#111827', color: '#fff', fontSize: 13.5, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
-              접수
-            </button>
-          )}
-          <button onClick={() => onStatus(o.id, 'done')} style={{ flex: 1, height: 42, borderRadius: 10, background: o.status === 'accepted' ? '#111827' : '#fff', color: o.status === 'accepted' ? '#fff' : '#374151', fontSize: 13.5, fontWeight: 800, border: '1px solid #e5e7eb', cursor: 'pointer' }}>
-            완료
+          <button onClick={() => onStatus(o.id, 'done')} style={{ flex: 1, height: 42, borderRadius: 10, background: '#111827', color: '#fff', fontSize: 13.5, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
+            확인 완료
           </button>
           <button onClick={() => confirm('이 주문을 취소할까요?') && onStatus(o.id, 'canceled')} style={{ width: 70, height: 42, borderRadius: 10, background: '#fff', color: '#dc2626', fontSize: 12.5, fontWeight: 700, border: '1px solid #fecaca', cursor: 'pointer' }}>
             취소
