@@ -33,6 +33,7 @@ interface Room {
 
 const inputStyle: React.CSSProperties = {
   flex: 1,
+  minWidth: 0, // flex 안에서 내용폭만큼 밀고 나가 박스를 넘치는 것 방지
   height: 44,
   padding: '0 14px',
   borderRadius: 12,
@@ -74,6 +75,7 @@ export default function ChatTab({
 
   const endRef = useRef<HTMLDivElement | null>(null);
   const countRef = useRef(0);
+  const seqRef = useRef(0); // 폴링 레이스 가드 — 전송 직전 출발한 옛 응답이 새 메시지를 덮지 않게
 
   useEffect(() => {
     createBrowserSupabase()
@@ -83,24 +85,31 @@ export default function ChatTab({
   }, []);
 
   const refresh = useCallback(async () => {
+    const seq = ++seqRef.current;
     try {
       const [roomRes, msgRes, songRes] = await Promise.all([
-        fetch(`/api/chat/${spotId}`),
-        fetch(`/api/chat/${spotId}/messages`),
-        fetch(`/api/t/${encodeURIComponent(slug)}/songs`),
+        fetch(`/api/chat/${spotId}`, { cache: 'no-store' }),
+        fetch(`/api/chat/${spotId}/messages`, { cache: 'no-store' }),
+        fetch(`/api/t/${encodeURIComponent(slug)}/songs`, { cache: 'no-store' }),
       ]);
-      if (roomRes.ok) {
-        const d = await roomRes.json();
-        setRoom(d.room ?? null);
+      const roomD = roomRes.ok ? await roomRes.json() : null;
+      const msgD = msgRes.ok ? await msgRes.json() : null;
+      const songD = songRes.ok ? await songRes.json() : null;
+      if (seq !== seqRef.current) return; // 더 최신 폴링이 있음 — 이 응답 폐기
+      if (roomD) setRoom(roomD.room ?? null);
+      if (msgD) {
+        const server: ChatMessage[] = msgD.messages ?? [];
+        // 서버 목록에 아직 없는 로컬 최신 메시지(방금 전송분)는 보존 — 덮어쓰기 방지
+        setMessages((prev) => {
+          const known = new Set(server.map((m) => m.id));
+          const newestServer = server[server.length - 1]?.created_at ?? '';
+          const extras = prev.filter((m) => !known.has(m.id) && m.created_at >= newestServer);
+          return extras.length ? [...server, ...extras] : server;
+        });
       }
-      if (msgRes.ok) {
-        const d = await msgRes.json();
-        setMessages(d.messages ?? []);
-      }
-      if (songRes.ok) {
-        const d = await songRes.json();
-        setSongsOn(!!d.available);
-        setSongs(d.songs ?? []);
+      if (songD) {
+        setSongsOn(!!songD.available);
+        setSongs(songD.songs ?? []);
       }
     } catch {
       /* 폴링 실패는 다음 틱에 복구 */
@@ -139,7 +148,8 @@ export default function ChatTab({
       return;
     }
     setDraft('');
-    setMessages((prev) => [...prev, d.message]);
+    setMessages((prev) => (prev.some((m) => m.id === d.message.id) ? prev : [...prev, d.message]));
+    refresh();
   };
 
   const requestSong = async () => {
@@ -183,26 +193,28 @@ export default function ChatTab({
           {songOpen && (
             <div style={{ padding: '0 16px 14px' }}>
               {hasSession ? (
-                <div style={{ display: 'flex', gap: 7 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   <input
                     value={songTitle}
                     onChange={(e) => setSongTitle(e.target.value.slice(0, 60))}
                     placeholder="곡명"
-                    style={{ ...inputStyle, height: 40, fontSize: 13 }}
+                    style={{ ...inputStyle, height: 40, fontSize: 13, width: '100%' }}
                   />
-                  <input
-                    value={songArtist}
-                    onChange={(e) => setSongArtist(e.target.value.slice(0, 40))}
-                    placeholder="가수 (선택)"
-                    style={{ ...inputStyle, height: 40, fontSize: 13, flex: 0.8 }}
-                  />
-                  <button
-                    onClick={requestSong}
-                    disabled={songBusy || !songTitle.trim()}
-                    style={{ height: 40, padding: '0 14px', borderRadius: 11, background: songTitle.trim() ? '#fff' : 'rgba(255,255,255,0.12)', color: songTitle.trim() ? '#0c0c0e' : 'rgba(255,255,255,0.45)', fontSize: 12.5, fontWeight: 800, border: 'none', cursor: 'pointer', flexShrink: 0, opacity: songBusy ? 0.6 : 1 }}
-                  >
-                    신청
-                  </button>
+                  <div style={{ display: 'flex', gap: 7 }}>
+                    <input
+                      value={songArtist}
+                      onChange={(e) => setSongArtist(e.target.value.slice(0, 40))}
+                      placeholder="가수 (선택)"
+                      style={{ ...inputStyle, height: 40, fontSize: 13 }}
+                    />
+                    <button
+                      onClick={requestSong}
+                      disabled={songBusy || !songTitle.trim()}
+                      style={{ height: 40, padding: '0 16px', borderRadius: 11, background: songTitle.trim() ? '#fff' : 'rgba(255,255,255,0.12)', color: songTitle.trim() ? '#0c0c0e' : 'rgba(255,255,255,0.45)', fontSize: 12.5, fontWeight: 800, border: 'none', cursor: 'pointer', flexShrink: 0, opacity: songBusy ? 0.6 : 1 }}
+                    >
+                      신청
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <button onClick={onCheckin} style={{ width: '100%', height: 42, borderRadius: 11, background: '#fff', color: '#0c0c0e', fontSize: 13, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
@@ -300,32 +312,32 @@ export default function ChatTab({
             <div ref={endRef} />
           </div>
 
-          {/* 입력줄 — 하단 탭바 위 고정 */}
-          <div style={{ position: 'fixed', left: 12, right: 12, bottom: 66, zIndex: 30, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          {/* 입력줄 — 하단 탭바 위 고정 (필 + 원형 전송) */}
+          <div style={{ position: 'fixed', left: 12, right: 12, bottom: 'calc(66px + env(safe-area-inset-bottom))', zIndex: 30 }}>
             {chatErr && (
               <p style={{ color: '#f87171', fontSize: 12, fontWeight: 700, marginBottom: 6, textAlign: 'center', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>{chatErr}</p>
             )}
             {uid ? (
-              <div style={{ display: 'flex', gap: 7, background: 'rgba(14,14,17,0.9)', backdropFilter: 'blur(8px)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 7 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(20,20,24,0.94)', backdropFilter: 'blur(8px)', border: `1px solid ${LINE}`, borderRadius: 999, padding: '5px 5px 5px 16px' }}>
                 <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value.slice(0, 1000))}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send(); }}
-                  placeholder="옆자리에 한마디…"
-                  style={{ ...inputStyle, height: 40, border: 'none', background: 'transparent' }}
+                  style={{ flex: 1, minWidth: 0, height: 34, border: 'none', background: 'transparent', fontSize: 14, color: INK, outline: 'none' }}
                 />
                 <button
                   onClick={send}
                   disabled={sending || !draft.trim()}
-                  style={{ height: 40, padding: '0 16px', borderRadius: 11, background: draft.trim() ? '#fff' : 'rgba(255,255,255,0.12)', color: draft.trim() ? '#0c0c0e' : 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: 800, border: 'none', cursor: 'pointer', flexShrink: 0, opacity: sending ? 0.6 : 1 }}
+                  aria-label="전송"
+                  style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, border: 'none', display: 'grid', placeItems: 'center', background: draft.trim() ? '#fff' : 'rgba(255,255,255,0.12)', color: draft.trim() ? '#0c0c0e' : 'rgba(255,255,255,0.4)', fontSize: 17, fontWeight: 800, cursor: 'pointer', opacity: sending ? 0.6 : 1, lineHeight: 1 }}
                 >
-                  전송
+                  ↑
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => setLoginOpen(true)}
-                style={{ width: '100%', height: 48, borderRadius: 14, background: '#fff', color: '#0c0c0e', fontSize: 14, fontWeight: 800, border: 'none', cursor: 'pointer', boxShadow: '0 8px 28px rgba(0,0,0,0.5)' }}
+                style={{ width: '100%', height: 44, borderRadius: 999, background: '#fff', color: '#0c0c0e', fontSize: 13.5, fontWeight: 800, border: 'none', cursor: 'pointer', boxShadow: '0 6px 20px rgba(0,0,0,0.45)' }}
               >
                 혼술맵 로그인하고 대화 참여하기
               </button>
