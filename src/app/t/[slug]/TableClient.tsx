@@ -101,6 +101,26 @@ function getDeviceId(): string {
 const MBTIS = ['INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP'];
 const STATUS_LABEL: Record<string, string> = { new: '접수 대기', accepted: '준비 중', done: '완료', canceled: '취소됨' };
 
+// 마이크로 애니메이션 — 라이브러리 없이 CSS 키프레임으로 (톤앤매너: 절제된 이징)
+const STYLES = `
+@keyframes hsmtFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes hsmtFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hsmtPop { 0% { transform: scale(0.5); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes hsmtSheetUp { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes hsmtGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.35); } 50% { box-shadow: 0 0 0 7px rgba(124, 58, 237, 0); } }
+@keyframes hsmtToast { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.hsmt-fade-up { animation: hsmtFadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.hsmt-fade { animation: hsmtFadeIn 0.3s ease both; }
+.hsmt-pop { animation: hsmtPop 0.25s ease both; }
+.hsmt-sheet { animation: hsmtSheetUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.hsmt-d1 { animation-delay: 0.06s; }
+.hsmt-d2 { animation-delay: 0.16s; }
+.hsmt-d3 { animation-delay: 0.28s; }
+.hsmt-d4 { animation-delay: 0.4s; }
+.hsmt-mine { animation: hsmtGlow 2.2s ease infinite; }
+.hsmt-toast { animation: hsmtToast 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+`;
+
 // 랜딩(다크) 전용 고스트 버튼
 const GHOST_BTN: React.CSSProperties = {
   flex: 1,
@@ -127,7 +147,7 @@ export default function TableClient({
   checkinPurposes,
   checkinVibes,
 }: {
-  spot: { id: string; name: string; slug: string };
+  spot: { id: string; name: string; slug: string; avatar_url?: string | null };
   modes: { order?: boolean; social?: boolean };
   liveStatus: string;
   zones: Zone[];
@@ -345,7 +365,8 @@ export default function TableClient({
   if (view === 'landing' && !session) {
     return (
       <div style={{ minHeight: '100dvh', background: INK, display: 'flex', flexDirection: 'column', padding: '0 26px' }}>
-        <div style={{ paddingTop: 'max(30px, env(safe-area-inset-top))', textAlign: 'center' }}>
+        <style>{STYLES}</style>
+        <div className="hsmt-fade-up hsmt-d1" style={{ paddingTop: 'max(30px, env(safe-area-inset-top))', textAlign: 'center' }}>
           <span style={{ fontSize: 10.5, fontWeight: 800, color: 'rgba(255,255,255,0.35)', letterSpacing: '3px' }}>
             HONSULMAP TABLE
           </span>
@@ -353,26 +374,43 @@ export default function TableClient({
 
         <div style={{ flex: 1, display: 'grid', placeItems: 'center', textAlign: 'center', padding: '30px 0' }}>
           <div>
-            <h1 style={{ fontSize: 30, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1.3, wordBreak: 'keep-all' }}>
+            {/* 가게 인스타 프로필 — 이 가게만의 얼굴 */}
+            <div className="hsmt-fade-up hsmt-d2" style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              {spot.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={spot.avatar_url}
+                  alt={spot.name}
+                  width={88}
+                  height={88}
+                  style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.16)', boxShadow: '0 0 44px rgba(124, 58, 237, 0.28)' }}
+                />
+              ) : (
+                <div style={{ width: 88, height: 88, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.16)', display: 'grid', placeItems: 'center', fontSize: 34, fontWeight: 800, color: 'rgba(255,255,255,0.85)', boxShadow: '0 0 44px rgba(124, 58, 237, 0.28)' }}>
+                  {spot.name.slice(0, 1)}
+                </div>
+              )}
+            </div>
+            <h1 className="hsmt-fade-up hsmt-d2" style={{ fontSize: 29, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1.3, wordBreak: 'keep-all' }}>
               {spot.name}
             </h1>
-            <div style={{ width: 28, height: 1, background: 'rgba(255,255,255,0.25)', margin: '20px auto' }} />
-            <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.8 }}>
+            <div className="hsmt-fade-up hsmt-d3" style={{ width: 28, height: 1, background: 'rgba(255,255,255,0.25)', margin: '20px auto' }} />
+            <p className="hsmt-fade-up hsmt-d3" style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.8 }}>
               혼자 와도, 어색하지 않게.
             </p>
-            <div style={{ marginTop: 24, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 15px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>
+            <div className="hsmt-fade-up hsmt-d3" style={{ marginTop: 24, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 15px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa' }} />
               {LIVE_LABEL[liveStatus] ?? liveStatus}
             </div>
             {seatParam && (
-              <div style={{ marginTop: 16, fontSize: 12, fontWeight: 800, color: '#a78bfa', letterSpacing: '2.5px' }}>
+              <div className="hsmt-fade-up hsmt-d3" style={{ marginTop: 16, fontSize: 12, fontWeight: 800, color: '#a78bfa', letterSpacing: '2.5px' }}>
                 SEAT {seatParam}
               </div>
             )}
           </div>
         </div>
 
-        <div style={{ paddingBottom: 'calc(30px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="hsmt-fade-up hsmt-d4" style={{ paddingBottom: 'calc(30px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button
             onClick={() => setCheckinOpen(true)}
             style={{ height: 56, borderRadius: 16, background: '#fff', color: INK, fontSize: 15.5, fontWeight: 800, border: 'none', cursor: 'pointer', letterSpacing: '-0.2px' }}
@@ -408,7 +446,7 @@ export default function TableClient({
           />
         )}
         {toast && (
-          <div style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: '#fff', color: INK, fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+          <div key={toast} className="hsmt-toast" style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: '#fff', color: INK, fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
             {toast}
           </div>
         )}
@@ -418,6 +456,7 @@ export default function TableClient({
 
   return (
     <div style={{ minHeight: '100dvh', background: '#f8f9fa', paddingBottom: 120 }}>
+      <style>{STYLES}</style>
       {/* ── 헤더 ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${LINE}`, padding: '13px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -430,6 +469,15 @@ export default function TableClient({
               >
                 ‹
               </button>
+            )}
+            {spot.avatar_url && (
+              <img
+                src={spot.avatar_url}
+                alt=""
+                width={36}
+                height={36}
+                style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${LINE}`, flexShrink: 0 }}
+              />
             )}
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: FAINT, letterSpacing: '0.3px' }}>혼술맵 테이블</div>
@@ -493,7 +541,7 @@ export default function TableClient({
       )}
 
       {/* ── 탭 콘텐츠 ── */}
-      <div style={{ padding: '16px 16px 0' }}>
+      <div key={tab} className="hsmt-fade" style={{ padding: '16px 16px 0' }}>
         {tab === 'map' && (
           <SeatMap
             zones={zones}
@@ -516,6 +564,7 @@ export default function TableClient({
       {tab === 'menu' && cartCount > 0 && (
         <button
           onClick={() => setCartOpen(true)}
+          className="hsmt-fade-up"
           style={{ position: 'fixed', left: 16, right: 16, bottom: 76, zIndex: 30, height: 52, borderRadius: 14, background: INK, color: '#fff', fontSize: 14.5, fontWeight: 800, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(17,24,39,0.25)' }}
         >
           {cartCount}개 · ₩{cartTotal.toLocaleString()} 주문하기
@@ -580,7 +629,7 @@ export default function TableClient({
       )}
 
       {toast && (
-        <div style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: INK, color: '#fff', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+        <div key={toast} className="hsmt-toast" style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: INK, color: '#fff', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
           {toast}
         </div>
       )}
@@ -639,6 +688,7 @@ function SeatMap({
                     <button
                       key={i}
                       onClick={() => sess && !mine && onTapOccupied(seat, sess)}
+                      className={mine ? 'hsmt-mine' : undefined}
                       style={{ aspectRatio: '1', borderRadius: 9, display: 'grid', placeItems: 'center', fontSize: 10.5, fontWeight: 800, cursor: sess && !mine ? 'pointer' : 'default', ...style }}
                     >
                       <span style={{ lineHeight: 1.15 }}>
@@ -730,7 +780,7 @@ function MenuList({
                 <p style={{ fontSize: 12, color: MUTED, marginTop: 4, lineHeight: 1.5 }}>{it.description}</p>
               )}
               {orderOn && inCart > 0 && (
-                <span style={{ position: 'absolute', top: -7, right: -5, minWidth: 22, height: 22, borderRadius: 999, background: ACCENT, color: '#fff', fontSize: 11.5, fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 6px' }}>
+                <span key={inCart} className="hsmt-pop" style={{ position: 'absolute', top: -7, right: -5, minWidth: 22, height: 22, borderRadius: 999, background: ACCENT, color: '#fff', fontSize: 11.5, fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 6px' }}>
                   {inCart}
                 </span>
               )}
@@ -801,8 +851,8 @@ function OrdersView({
 // ═══ 바텀시트 공통 ═══
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(17,24,39,0.45)', display: 'flex', alignItems: 'flex-end' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxHeight: '88dvh', overflowY: 'auto', background: '#fff', borderRadius: '20px 20px 0 0', padding: '20px 20px calc(24px + env(safe-area-inset-bottom))' }}>
+    <div onClick={onClose} className="hsmt-fade" style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(17,24,39,0.45)', display: 'flex', alignItems: 'flex-end' }}>
+      <div onClick={(e) => e.stopPropagation()} className="hsmt-sheet" style={{ width: '100%', maxHeight: '88dvh', overflowY: 'auto', background: '#fff', borderRadius: '20px 20px 0 0', padding: '20px 20px calc(24px + env(safe-area-inset-bottom))' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ fontSize: 17, fontWeight: 800, color: INK, letterSpacing: '-0.3px' }}>{title}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, color: FAINT, cursor: 'pointer', lineHeight: 1 }}>×</button>
