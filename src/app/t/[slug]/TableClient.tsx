@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Marcellus } from 'next/font/google';
 import { DEFAULT_PURPOSES, DEFAULT_VIBES } from '@/lib/checkinDefaults';
 import GamesTab from './GamesTab';
+import ChatTab from './ChatTab';
 
 // 라틴 디스플레이 서체 — HONSULMAP TABLE / SEAT 표기 전용 (칵테일 메뉴판 무드)
 const marcellus = Marcellus({ weight: '400', subsets: ['latin'] });
@@ -185,7 +186,7 @@ export default function TableClient({
   // 손님 여정 (우우 벤치마크): 랜딩(브랜드+라이브 상태+큰 버튼 3개) → 체크인 → 홈.
   // 세션이 이미 있으면(재방문) 랜딩 건너뛰고 바로 홈.
   const [view, setView] = useState<'landing' | 'main'>('landing');
-  const [tab, setTab] = useState<'map' | 'menu' | 'games' | 'orders'>('map');
+  const [tab, setTab] = useState<'map' | 'menu' | 'games' | 'chat' | 'orders'>('map');
   const [quests, setQuests] = useState<Quest[]>([]);
   const [questsOpen, setQuestsOpen] = useState(false);
   const [session, setSession] = useState<MySession | null>(null);
@@ -578,6 +579,15 @@ export default function TableClient({
           <MenuList categories={categories} orderOn={orderOn} cart={cart} onTap={tapMenuItem} />
         )}
         {tab === 'games' && <GamesTab onGoMenu={() => setTab('menu')} spotSlug={spot.slug} />}
+        {tab === 'chat' && (
+          <ChatTab
+            spotId={spot.id}
+            slug={spot.slug}
+            hasSession={!!session}
+            sessionId={session?.id ?? null}
+            onCheckin={() => setCheckinOpen(true)}
+          />
+        )}
         {tab === 'orders' && (
           <OrdersView orders={myOrders} seatTotal={seatTotal} hasSession={!!session} onCheckin={() => setCheckinOpen(true)} />
         )}
@@ -595,8 +605,8 @@ export default function TableClient({
       )}
 
       {/* ── 하단 탭 ── */}
-      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: 'rgba(14,14,17,0.94)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${LINE}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        {([['map', '좌석'], ['menu', '메뉴'], ['games', '술게임'], ['orders', '내 주문']] as const).map(([key, label]) => (
+      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', background: 'rgba(14,14,17,0.94)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${LINE}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {([['map', '좌석'], ['menu', '메뉴'], ['games', '술게임'], ['chat', '채팅'], ['orders', '내 주문']] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} style={{ height: 58, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: tab === key ? INK : FAINT }}>
             {label}
           </button>
