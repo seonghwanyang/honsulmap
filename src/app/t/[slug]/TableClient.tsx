@@ -72,11 +72,17 @@ interface Quest {
   my_status: 'claimed' | 'rewarded' | null;
 }
 
-const INK = '#111827';
-const MUTED = '#6b7280';
-const FAINT = '#9ca3af';
-const LINE = '#e5e7eb';
-const ACCENT = '#7c3aed';
+// 다크 확정 팔레트 — 손님 화면은 차콜 단일 테마 (랜딩과 한 호흡)
+const INK = '#f4f4f5'; // 본문 텍스트
+const MUTED = 'rgba(255,255,255,0.55)';
+const FAINT = 'rgba(255,255,255,0.42)';
+const LINE = 'rgba(255,255,255,0.11)';
+const ACCENT = '#a78bfa'; // 다크 위 보라 (텍스트·포인트)
+const ACCENT_SOLID = '#7c3aed'; // 보라 면 채움 (내 자리·선물)
+const CARD = 'rgba(255,255,255,0.05)'; // 카드 서피스
+const BTN = '#fff'; // CTA 배경
+const BTN_TEXT = '#0c0c0e'; // CTA 텍스트
+const DARK_BG = 'radial-gradient(85% 46% at 0% 0%, rgba(255,236,210,0.11) 0%, rgba(255,236,210,0.035) 38%, rgba(255,236,210,0) 62%), #0c0c0e';
 
 const LIVE_LABEL: Record<string, string> = {
   ready: '오픈 준비 중',
@@ -158,7 +164,6 @@ export default function TableClient({
   seatParam,
   checkinPurposes,
   checkinVibes,
-  darkParam,
 }: {
   spot: { id: string; name: string; slug: string; avatar_url?: string | null };
   modes: { order?: boolean; social?: boolean };
@@ -170,19 +175,12 @@ export default function TableClient({
   seatParam: string | null;
   checkinPurposes: string[] | null;
   checkinVibes: string[] | null;
-  darkParam?: boolean;
 }) {
   const purposeOptions = checkinPurposes?.length ? checkinPurposes : PURPOSES;
   const vibeOptions = checkinVibes?.length ? checkinVibes : VIBES;
   const social = modes.social !== false;
   const orderOn = modes.order !== false;
   const storageKey = `hsm_t_${spot.id}`;
-
-  // 다크 실험 (?dark=1) — 랜딩의 차콜 톤을 메인 화면까지. 기본은 라이트 유지.
-  const dark = !!darkParam;
-  const pal = dark
-    ? { bg: 'radial-gradient(85% 46% at 0% 0%, rgba(255,236,210,0.11) 0%, rgba(255,236,210,0.035) 38%, rgba(255,236,210,0) 62%), #0c0c0e', chrome: 'rgba(14,14,17,0.66)', line: 'rgba(255,255,255,0.09)', ink: '#fff', muted: 'rgba(255,255,255,0.55)', faint: 'rgba(255,255,255,0.42)', pill: 'rgba(255,255,255,0.07)', pillText: 'rgba(255,255,255,0.68)', accent: '#a78bfa' }
-    : { bg: '#f8f9fa', chrome: 'rgba(255,255,255,0.94)', line: LINE, ink: INK, muted: MUTED, faint: FAINT, pill: '#f3f4f6', pillText: '#4b5563', accent: ACCENT };
 
   // 손님 여정 (우우 벤치마크): 랜딩(브랜드+라이브 상태+큰 버튼 3개) → 체크인 → 홈.
   // 세션이 이미 있으면(재방문) 랜딩 건너뛰고 바로 홈.
@@ -437,7 +435,7 @@ export default function TableClient({
         <div className="hsmt-fade-up hsmt-d4" style={{ paddingBottom: 'calc(30px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button
             onClick={() => setCheckinOpen(true)}
-            style={{ height: 56, borderRadius: 16, background: '#fff', color: INK, fontSize: 15.5, fontWeight: 800, border: 'none', cursor: 'pointer', letterSpacing: '-0.2px' }}
+            style={{ height: 56, borderRadius: 16, background: BTN, color: BTN_TEXT, fontSize: 15.5, fontWeight: 800, border: 'none', cursor: 'pointer', letterSpacing: '-0.2px' }}
           >
             좌석 체크인
           </button>
@@ -470,7 +468,7 @@ export default function TableClient({
           />
         )}
         {toast && (
-          <div key={toast} className="hsmt-toast" style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: '#fff', color: INK, fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+          <div key={toast} className="hsmt-toast" style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: '#fff', color: '#111827', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
             {toast}
           </div>
         )}
@@ -479,17 +477,17 @@ export default function TableClient({
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: pal.bg, paddingBottom: 120 }}>
+    <div style={{ minHeight: '100dvh', background: DARK_BG, paddingBottom: 120 }}>
       <style>{STYLES}</style>
       {/* ── 헤더 ── */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: pal.chrome, backdropFilter: 'blur(8px)', borderBottom: `1px solid ${pal.line}`, padding: '13px 18px' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(14,14,17,0.66)', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${LINE}`, padding: '13px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {!session && (
               <button
                 onClick={() => setView('landing')}
                 aria-label="처음으로"
-                style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${pal.line}`, background: dark ? 'rgba(255,255,255,0.06)' : '#fff', color: pal.muted, fontSize: 15, fontWeight: 800, cursor: 'pointer', lineHeight: 1 }}
+                style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.06)', color: MUTED, fontSize: 15, fontWeight: 800, cursor: 'pointer', lineHeight: 1 }}
               >
                 ‹
               </button>
@@ -500,26 +498,26 @@ export default function TableClient({
                 alt=""
                 width={36}
                 height={36}
-                style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${pal.line}`, flexShrink: 0 }}
+                style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${LINE}`, flexShrink: 0 }}
               />
             )}
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: pal.faint, letterSpacing: '0.3px' }}>혼술맵 테이블</div>
-              <h1 style={{ fontSize: 18, fontWeight: 800, color: pal.ink, letterSpacing: '-0.4px', marginTop: 1 }}>{spot.name}</h1>
+              <div style={{ fontSize: 11, fontWeight: 700, color: FAINT, letterSpacing: '0.3px' }}>혼술맵 테이블</div>
+              <h1 style={{ fontSize: 18, fontWeight: 800, color: INK, letterSpacing: '-0.4px', marginTop: 1 }}>{spot.name}</h1>
             </div>
           </div>
           {session ? (
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: pal.accent }}>Seat {session.seat_label}</div>
-              <div style={{ fontSize: 10.5, color: pal.faint }}>계산은 좌석번호로</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: ACCENT }}>Seat {session.seat_label}</div>
+              <div style={{ fontSize: 10.5, color: FAINT }}>계산은 좌석번호로</div>
             </div>
           ) : (
-            <button onClick={() => setCheckinOpen(true)} style={{ height: 38, padding: '0 16px', borderRadius: 10, background: dark ? '#fff' : INK, color: dark ? '#0c0c0e' : '#fff', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => setCheckinOpen(true)} style={{ height: 38, padding: '0 16px', borderRadius: 10, background: BTN, color: BTN_TEXT, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
               좌석 체크인
             </button>
           )}
         </div>
-        <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: pal.pill, fontSize: 12, fontWeight: 600, color: pal.pillText }}>
+        <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.07)', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.68)' }}>
           <span style={{ width: 5, height: 5, borderRadius: '50%', background: LIVE_DOT[liveStatus] ?? '#34d399' }} />
           {LIVE_LABEL[liveStatus] ?? liveStatus}
         </div>
@@ -530,29 +528,29 @@ export default function TableClient({
         <div style={{ padding: '14px 16px 0' }}>
           <button
             onClick={() => setQuestsOpen(!questsOpen)}
-            style={{ width: '100%', textAlign: 'left', background: '#fff', border: `1.5px solid ${questsOpen ? INK : LINE}`, borderRadius: 14, padding: '13px 16px', cursor: 'pointer', fontSize: 13.5, fontWeight: 800, color: INK }}
+            style={{ width: '100%', textAlign: 'left', background: CARD, border: `1.5px solid ${questsOpen ? 'rgba(255,255,255,0.4)' : LINE}`, borderRadius: 14, padding: '13px 16px', cursor: 'pointer', fontSize: 13.5, fontWeight: 800, color: INK }}
           >
             🎯 오늘의 퀘스트 · {quests.length}개 {questsOpen ? '▲' : '▼'}
           </button>
           {questsOpen && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
               {quests.map((q) => (
-                <div key={q.id} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, padding: '12px 14px' }}>
+                <div key={q.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 13, padding: '12px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 13.5, fontWeight: 800, color: INK }}>{q.title}</span>
                     {q.hidden && (
-                      <span style={{ fontSize: 10, fontWeight: 800, color: '#92400e', background: '#fef3c7', borderRadius: 5, padding: '2px 6px' }}>🌙 HIDDEN</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: '#fcd34d', background: 'rgba(245,158,11,0.15)', borderRadius: 5, padding: '2px 6px' }}>🌙 HIDDEN</span>
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
                     <span style={{ fontSize: 12.5, fontWeight: 700, color: ACCENT }}>→ {q.reward}</span>
                     <span style={{ marginLeft: 'auto' }}>
                       {q.my_status === 'rewarded' ? (
-                        <span style={{ fontSize: 11.5, fontWeight: 800, color: '#16a34a' }}>보상 완료 ✓</span>
+                        <span style={{ fontSize: 11.5, fontWeight: 800, color: '#4ade80' }}>보상 완료 ✓</span>
                       ) : q.my_status === 'claimed' ? (
                         <span style={{ fontSize: 11.5, fontWeight: 800, color: FAINT }}>확인 대기 중…</span>
                       ) : (
-                        <button onClick={() => claimQuest(q)} style={{ height: 32, padding: '0 13px', borderRadius: 9, background: INK, color: '#fff', fontSize: 11.5, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
+                        <button onClick={() => claimQuest(q)} style={{ height: 32, padding: '0 13px', borderRadius: 9, background: BTN, color: BTN_TEXT, fontSize: 11.5, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
                           달성했어요!
                         </button>
                       )}
@@ -577,7 +575,7 @@ export default function TableClient({
           />
         )}
         {tab === 'menu' && (
-          <MenuList categories={categories} orderOn={orderOn} cart={cart} onTap={tapMenuItem} dark={dark} />
+          <MenuList categories={categories} orderOn={orderOn} cart={cart} onTap={tapMenuItem} />
         )}
         {tab === 'games' && <GamesTab onGoMenu={() => setTab('menu')} spotSlug={spot.slug} />}
         {tab === 'orders' && (
@@ -590,16 +588,16 @@ export default function TableClient({
         <button
           onClick={() => setCartOpen(true)}
           className="hsmt-fade-up"
-          style={{ position: 'fixed', left: 16, right: 16, bottom: 76, zIndex: 30, height: 52, borderRadius: 14, background: dark ? '#fff' : INK, color: dark ? '#0c0c0e' : '#fff', fontSize: 14.5, fontWeight: 800, border: 'none', cursor: 'pointer', boxShadow: dark ? '0 8px 28px rgba(0,0,0,0.5)' : '0 8px 24px rgba(17,24,39,0.25)' }}
+          style={{ position: 'fixed', left: 16, right: 16, bottom: 76, zIndex: 30, height: 52, borderRadius: 14, background: BTN, color: BTN_TEXT, fontSize: 14.5, fontWeight: 800, border: 'none', cursor: 'pointer', boxShadow: '0 8px 28px rgba(0,0,0,0.5)' }}
         >
           {cartCount}개 · ₩{cartTotal.toLocaleString()} 주문하기
         </button>
       )}
 
       {/* ── 하단 탭 ── */}
-      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: dark ? 'rgba(14,14,17,0.94)' : 'rgba(255,255,255,0.96)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${pal.line}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: 'rgba(14,14,17,0.94)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${LINE}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {([['map', '좌석'], ['menu', '메뉴'], ['games', '술게임'], ['orders', '내 주문']] as const).map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{ height: 58, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: tab === key ? pal.ink : pal.faint }}>
+          <button key={key} onClick={() => setTab(key)} style={{ height: 58, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: tab === key ? INK : FAINT }}>
             {label}
           </button>
         ))}
@@ -654,7 +652,7 @@ export default function TableClient({
       )}
 
       {toast && (
-        <div key={toast} className="hsmt-toast" style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: dark ? '#fff' : INK, color: dark ? '#111827' : '#fff', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+        <div key={toast} className="hsmt-toast" style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: '#fff', color: '#111827', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
           {toast}
         </div>
       )}
@@ -683,7 +681,7 @@ function SeatMap({
       {zones.map((z) => {
         const zSeats = seats.filter((s) => s.zone_id === z.id);
         return (
-          <section key={z.id} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 16, padding: 16 }}>
+          <section key={z.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 16, padding: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <h2 style={{ fontSize: 14, fontWeight: 800, color: INK }}>{z.name}</h2>
               <span style={{ fontSize: 11, color: FAINT, fontWeight: 600 }}>
@@ -699,16 +697,16 @@ function SeatMap({
                   const seat = zSeats.find((s) => s.row === row && s.col === col);
                   if (!seat) return <div key={i} style={{ aspectRatio: '1' }} />;
                   if (seat.seat_type === 'block')
-                    return <div key={i} style={{ aspectRatio: '1', borderRadius: 9, background: '#f3f4f6' }} />;
+                    return <div key={i} style={{ aspectRatio: '1', borderRadius: 9, background: 'rgba(255,255,255,0.08)' }} />;
                   const sess = sessionBySeat.get(seat.id);
                   const mine = seat.id === mySeatId;
                   const style: React.CSSProperties = mine
-                    ? { background: ACCENT, color: '#fff', border: `1.6px solid ${ACCENT}` }
+                    ? { background: ACCENT_SOLID, color: '#fff', border: `1.6px solid ${ACCENT_SOLID}` }
                     : sess
-                      ? { background: INK, color: '#fff', border: `1.6px solid ${INK}` }
+                      ? { background: '#fff', color: '#0c0c0e', border: '1.6px solid #fff' }
                       : seat.seat_type === 'buffer'
-                        ? { border: '1.6px dashed #d1d5db', color: FAINT, background: '#fff' }
-                        : { background: '#fff', border: '1.6px solid #d1d5db', color: '#374151' };
+                        ? { border: '1.6px dashed rgba(255,255,255,0.28)', color: FAINT, background: 'transparent' }
+                        : { background: 'transparent', border: '1.6px solid rgba(255,255,255,0.26)', color: 'rgba(255,255,255,0.78)' };
                   return (
                     <button
                       key={i}
@@ -733,10 +731,10 @@ function SeatMap({
         );
       })}
       <div style={{ display: 'flex', gap: 14, justifyContent: 'center', fontSize: 11, color: MUTED, fontWeight: 600, paddingBottom: 4 }}>
-        <Legend swatch={{ background: '#fff', border: '1.6px solid #d1d5db' }}>빈자리</Legend>
-        <Legend swatch={{ background: INK }}>사용 중</Legend>
-        <Legend swatch={{ background: ACCENT }}>내 자리</Legend>
-        <Legend swatch={{ border: '1.6px dashed #d1d5db' }}>대기석</Legend>
+        <Legend swatch={{ border: '1.6px solid rgba(255,255,255,0.26)' }}>빈자리</Legend>
+        <Legend swatch={{ background: '#fff' }}>사용 중</Legend>
+        <Legend swatch={{ background: ACCENT_SOLID }}>내 자리</Legend>
+        <Legend swatch={{ border: '1.6px dashed rgba(255,255,255,0.28)' }}>대기석</Legend>
       </div>
     </div>
   );
@@ -757,18 +755,16 @@ function MenuList({
   orderOn,
   cart,
   onTap,
-  dark = false,
 }: {
   categories: MenuCategory[];
   orderOn: boolean;
   cart: { item: MenuItem; qty: number }[];
   onTap: (item: MenuItem) => void;
-  dark?: boolean;
 }) {
   const [catId, setCatId] = useState(categories[0]?.id ?? '');
   const current = categories.find((c) => c.id === catId) ?? categories[0];
   if (!categories.length)
-    return <p style={{ textAlign: 'center', color: dark ? 'rgba(255,255,255,0.42)' : FAINT, fontSize: 13, padding: '40px 0' }}>메뉴가 아직 등록되지 않았어요.</p>;
+    return <p style={{ textAlign: 'center', color: FAINT, fontSize: 13, padding: '40px 0' }}>메뉴가 아직 등록되지 않았어요.</p>;
   const qtyOf = (id: string) => cart.find((c) => c.item.id === id)?.qty ?? 0;
   return (
     <div>
@@ -779,7 +775,7 @@ function MenuList({
             <button
               key={c.id}
               onClick={() => setCatId(c.id)}
-              style={{ flexShrink: 0, padding: '8px 14px', borderRadius: 999, fontSize: 13, fontWeight: 700, border: '1px solid', borderColor: active ? (dark ? '#fff' : INK) : (dark ? 'rgba(255,255,255,0.16)' : LINE), background: active ? (dark ? '#fff' : INK) : (dark ? 'transparent' : '#fff'), color: active ? (dark ? '#0c0c0e' : '#fff') : (dark ? 'rgba(255,255,255,0.72)' : '#374151'), cursor: 'pointer' }}
+              style={{ flexShrink: 0, padding: '8px 14px', borderRadius: 999, fontSize: 13, fontWeight: 700, border: '1px solid', borderColor: active ? '#fff' : 'rgba(255,255,255,0.16)', background: active ? '#fff' : 'transparent', color: active ? '#0c0c0e' : 'rgba(255,255,255,0.72)', cursor: 'pointer' }}
             >
               {c.name}
             </button>
@@ -794,23 +790,23 @@ function MenuList({
               key={it.id}
               onClick={() => onTap(it)}
               disabled={it.sold_out}
-              style={{ textAlign: 'left', background: dark ? 'rgba(255,255,255,0.05)' : '#fff', border: `1px solid ${inCart ? (dark ? 'rgba(255,255,255,0.85)' : INK) : (dark ? 'rgba(255,255,255,0.09)' : LINE)}`, borderRadius: 14, padding: '14px 16px', cursor: it.sold_out ? 'default' : 'pointer', opacity: it.sold_out ? 0.5 : 1, position: 'relative' }}
+              style={{ textAlign: 'left', background: CARD, border: `1px solid ${inCart ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.09)'}`, borderRadius: 14, padding: '14px 16px', cursor: it.sold_out ? 'default' : 'pointer', opacity: it.sold_out ? 0.5 : 1, position: 'relative' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontSize: 14.5, fontWeight: 800, color: dark ? '#fff' : INK, letterSpacing: '-0.2px' }}>
+                <span style={{ fontSize: 14.5, fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>
                   {it.zero_action && '💬 '}
                   {it.name}
-                  {it.sold_out && <span style={{ fontSize: 11, color: dark ? '#f87171' : '#dc2626', marginLeft: 6 }}>품절</span>}
+                  {it.sold_out && <span style={{ fontSize: 11, color: '#f87171', marginLeft: 6 }}>품절</span>}
                 </span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: dark ? 'rgba(255,255,255,0.92)' : INK, flexShrink: 0 }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: 'rgba(255,255,255,0.92)', flexShrink: 0 }}>
                   {it.price === 0 ? '₩0' : `₩${it.price.toLocaleString()}`}
                 </span>
               </div>
               {it.description && (
-                <p style={{ fontSize: 12, color: dark ? 'rgba(255,255,255,0.5)' : MUTED, marginTop: 4, lineHeight: 1.5 }}>{it.description}</p>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4, lineHeight: 1.5 }}>{it.description}</p>
               )}
               {orderOn && inCart > 0 && (
-                <span key={inCart} className="hsmt-pop" style={{ position: 'absolute', top: -7, right: -5, minWidth: 22, height: 22, borderRadius: 999, background: ACCENT, color: '#fff', fontSize: 11.5, fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 6px' }}>
+                <span key={inCart} className="hsmt-pop" style={{ position: 'absolute', top: -7, right: -5, minWidth: 22, height: 22, borderRadius: 999, background: ACCENT_SOLID, color: '#fff', fontSize: 11.5, fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 6px' }}>
                   {inCart}
                 </span>
               )}
@@ -838,14 +834,14 @@ function OrdersView({
     return (
       <div style={{ textAlign: 'center', padding: '48px 0' }}>
         <p style={{ color: MUTED, fontSize: 13.5, marginBottom: 16 }}>체크인하면 주문 내역이 여기에 쌓여요.</p>
-        <button onClick={onCheckin} style={{ height: 44, padding: '0 22px', borderRadius: 12, background: INK, color: '#fff', fontSize: 13.5, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+        <button onClick={onCheckin} style={{ height: 44, padding: '0 22px', borderRadius: 12, background: BTN, color: BTN_TEXT, fontSize: 13.5, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
           좌석 체크인
         </button>
       </div>
     );
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: MUTED }}>내 좌석 누적</span>
         <span style={{ fontSize: 19, fontWeight: 800, color: INK }}>₩{seatTotal.toLocaleString()}</span>
       </div>
@@ -853,12 +849,12 @@ function OrdersView({
         <p style={{ textAlign: 'center', color: FAINT, fontSize: 13, padding: '28px 0' }}>아직 주문이 없어요.</p>
       )}
       {orders.map((o) => (
-        <div key={o.id} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, padding: '13px 16px' }}>
+        <div key={o.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: '13px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
             <span style={{ fontSize: 11.5, color: FAINT, fontWeight: 600 }}>
               {new Date(o.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
             </span>
-            <span style={{ fontSize: 11, fontWeight: 800, color: o.status === 'canceled' ? '#dc2626' : o.status === 'done' ? '#16a34a' : ACCENT }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: o.status === 'canceled' ? '#f87171' : o.status === 'done' ? '#4ade80' : ACCENT }}>
               {STATUS_LABEL[o.status] ?? o.status}
             </span>
           </div>
@@ -881,8 +877,8 @@ function OrdersView({
 // ═══ 바텀시트 공통 ═══
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div onClick={onClose} className="hsmt-fade" style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(17,24,39,0.45)', display: 'flex', alignItems: 'flex-end' }}>
-      <div onClick={(e) => e.stopPropagation()} className="hsmt-sheet" style={{ width: '100%', maxHeight: '88dvh', overflowY: 'auto', background: '#fff', borderRadius: '20px 20px 0 0', padding: '20px 20px calc(24px + env(safe-area-inset-bottom))' }}>
+    <div onClick={onClose} className="hsmt-fade" style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.62)', display: 'flex', alignItems: 'flex-end' }}>
+      <div onClick={(e) => e.stopPropagation()} className="hsmt-sheet" style={{ width: '100%', maxHeight: '88dvh', overflowY: 'auto', background: '#161619', borderTop: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px 20px 0 0', padding: '20px 20px calc(24px + env(safe-area-inset-bottom))' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ fontSize: 17, fontWeight: 800, color: INK, letterSpacing: '-0.3px' }}>{title}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, color: FAINT, cursor: 'pointer', lineHeight: 1 }}>×</button>
@@ -893,8 +889,8 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
   );
 }
 
-const fieldLabel: React.CSSProperties = { display: 'block', fontSize: 12.5, fontWeight: 800, color: '#374151', margin: '14px 0 7px' };
-const textInput: React.CSSProperties = { width: '100%', height: 46, padding: '0 14px', borderRadius: 11, border: `1px solid ${LINE}`, fontSize: 14, color: INK, outline: 'none', background: '#fff' };
+const fieldLabel: React.CSSProperties = { display: 'block', fontSize: 12.5, fontWeight: 800, color: 'rgba(255,255,255,0.72)', margin: '14px 0 7px' };
+const textInput: React.CSSProperties = { width: '100%', height: 46, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', fontSize: 14, color: INK, outline: 'none', background: 'rgba(255,255,255,0.06)' };
 
 function ChipRow({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
   return (
@@ -903,7 +899,7 @@ function ChipRow({ options, value, onChange }: { options: string[]; value: strin
         <button
           key={o}
           onClick={() => onChange(value === o ? '' : o)}
-          style={{ padding: '8px 13px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, border: '1px solid', borderColor: value === o ? INK : LINE, background: value === o ? INK : '#fff', color: value === o ? '#fff' : '#374151', cursor: 'pointer' }}
+          style={{ padding: '8px 13px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, border: '1px solid', borderColor: value === o ? '#fff' : 'rgba(255,255,255,0.16)', background: value === o ? '#fff' : 'transparent', color: value === o ? '#0c0c0e' : 'rgba(255,255,255,0.72)', cursor: 'pointer' }}
         >
           {o}
         </button>
@@ -982,7 +978,7 @@ function CheckinSheet({
           <label style={fieldLabel}>성별</label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {([['m', '🙋‍♂️ 남'], ['f', '🙋‍♀️ 여']] as const).map(([v, l]) => (
-              <button key={v} onClick={() => setGender(v)} style={{ height: 52, borderRadius: 12, fontSize: 14.5, fontWeight: 800, border: '1.5px solid', borderColor: gender === v ? INK : LINE, background: gender === v ? INK : '#fff', color: gender === v ? '#fff' : '#374151', cursor: 'pointer' }}>
+              <button key={v} onClick={() => setGender(v)} style={{ height: 52, borderRadius: 12, fontSize: 14.5, fontWeight: 800, border: '1.5px solid', borderColor: gender === v ? '#fff' : 'rgba(255,255,255,0.16)', background: gender === v ? '#fff' : 'transparent', color: gender === v ? '#0c0c0e' : 'rgba(255,255,255,0.72)', cursor: 'pointer' }}>
                 {l}
               </button>
             ))}
@@ -1011,15 +1007,15 @@ function CheckinSheet({
           )}
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 18, fontSize: 13, fontWeight: 700, color: INK, cursor: 'pointer' }}>
-            <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} style={{ width: 18, height: 18, accentColor: INK }} />
+            <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} style={{ width: 18, height: 18, accentColor: ACCENT_SOLID }} />
             좌석 정보 공개 <span style={{ fontWeight: 600, color: FAINT }}>(성별은 항상 공개)</span>
           </label>
         </>
       )}
 
-      {err && <p style={{ color: '#dc2626', fontSize: 12.5, fontWeight: 700, marginTop: 12 }}>{err}</p>}
+      {err && <p style={{ color: '#f87171', fontSize: 12.5, fontWeight: 700, marginTop: 12 }}>{err}</p>}
 
-      <button onClick={submit} disabled={busy} style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: INK, color: '#fff', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
+      <button onClick={submit} disabled={busy} style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: BTN, color: BTN_TEXT, fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
         {busy ? '체크인 중…' : '저장하고 시작하기'}
       </button>
     </Sheet>
@@ -1073,7 +1069,7 @@ function CartSheet({
     <Sheet title="주문 확인" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {cart.map((c) => (
-          <div key={c.item.id} style={{ borderBottom: `1px solid #f3f4f6`, paddingBottom: 12 }}>
+          <div key={c.item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 14, fontWeight: 800, color: INK }}>{c.item.name}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1094,14 +1090,14 @@ function CartSheet({
           </div>
         ))}
       </div>
-      <button onClick={onSubmit} disabled={busy || !cart.length} style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: INK, color: '#fff', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
+      <button onClick={onSubmit} disabled={busy || !cart.length} style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: BTN, color: BTN_TEXT, fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
         {busy ? '전송 중…' : `₩${total.toLocaleString()} 주문하기 (후불 · 카운터 결제)`}
       </button>
     </Sheet>
   );
 }
 
-const qtyBtn: React.CSSProperties = { width: 30, height: 30, borderRadius: 9, border: `1px solid ${LINE}`, background: '#fff', color: INK, fontWeight: 800, cursor: 'pointer', lineHeight: 1 };
+const qtyBtn: React.CSSProperties = { width: 30, height: 30, borderRadius: 9, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.07)', color: INK, fontWeight: 800, cursor: 'pointer', lineHeight: 1 };
 
 // ═══ 선물 시트 ═══
 function GiftSheet({
@@ -1132,14 +1128,14 @@ function GiftSheet({
             <button
               key={s.id}
               onClick={() => setTarget(s.label)}
-              style={{ padding: '10px 14px', borderRadius: 11, fontSize: 13.5, fontWeight: 800, border: '1.5px solid', borderColor: target === s.label ? ACCENT : LINE, background: target === s.label ? ACCENT : '#fff', color: target === s.label ? '#fff' : INK, cursor: 'pointer' }}
+              style={{ padding: '10px 14px', borderRadius: 11, fontSize: 13.5, fontWeight: 800, border: '1.5px solid', borderColor: target === s.label ? ACCENT_SOLID : 'rgba(255,255,255,0.16)', background: target === s.label ? ACCENT_SOLID : 'transparent', color: target === s.label ? '#fff' : INK, cursor: 'pointer' }}
             >
               Seat {s.label} {sess?.gender === 'm' ? '♂' : sess?.gender === 'f' ? '♀' : ''}
             </button>
           );
         })}
       </div>
-      <button onClick={() => target && onSend(target)} disabled={busy || !target} style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: target ? ACCENT : '#e5e7eb', color: '#fff', fontSize: 15, fontWeight: 800, border: 'none', cursor: target ? 'pointer' : 'default', opacity: busy ? 0.6 : 1 }}>
+      <button onClick={() => target && onSend(target)} disabled={busy || !target} style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: target ? ACCENT_SOLID : 'rgba(255,255,255,0.12)', color: target ? '#fff' : 'rgba(255,255,255,0.45)', fontSize: 15, fontWeight: 800, border: 'none', cursor: target ? 'pointer' : 'default', opacity: busy ? 0.6 : 1 }}>
         {busy ? '전송 중…' : `'${item.name}' 보내기`}
       </button>
     </Sheet>

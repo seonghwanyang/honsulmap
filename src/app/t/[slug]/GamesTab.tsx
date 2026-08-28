@@ -16,11 +16,12 @@ import {
   shuffle,
 } from './gamesData';
 
-const INK = '#111827';
-const MUTED = '#6b7280';
-const FAINT = '#9ca3af';
-const LINE = '#e5e7eb';
-const ACCENT = '#7c3aed';
+const INK = '#f4f4f5';
+const MUTED = 'rgba(255,255,255,0.55)';
+const FAINT = 'rgba(255,255,255,0.42)';
+const LINE = 'rgba(255,255,255,0.12)';
+const ACCENT = '#a78bfa';
+const ACCENT_SOLID = '#7c3aed';
 
 const QUESTIONS_TO_UNLOCK = 6; // 레벨당 이만큼 답하면 다음 레벨 해금 (WNRS 룰 축소판)
 
@@ -101,13 +102,13 @@ export default function GamesTab({ onGoMenu, spotSlug }: { onGoMenu: () => void;
         {locked.map((g) => (
           <div
             key={g.title}
-            style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#fff', border: `1px dashed #d1d5db`, borderRadius: 14, padding: '14px 16px', opacity: 0.65 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,0.05)', border: `1px dashed rgba(255,255,255,0.24)`, borderRadius: 14, padding: '14px 16px', opacity: 0.65 }}
           >
             <span style={{ fontSize: 24, filter: 'grayscale(0.5)' }}>{g.emoji}</span>
             <span style={{ minWidth: 0, flex: 1 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span style={{ fontSize: 14, fontWeight: 800, color: INK }}>{g.title}</span>
-                <span style={{ fontSize: 9.5, fontWeight: 800, color: '#92400e', background: '#fef3c7', borderRadius: 5, padding: '2px 6px' }}>준비 중</span>
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: '#fcd34d', background: 'rgba(245,158,11,0.15)', borderRadius: 5, padding: '2px 6px' }}>준비 중</span>
               </span>
               <span style={{ display: 'block', fontSize: 11.5, color: FAINT, marginTop: 2 }}>{g.desc}</span>
             </span>
@@ -129,7 +130,7 @@ function Section2({ label, children }: { label: string; children: React.ReactNod
 
 function GameCard({ emoji, title, desc, onClick }: { emoji: string; title: string; desc: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, padding: '14px 16px', cursor: 'pointer' }}>
+    <button onClick={onClick} style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '14px 16px', cursor: 'pointer' }}>
       <span style={{ fontSize: 25 }}>{emoji}</span>
       <span style={{ minWidth: 0 }}>
         <span style={{ display: 'block', fontSize: 14.5, fontWeight: 800, color: INK }}>{title}</span>
@@ -153,14 +154,14 @@ function Frame({ title, onBack, children }: { title: string; onBack: () => void;
 
 function PenaltyCta({ name, onGoMenu }: { name: string; onGoMenu: () => void }) {
   return (
-    <button onClick={onGoMenu} style={{ width: '100%', height: 48, marginTop: 14, borderRadius: 12, background: ACCENT, color: '#fff', fontSize: 14, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
+    <button onClick={onGoMenu} style={{ width: '100%', height: 48, marginTop: 14, borderRadius: 12, background: ACCENT_SOLID, color: '#fff', fontSize: 14, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
       🍹 {name}의 벌칙주 고르러 가기
     </button>
   );
 }
 
-const bigBtn: React.CSSProperties = { width: '100%', height: 52, borderRadius: 13, background: INK, color: '#fff', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer' };
-const outBtn: React.CSSProperties = { width: '100%', height: 46, borderRadius: 12, background: '#fff', border: `1px solid ${LINE}`, fontSize: 13.5, fontWeight: 800, color: INK, cursor: 'pointer' };
+const bigBtn: React.CSSProperties = { width: '100%', height: 52, borderRadius: 13, background: '#fff', color: '#0c0c0e', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer' };
+const outBtn: React.CSSProperties = { width: '100%', height: 46, borderRadius: 12, background: 'rgba(255,255,255,0.07)', border: `1px solid ${LINE}`, fontSize: 13.5, fontWeight: 800, color: INK, cursor: 'pointer' };
 
 // ═══ 🗣 대화 카드 — WNRS×아론 3단계 ═══
 function TalkCards({ onBack, onEye }: { onBack: () => void; onEye: () => void }) {
@@ -215,7 +216,7 @@ function TalkCards({ onBack, onEye }: { onBack: () => void; onEye: () => void })
             <button
               key={l.no}
               onClick={() => !isLocked && goLevel(l.no)}
-              style={{ flex: 1, padding: '9px 4px', borderRadius: 11, border: '1.5px solid', borderColor: active ? INK : LINE, background: active ? INK : '#fff', color: isLocked ? FAINT : active ? '#fff' : INK, cursor: isLocked ? 'default' : 'pointer' }}
+              style={{ flex: 1, padding: '9px 4px', borderRadius: 11, border: '1.5px solid', borderColor: active ? INK : LINE, background: active ? '#fff' : 'rgba(255,255,255,0.07)', color: isLocked ? FAINT : active ? '#0c0c0e' : INK, cursor: isLocked ? 'default' : 'pointer' }}
             >
               <span style={{ display: 'block', fontSize: 12.5, fontWeight: 800 }}>
                 {isLocked ? '🔒 ' : ''}Lv{l.no} {l.name}
@@ -227,12 +228,12 @@ function TalkCards({ onBack, onEye }: { onBack: () => void; onEye: () => void })
       </div>
 
       {/* 카드 */}
-      <div style={{ minHeight: 170, borderRadius: 18, background: level === 3 ? INK : '#fff', border: `2px solid ${level === 3 ? INK : ACCENT}`, display: 'grid', placeItems: 'center', padding: '26px 22px', textAlign: 'center' }}>
+      <div style={{ minHeight: 170, borderRadius: 18, background: level === 3 ? '#fff' : 'rgba(255,255,255,0.05)', border: `2px solid ${level === 3 ? INK : ACCENT}`, display: 'grid', placeItems: 'center', padding: '26px 22px', textAlign: 'center' }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 800, color: level === 3 ? '#a78bfa' : ACCENT, marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: level === 3 ? ACCENT_SOLID : ACCENT, marginBottom: 10 }}>
             {turn === 0 ? '🅰 먼저 답하고 → 🅱' : '🅱 먼저 답하고 → 🅰'}
           </div>
-          <div style={{ fontSize: 17.5, fontWeight: 800, color: level === 3 ? '#fff' : INK, lineHeight: 1.55, wordBreak: 'keep-all' }}>{card}</div>
+          <div style={{ fontSize: 17.5, fontWeight: 800, color: level === 3 ? '#0c0c0e' : INK, lineHeight: 1.55, wordBreak: 'keep-all' }}>{card}</div>
         </div>
       </div>
 
@@ -251,12 +252,12 @@ function TalkCards({ onBack, onEye }: { onBack: () => void; onEye: () => void })
             setUnlocked(next);
             goLevel(next);
           }}
-          style={{ ...bigBtn, background: ACCENT }}
+          style={{ ...bigBtn, background: ACCENT_SOLID, color: '#fff' }}
         >
           🔓 Lv{level + 1} {LEVELS[level].name} 열기 — 더 깊이
         </button>
       ) : lv3Finished ? (
-        <button onClick={onEye} style={{ ...bigBtn, background: ACCENT }}>
+        <button onClick={onEye} style={{ ...bigBtn, background: ACCENT_SOLID, color: '#fff' }}>
           👁 마지막 관문: 1분 눈맞춤 챌린지
         </button>
       ) : (
@@ -305,11 +306,11 @@ function Telepathy({ onBack }: { onBack: () => void }) {
       </p>
 
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, minHeight: 130 }}>
-        <div style={{ flex: 1, borderRadius: 16, border: `2px solid ${INK}`, background: '#fff', display: 'grid', placeItems: 'center', padding: 16, textAlign: 'center' }}>
+        <div style={{ flex: 1, borderRadius: 16, border: `2px solid ${INK}`, background: 'rgba(255,255,255,0.05)', display: 'grid', placeItems: 'center', padding: 16, textAlign: 'center' }}>
           <span style={{ fontSize: 17, fontWeight: 800, color: INK, wordBreak: 'keep-all' }}>{a}</span>
         </div>
         <span style={{ alignSelf: 'center', fontSize: 13, fontWeight: 800, color: FAINT }}>vs</span>
-        <div style={{ flex: 1, borderRadius: 16, border: `2px solid ${INK}`, background: '#fff', display: 'grid', placeItems: 'center', padding: 16, textAlign: 'center' }}>
+        <div style={{ flex: 1, borderRadius: 16, border: `2px solid ${INK}`, background: 'rgba(255,255,255,0.05)', display: 'grid', placeItems: 'center', padding: 16, textAlign: 'center' }}>
           <span style={{ fontSize: 17, fontWeight: 800, color: INK, wordBreak: 'keep-all' }}>{b}</span>
         </div>
       </div>
@@ -320,8 +321,8 @@ function Telepathy({ onBack }: { onBack: () => void }) {
 
       {result === null ? (
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => judge(true)} style={{ ...bigBtn, flex: 1, background: ACCENT }}>🔮 통했다</button>
-          <button onClick={() => judge(false)} style={{ ...bigBtn, flex: 1, background: '#fff', color: INK, border: `1.5px solid ${LINE}` }}>❌ 어긋남</button>
+          <button onClick={() => judge(true)} style={{ ...bigBtn, flex: 1, background: ACCENT_SOLID, color: '#fff' }}>🔮 통했다</button>
+          <button onClick={() => judge(false)} style={{ ...bigBtn, flex: 1, background: 'rgba(255,255,255,0.07)', color: INK, border: `1.5px solid ${LINE}` }}>❌ 어긋남</button>
         </div>
       ) : (
         <button onClick={next} style={bigBtn}>다음 질문</button>
@@ -356,7 +357,7 @@ function FirstImpression({ onBack }: { onBack: () => void }) {
     const verdict = score >= 8 ? '소름… 관상가세요? 👁' : score >= 5 ? '꽤 통하는데요? 이제 확인해볼 차례 🍻' : '하나도 몰랐네요 — 이제부터 알아가면 되죠 😎';
     return (
       <Frame title="👀 첫인상 퀴즈" onBack={onBack}>
-        <div style={{ borderRadius: 18, border: `2px solid ${ACCENT}`, background: '#fff', padding: '34px 22px', textAlign: 'center' }}>
+        <div style={{ borderRadius: 18, border: `2px solid ${ACCENT}`, background: 'rgba(255,255,255,0.05)', padding: '34px 22px', textAlign: 'center' }}>
           <div style={{ fontSize: 38, fontWeight: 800, color: INK }}>
             {score}<span style={{ fontSize: 18, color: FAINT }}> / {total}</span>
           </div>
@@ -375,7 +376,7 @@ function FirstImpression({ onBack }: { onBack: () => void }) {
       <div style={{ fontSize: 11.5, fontWeight: 800, color: FAINT, marginBottom: 8 }}>
         {idx + 1} / {total} · 현재 {score}개 적중
       </div>
-      <div style={{ borderRadius: 16, border: `2px solid ${INK}`, background: '#fff', padding: '20px 18px', marginBottom: 12 }}>
+      <div style={{ borderRadius: 16, border: `2px solid ${INK}`, background: 'rgba(255,255,255,0.05)', padding: '20px 18px', marginBottom: 12 }}>
         <div style={{ fontSize: 16.5, fontWeight: 800, color: INK, wordBreak: 'keep-all' }}>{q.q}</div>
       </div>
       {picked === null ? (
@@ -392,8 +393,8 @@ function FirstImpression({ onBack }: { onBack: () => void }) {
             선택: <span style={{ color: ACCENT }}>{picked}</span> — 맞았나요?
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => judge(true)} style={{ ...bigBtn, flex: 1, background: ACCENT }}>⭕ 맞았어요</button>
-            <button onClick={() => judge(false)} style={{ ...bigBtn, flex: 1, background: '#fff', color: INK, border: `1.5px solid ${LINE}` }}>❌ 틀렸어요</button>
+            <button onClick={() => judge(true)} style={{ ...bigBtn, flex: 1, background: ACCENT_SOLID, color: '#fff' }}>⭕ 맞았어요</button>
+            <button onClick={() => judge(false)} style={{ ...bigBtn, flex: 1, background: 'rgba(255,255,255,0.07)', color: INK, border: `1.5px solid ${LINE}` }}>❌ 틀렸어요</button>
           </div>
         </>
       )}
@@ -414,7 +415,7 @@ function NeverEver({ onBack }: { onBack: () => void }) {
         <br />
         먼저 다 접는 사람이 오늘의 경험왕 👑
       </p>
-      <div style={{ minHeight: 150, borderRadius: 18, border: `2px solid ${ACCENT}`, background: '#fff', display: 'grid', placeItems: 'center', padding: '26px 22px', textAlign: 'center' }}>
+      <div style={{ minHeight: 150, borderRadius: 18, border: `2px solid ${ACCENT}`, background: 'rgba(255,255,255,0.05)', display: 'grid', placeItems: 'center', padding: '26px 22px', textAlign: 'center' }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 800, color: ACCENT, marginBottom: 8 }}>나는 한 번도…</div>
           <div style={{ fontSize: 17.5, fontWeight: 800, color: INK, lineHeight: 1.5, wordBreak: 'keep-all' }}>{card}</div>
@@ -464,16 +465,16 @@ function EyeContact({ onBack }: { onBack: () => void }) {
         </button>
       )}
       {state === 'run' && (
-        <div style={{ height: 200, borderRadius: 18, background: INK, display: 'grid', placeItems: 'center' }}>
+        <div style={{ height: 200, borderRadius: 18, background: '#fff', display: 'grid', placeItems: 'center' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 54, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{left}</div>
-            <div style={{ fontSize: 12, fontWeight: 800, color: '#a78bfa', marginTop: 4 }}>서로의 눈만 보세요 · 웃으면 집니다</div>
+            <div style={{ fontSize: 54, fontWeight: 800, color: '#0c0c0e', fontVariantNumeric: 'tabular-nums' }}>{left}</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: ACCENT_SOLID, marginTop: 4 }}>서로의 눈만 보세요 · 웃으면 집니다</div>
           </div>
         </div>
       )}
       {state === 'done' && (
         <>
-          <div style={{ height: 170, borderRadius: 18, background: '#f5f3ff', border: `2px solid ${ACCENT}`, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 20 }}>
+          <div style={{ height: 170, borderRadius: 18, background: 'rgba(139,92,246,0.16)', border: `2px solid ${ACCENT}`, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 20 }}>
             <div>
               <div style={{ fontSize: 40 }}>🎉</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginTop: 6 }}>1분 성공! 이제 남남은 아니네요</div>
@@ -503,15 +504,15 @@ function NameChips({ names, setNames }: { names: string[]; setNames: (n: string[
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="이름 입력 (최대 8명)"
-          style={{ flex: 1, height: 46, padding: '0 14px', borderRadius: 11, border: `1px solid ${LINE}`, fontSize: 14, outline: 'none', color: INK }}
+          style={{ flex: 1, height: 46, padding: '0 14px', borderRadius: 11, border: `1px solid ${LINE}`, fontSize: 14, outline: 'none', color: INK, background: 'rgba(255,255,255,0.06)' }}
         />
-        <button onClick={add} style={{ width: 64, borderRadius: 11, background: INK, color: '#fff', fontSize: 13.5, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
+        <button onClick={add} style={{ width: 64, borderRadius: 11, background: '#fff', color: '#0c0c0e', fontSize: 13.5, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
           추가
         </button>
       </div>
       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 10 }}>
         {names.map((n) => (
-          <button key={n} onClick={() => setNames(names.filter((x) => x !== n))} style={{ padding: '7px 12px', borderRadius: 999, background: '#f3f4f6', border: 'none', fontSize: 13, fontWeight: 700, color: INK, cursor: 'pointer' }}>
+          <button key={n} onClick={() => setNames(names.filter((x) => x !== n))} style={{ padding: '7px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: 'none', fontSize: 13, fontWeight: 700, color: INK, cursor: 'pointer' }}>
             {n} ×
           </button>
         ))}
@@ -552,12 +553,12 @@ function Roulette({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => vo
   return (
     <Frame title="🎯 벌칙 룰렛" onBack={onBack}>
       <NameChips names={names} setNames={setNames} />
-      <div style={{ margin: '22px 0', height: 110, borderRadius: 16, border: `2px solid ${winner ? ACCENT : LINE}`, background: '#fff', display: 'grid', placeItems: 'center' }}>
+      <div style={{ margin: '22px 0', height: 110, borderRadius: 16, border: `2px solid ${winner ? ACCENT : LINE}`, background: 'rgba(255,255,255,0.05)', display: 'grid', placeItems: 'center' }}>
         <span style={{ fontSize: winner ? 30 : 24, fontWeight: 800, color: winner ? ACCENT : INK }}>
           {winner ? `${winner} 당첨!` : current || '?'}
         </span>
       </div>
-      <button onClick={spin} disabled={names.length < 2 || spinning} style={{ ...bigBtn, background: names.length < 2 ? '#e5e7eb' : INK }}>
+      <button onClick={spin} disabled={names.length < 2 || spinning} style={{ ...bigBtn, background: names.length < 2 ? 'rgba(255,255,255,0.12)' : '#fff' }}>
         {spinning ? '돌아가는 중…' : '돌리기!'}
       </button>
       {winner && <PenaltyCta name={winner} onGoMenu={onGoMenu} />}
@@ -591,16 +592,16 @@ function Bomb({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void }
         </button>
       )}
       {state === 'ticking' && (
-        <div style={{ height: 180, borderRadius: 18, background: '#fff7ed', border: '2px solid #fdba74', display: 'grid', placeItems: 'center' }}>
+        <div style={{ height: 180, borderRadius: 18, background: 'rgba(251,146,60,0.14)', border: '2px solid rgba(251,146,60,0.5)', display: 'grid', placeItems: 'center' }}>
           <span className="animate-pulse" style={{ fontSize: 44 }}>💣</span>
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#c2410c' }}>돌려! 돌려! 돌려!</span>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#fdba74' }}>돌려! 돌려! 돌려!</span>
         </div>
       )}
       {state === 'boom' && (
         <>
-          <div style={{ height: 180, borderRadius: 18, background: '#fef2f2', border: '2px solid #ef4444', display: 'grid', placeItems: 'center' }}>
+          <div style={{ height: 180, borderRadius: 18, background: 'rgba(239,68,68,0.14)', border: '2px solid rgba(239,68,68,0.6)', display: 'grid', placeItems: 'center' }}>
             <span style={{ fontSize: 52 }}>💥</span>
-            <span style={{ fontSize: 18, fontWeight: 800, color: '#dc2626' }}>펑! 들고 있는 사람 당첨!</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: '#f87171' }}>펑! 들고 있는 사람 당첨!</span>
           </div>
           <button onClick={() => setState('idle')} style={{ ...outBtn, marginTop: 14 }}>
             다시 하기
@@ -630,7 +631,7 @@ function Ladder({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void
     <Frame title="🪜 사다리타기" onBack={onBack}>
       <NameChips names={names} setNames={setNames} />
       {revealed !== 'ready' ? (
-        <button onClick={shuffleLadder} disabled={names.length < 2} style={{ ...bigBtn, marginTop: 20, background: names.length < 2 ? '#e5e7eb' : INK }}>
+        <button onClick={shuffleLadder} disabled={names.length < 2} style={{ ...bigBtn, marginTop: 20, background: names.length < 2 ? 'rgba(255,255,255,0.12)' : '#fff' }}>
           사다리 섞기
         </button>
       ) : (
@@ -644,7 +645,7 @@ function Ladder({ onBack, onGoMenu }: { onBack: () => void; onGoMenu: () => void
                 <button
                   key={n}
                   onClick={() => setOpened((prev) => new Set(prev).add(n))}
-                  style={{ height: 64, borderRadius: 12, fontSize: 14.5, fontWeight: 800, border: '1.5px solid', borderColor: open ? (isWinner ? ACCENT : LINE) : INK, background: open ? (isWinner ? ACCENT : '#f8f9fa') : '#fff', color: open ? (isWinner ? '#fff' : FAINT) : INK, cursor: 'pointer' }}
+                  style={{ height: 64, borderRadius: 12, fontSize: 14.5, fontWeight: 800, border: '1.5px solid', borderColor: open ? (isWinner ? ACCENT : LINE) : INK, background: open ? (isWinner ? ACCENT_SOLID : 'rgba(255,255,255,0.05)') : 'rgba(255,255,255,0.07)', color: open ? (isWinner ? '#fff' : FAINT) : INK, cursor: 'pointer' }}
                 >
                   {open ? (isWinner ? `${n} 🍺 당첨!` : `${n} · 통과`) : n}
                 </button>
@@ -667,12 +668,12 @@ function Rules({ onBack }: { onBack: () => void }) {
     <Frame title="📖 술게임 도감" onBack={onBack}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {RULES.map((r) => (
-          <div key={r.title} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, padding: '14px 16px' }}>
+          <div key={r.title} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 14.5, fontWeight: 800, color: INK }}>{r.title}</span>
               <span style={{ fontSize: 11, fontWeight: 700, color: FAINT }}>{r.people}</span>
               {r.tags.map((t) => (
-                <span key={t} style={{ fontSize: 10.5, fontWeight: 800, color: ACCENT, background: '#f5f3ff', borderRadius: 6, padding: '2px 7px' }}>
+                <span key={t} style={{ fontSize: 10.5, fontWeight: 800, color: ACCENT, background: 'rgba(139,92,246,0.16)', borderRadius: 6, padding: '2px 7px' }}>
                   #{t}
                 </span>
               ))}
