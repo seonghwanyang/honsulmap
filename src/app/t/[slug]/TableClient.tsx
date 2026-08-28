@@ -158,6 +158,7 @@ export default function TableClient({
   seatParam,
   checkinPurposes,
   checkinVibes,
+  darkParam,
 }: {
   spot: { id: string; name: string; slug: string; avatar_url?: string | null };
   modes: { order?: boolean; social?: boolean };
@@ -169,12 +170,19 @@ export default function TableClient({
   seatParam: string | null;
   checkinPurposes: string[] | null;
   checkinVibes: string[] | null;
+  darkParam?: boolean;
 }) {
   const purposeOptions = checkinPurposes?.length ? checkinPurposes : PURPOSES;
   const vibeOptions = checkinVibes?.length ? checkinVibes : VIBES;
   const social = modes.social !== false;
   const orderOn = modes.order !== false;
   const storageKey = `hsm_t_${spot.id}`;
+
+  // 다크 실험 (?dark=1) — 랜딩의 차콜 톤을 메인 화면까지. 기본은 라이트 유지.
+  const dark = !!darkParam;
+  const pal = dark
+    ? { bg: '#0c0c0e', chrome: 'rgba(14,14,17,0.92)', line: 'rgba(255,255,255,0.09)', ink: '#fff', muted: 'rgba(255,255,255,0.55)', faint: 'rgba(255,255,255,0.42)', pill: 'rgba(255,255,255,0.07)', pillText: 'rgba(255,255,255,0.68)', accent: '#a78bfa' }
+    : { bg: '#f8f9fa', chrome: 'rgba(255,255,255,0.94)', line: LINE, ink: INK, muted: MUTED, faint: FAINT, pill: '#f3f4f6', pillText: '#4b5563', accent: ACCENT };
 
   // 손님 여정 (우우 벤치마크): 랜딩(브랜드+라이브 상태+큰 버튼 3개) → 체크인 → 홈.
   // 세션이 이미 있으면(재방문) 랜딩 건너뛰고 바로 홈.
@@ -471,17 +479,17 @@ export default function TableClient({
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#f8f9fa', paddingBottom: 120 }}>
+    <div style={{ minHeight: '100dvh', background: pal.bg, paddingBottom: 120 }}>
       <style>{STYLES}</style>
       {/* ── 헤더 ── */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${LINE}`, padding: '13px 18px' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: pal.chrome, backdropFilter: 'blur(8px)', borderBottom: `1px solid ${pal.line}`, padding: '13px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {!session && (
               <button
                 onClick={() => setView('landing')}
                 aria-label="처음으로"
-                style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${LINE}`, background: '#fff', color: MUTED, fontSize: 15, fontWeight: 800, cursor: 'pointer', lineHeight: 1 }}
+                style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${pal.line}`, background: dark ? 'rgba(255,255,255,0.06)' : '#fff', color: pal.muted, fontSize: 15, fontWeight: 800, cursor: 'pointer', lineHeight: 1 }}
               >
                 ‹
               </button>
@@ -492,26 +500,26 @@ export default function TableClient({
                 alt=""
                 width={36}
                 height={36}
-                style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${LINE}`, flexShrink: 0 }}
+                style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${pal.line}`, flexShrink: 0 }}
               />
             )}
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: FAINT, letterSpacing: '0.3px' }}>혼술맵 테이블</div>
-              <h1 style={{ fontSize: 18, fontWeight: 800, color: INK, letterSpacing: '-0.4px', marginTop: 1 }}>{spot.name}</h1>
+              <div style={{ fontSize: 11, fontWeight: 700, color: pal.faint, letterSpacing: '0.3px' }}>혼술맵 테이블</div>
+              <h1 style={{ fontSize: 18, fontWeight: 800, color: pal.ink, letterSpacing: '-0.4px', marginTop: 1 }}>{spot.name}</h1>
             </div>
           </div>
           {session ? (
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: ACCENT }}>Seat {session.seat_label}</div>
-              <div style={{ fontSize: 10.5, color: FAINT }}>계산은 좌석번호로</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: pal.accent }}>Seat {session.seat_label}</div>
+              <div style={{ fontSize: 10.5, color: pal.faint }}>계산은 좌석번호로</div>
             </div>
           ) : (
-            <button onClick={() => setCheckinOpen(true)} style={{ height: 38, padding: '0 16px', borderRadius: 10, background: INK, color: '#fff', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => setCheckinOpen(true)} style={{ height: 38, padding: '0 16px', borderRadius: 10, background: dark ? '#fff' : INK, color: dark ? '#0c0c0e' : '#fff', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
               좌석 체크인
             </button>
           )}
         </div>
-        <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: '#f3f4f6', fontSize: 12, fontWeight: 600, color: '#4b5563' }}>
+        <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: pal.pill, fontSize: 12, fontWeight: 600, color: pal.pillText }}>
           <span style={{ width: 5, height: 5, borderRadius: '50%', background: LIVE_DOT[liveStatus] ?? '#34d399' }} />
           {LIVE_LABEL[liveStatus] ?? liveStatus}
         </div>
@@ -569,7 +577,7 @@ export default function TableClient({
           />
         )}
         {tab === 'menu' && (
-          <MenuList categories={categories} orderOn={orderOn} cart={cart} onTap={tapMenuItem} />
+          <MenuList categories={categories} orderOn={orderOn} cart={cart} onTap={tapMenuItem} dark={dark} />
         )}
         {tab === 'games' && <GamesTab onGoMenu={() => setTab('menu')} spotSlug={spot.slug} />}
         {tab === 'orders' && (
@@ -582,16 +590,16 @@ export default function TableClient({
         <button
           onClick={() => setCartOpen(true)}
           className="hsmt-fade-up"
-          style={{ position: 'fixed', left: 16, right: 16, bottom: 76, zIndex: 30, height: 52, borderRadius: 14, background: INK, color: '#fff', fontSize: 14.5, fontWeight: 800, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(17,24,39,0.25)' }}
+          style={{ position: 'fixed', left: 16, right: 16, bottom: 76, zIndex: 30, height: 52, borderRadius: 14, background: dark ? '#fff' : INK, color: dark ? '#0c0c0e' : '#fff', fontSize: 14.5, fontWeight: 800, border: 'none', cursor: 'pointer', boxShadow: dark ? '0 8px 28px rgba(0,0,0,0.5)' : '0 8px 24px rgba(17,24,39,0.25)' }}
         >
           {cartCount}개 · ₩{cartTotal.toLocaleString()} 주문하기
         </button>
       )}
 
       {/* ── 하단 탭 ── */}
-      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${LINE}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: dark ? 'rgba(14,14,17,0.94)' : 'rgba(255,255,255,0.96)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${pal.line}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {([['map', '좌석'], ['menu', '메뉴'], ['games', '술게임'], ['orders', '내 주문']] as const).map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{ height: 58, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: tab === key ? INK : FAINT }}>
+          <button key={key} onClick={() => setTab(key)} style={{ height: 58, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: tab === key ? pal.ink : pal.faint }}>
             {label}
           </button>
         ))}
@@ -646,7 +654,7 @@ export default function TableClient({
       )}
 
       {toast && (
-        <div key={toast} className="hsmt-toast" style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: INK, color: '#fff', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+        <div key={toast} className="hsmt-toast" style={{ position: 'fixed', left: '50%', bottom: 140, transform: 'translateX(-50%)', zIndex: 60, background: dark ? '#fff' : INK, color: dark ? '#111827' : '#fff', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 12, whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
           {toast}
         </div>
       )}
@@ -749,29 +757,34 @@ function MenuList({
   orderOn,
   cart,
   onTap,
+  dark = false,
 }: {
   categories: MenuCategory[];
   orderOn: boolean;
   cart: { item: MenuItem; qty: number }[];
   onTap: (item: MenuItem) => void;
+  dark?: boolean;
 }) {
   const [catId, setCatId] = useState(categories[0]?.id ?? '');
   const current = categories.find((c) => c.id === catId) ?? categories[0];
   if (!categories.length)
-    return <p style={{ textAlign: 'center', color: FAINT, fontSize: 13, padding: '40px 0' }}>메뉴가 아직 등록되지 않았어요.</p>;
+    return <p style={{ textAlign: 'center', color: dark ? 'rgba(255,255,255,0.42)' : FAINT, fontSize: 13, padding: '40px 0' }}>메뉴가 아직 등록되지 않았어요.</p>;
   const qtyOf = (id: string) => cart.find((c) => c.item.id === id)?.qty ?? 0;
   return (
     <div>
       <div style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 10, WebkitOverflowScrolling: 'touch' }}>
-        {categories.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setCatId(c.id)}
-            style={{ flexShrink: 0, padding: '8px 14px', borderRadius: 999, fontSize: 13, fontWeight: 700, border: '1px solid', borderColor: current?.id === c.id ? INK : LINE, background: current?.id === c.id ? INK : '#fff', color: current?.id === c.id ? '#fff' : '#374151', cursor: 'pointer' }}
-          >
-            {c.name}
-          </button>
-        ))}
+        {categories.map((c) => {
+          const active = current?.id === c.id;
+          return (
+            <button
+              key={c.id}
+              onClick={() => setCatId(c.id)}
+              style={{ flexShrink: 0, padding: '8px 14px', borderRadius: 999, fontSize: 13, fontWeight: 700, border: '1px solid', borderColor: active ? (dark ? '#fff' : INK) : (dark ? 'rgba(255,255,255,0.16)' : LINE), background: active ? (dark ? '#fff' : INK) : (dark ? 'transparent' : '#fff'), color: active ? (dark ? '#0c0c0e' : '#fff') : (dark ? 'rgba(255,255,255,0.72)' : '#374151'), cursor: 'pointer' }}
+            >
+              {c.name}
+            </button>
+          );
+        })}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
         {(current?.items ?? []).map((it) => {
@@ -781,20 +794,20 @@ function MenuList({
               key={it.id}
               onClick={() => onTap(it)}
               disabled={it.sold_out}
-              style={{ textAlign: 'left', background: '#fff', border: `1px solid ${inCart ? INK : LINE}`, borderRadius: 14, padding: '14px 16px', cursor: it.sold_out ? 'default' : 'pointer', opacity: it.sold_out ? 0.5 : 1, position: 'relative' }}
+              style={{ textAlign: 'left', background: dark ? 'rgba(255,255,255,0.05)' : '#fff', border: `1px solid ${inCart ? (dark ? 'rgba(255,255,255,0.85)' : INK) : (dark ? 'rgba(255,255,255,0.09)' : LINE)}`, borderRadius: 14, padding: '14px 16px', cursor: it.sold_out ? 'default' : 'pointer', opacity: it.sold_out ? 0.5 : 1, position: 'relative' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontSize: 14.5, fontWeight: 800, color: INK, letterSpacing: '-0.2px' }}>
+                <span style={{ fontSize: 14.5, fontWeight: 800, color: dark ? '#fff' : INK, letterSpacing: '-0.2px' }}>
                   {it.zero_action && '💬 '}
                   {it.name}
-                  {it.sold_out && <span style={{ fontSize: 11, color: '#dc2626', marginLeft: 6 }}>품절</span>}
+                  {it.sold_out && <span style={{ fontSize: 11, color: dark ? '#f87171' : '#dc2626', marginLeft: 6 }}>품절</span>}
                 </span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: INK, flexShrink: 0 }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: dark ? 'rgba(255,255,255,0.92)' : INK, flexShrink: 0 }}>
                   {it.price === 0 ? '₩0' : `₩${it.price.toLocaleString()}`}
                 </span>
               </div>
               {it.description && (
-                <p style={{ fontSize: 12, color: MUTED, marginTop: 4, lineHeight: 1.5 }}>{it.description}</p>
+                <p style={{ fontSize: 12, color: dark ? 'rgba(255,255,255,0.5)' : MUTED, marginTop: 4, lineHeight: 1.5 }}>{it.description}</p>
               )}
               {orderOn && inCart > 0 && (
                 <span key={inCart} className="hsmt-pop" style={{ position: 'absolute', top: -7, right: -5, minWidth: 22, height: 22, borderRadius: 999, background: ACCENT, color: '#fff', fontSize: 11.5, fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 6px' }}>

@@ -28,11 +28,11 @@ export default async function TablePage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ seat?: string }>;
+  searchParams: Promise<{ seat?: string; dark?: string }>;
 }) {
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
-  const { seat } = await searchParams;
+  const { seat, dark } = await searchParams; // dark=1: 다크 톤 실험 플래그
 
   const { data: spot } = await supabase
     .from('spots')
@@ -94,6 +94,7 @@ export default async function TablePage({
       seatParam={seat ?? null}
       checkinPurposes={(config.checkin_purposes as string[] | null) ?? null}
       checkinVibes={(config.checkin_vibes as string[] | null) ?? null}
+      darkParam={dark != null}
     />
   );
 }
