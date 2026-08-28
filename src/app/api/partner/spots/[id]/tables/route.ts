@@ -70,6 +70,16 @@ export async function PATCH(
     patch.live_status = body.live_status;
   }
 
+  // 신청곡 스위치 — modes jsonb에 병합 (기본 on, false일 때만 숨김)
+  if (typeof body.songs === 'boolean') {
+    const { data: cfg } = await supabaseAdmin()
+      .from('store_table_config')
+      .select('modes')
+      .eq('spot_id', id)
+      .maybeSingle();
+    patch.modes = { ...((cfg?.modes as Record<string, unknown>) ?? {}), songs: body.songs };
+  }
+
   // 체크인 선택지 커스텀 (null = 기본 목록으로 복귀)
   for (const key of ['checkin_purposes', 'checkin_vibes'] as const) {
     if (!(key in body)) continue;

@@ -76,6 +76,30 @@ function TablesHub() {
     }
   };
 
+  // 신청곡 스위치 — 기본 on(modes.songs !== false), 체크 즉시 저장
+  const [songsOn, setSongsOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetch(`/api/partner/spots/${id}/tables`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) setSongsOn((d.config?.modes as { songs?: boolean } | null)?.songs !== false);
+      })
+      .catch(() => {});
+  }, [id]);
+
+  const toggleSongs = async (next: boolean) => {
+    setSongsOn(next);
+    const res = await fetch(`/api/partner/spots/${id}/tables`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ songs: next }),
+    });
+    if (!res.ok) {
+      setSongsOn(!next);
+      alert('신청곡 설정 저장에 실패했어요. 다시 시도해주세요.');
+    }
+  };
+
   const toggle = (key: SectionKey) => setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
@@ -88,6 +112,10 @@ function TablesHub() {
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: enabled ? '#111827' : '#6b7280' }}>
               {enabled ? '서비스 ON' : '서비스 OFF'}
               <ToggleSwitch on={!!enabled} disabled={enabled === null} onChange={toggleEnabled} />
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: songsOn ? '#111827' : '#6b7280' }}>
+              🎵 신청곡
+              <ToggleSwitch on={!!songsOn} disabled={songsOn === null} onChange={toggleSongs} />
             </label>
             <Link href={`/partner/spot/${id}/orders`} style={buttonStyle('primary')}>
               주문 보드 열기 →
