@@ -36,7 +36,7 @@ export default async function TablePage({
 
   const { data: spot } = await supabase
     .from('spots')
-    .select('id, name, slug')
+    .select('id, name, slug, avatar_url')
     .eq('slug', slug)
     .maybeSingle();
 
