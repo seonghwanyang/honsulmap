@@ -28,11 +28,11 @@ export default async function TablePage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ seat?: string; dark?: string }>;
+  searchParams: Promise<{ seat?: string }>;
 }) {
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
-  const { seat, dark } = await searchParams; // dark=1: 다크 톤 실험 플래그
+  const { seat } = await searchParams;
 
   const { data: spot } = await supabase
     .from('spots')
@@ -94,18 +94,17 @@ export default async function TablePage({
       seatParam={seat ?? null}
       checkinPurposes={(config.checkin_purposes as string[] | null) ?? null}
       checkinVibes={(config.checkin_vibes as string[] | null) ?? null}
-      darkParam={dark != null}
     />
   );
 }
 
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: '100dvh', background: '#f8f9fa', display: 'grid', placeItems: 'center', padding: 24 }}>
+    <div style={{ minHeight: '100dvh', background: 'radial-gradient(85% 50% at 0% 0%, rgba(255,236,210,0.1) 0%, rgba(255,236,210,0) 60%), #0c0c0e', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.3px' }}>혼술맵 테이블</div>
-        <h1 style={{ fontSize: 20, fontWeight: 800, color: '#111827', margin: '6px 0 14px' }}>{title}</h1>
-        <p style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.7 }}>{children}</p>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.3px' }}>혼술맵 테이블</div>
+        <h1 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: '6px 0 14px' }}>{title}</h1>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>{children}</p>
       </div>
     </div>
   );

@@ -7,11 +7,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const INK = '#111827';
-const MUTED = '#6b7280';
-const FAINT = '#9ca3af';
-const LINE = '#e5e7eb';
-const ACCENT = '#7c3aed';
+const INK = '#f4f4f5';
+const MUTED = 'rgba(255,255,255,0.55)';
+const FAINT = 'rgba(255,255,255,0.42)';
+const LINE = 'rgba(255,255,255,0.12)';
+const ACCENT = '#a78bfa';
+const ACCENT_SOLID = '#7c3aed';
 
 const STORE_KEY = 'hsm_liar';
 
@@ -38,9 +39,9 @@ interface RoomView {
   me: { id: string; is_liar: boolean; my_vote: string | null } | null;
 }
 
-const bigBtn: React.CSSProperties = { width: '100%', height: 52, borderRadius: 13, background: INK, color: '#fff', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer' };
-const outBtn: React.CSSProperties = { width: '100%', height: 46, borderRadius: 12, background: '#fff', border: `1px solid ${LINE}`, fontSize: 13.5, fontWeight: 800, color: INK, cursor: 'pointer' };
-const input: React.CSSProperties = { width: '100%', height: 48, padding: '0 14px', borderRadius: 12, border: `1.5px solid ${LINE}`, fontSize: 15, color: INK, outline: 'none' };
+const bigBtn: React.CSSProperties = { width: '100%', height: 52, borderRadius: 13, background: '#fff', color: '#0c0c0e', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer' };
+const outBtn: React.CSSProperties = { width: '100%', height: 46, borderRadius: 12, background: 'rgba(255,255,255,0.07)', border: `1px solid ${LINE}`, fontSize: 13.5, fontWeight: 800, color: INK, cursor: 'pointer' };
+const input: React.CSSProperties = { width: '100%', height: 48, padding: '0 14px', borderRadius: 12, border: `1.5px solid ${LINE}`, background: 'rgba(255,255,255,0.06)', fontSize: 15, color: INK, outline: 'none' };
 
 export default function LiarGame({ onBack, spotSlug }: { onBack: () => void; spotSlug: string }) {
   const [session, setSession] = useState<{ code: string; pid: string } | null>(null);
@@ -169,7 +170,7 @@ export default function LiarGame({ onBack, spotSlug }: { onBack: () => void; spo
             </button>
           </div>
         )}
-        {err && <p style={{ color: '#dc2626', fontSize: 12.5, fontWeight: 700, marginTop: 12 }}>{err}</p>}
+        {err && <p style={{ color: '#f87171', fontSize: 12.5, fontWeight: 700, marginTop: 12 }}>{err}</p>}
       </Frame>
     );
   }
@@ -216,8 +217,8 @@ export default function LiarGame({ onBack, spotSlug }: { onBack: () => void; spo
           {me?.is_liar ? (
             <div style={{ borderRadius: 18, background: INK, padding: '28px 20px', textAlign: 'center' }}>
               <div style={{ fontSize: 34 }}>🤫</div>
-              <div style={{ fontSize: 19, fontWeight: 800, color: '#fff', marginTop: 8 }}>당신이 라이어!</div>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#a78bfa', marginTop: 10 }}>
+              <div style={{ fontSize: 19, fontWeight: 800, color: '#0c0c0e', marginTop: 8 }}>당신이 라이어!</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#7c3aed', marginTop: 10 }}>
                 카테고리: {room.category}
               </div>
               <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 10, lineHeight: 1.6 }}>
@@ -226,7 +227,7 @@ export default function LiarGame({ onBack, spotSlug }: { onBack: () => void; spo
               </div>
             </div>
           ) : (
-            <div style={{ borderRadius: 18, border: `2px solid ${ACCENT}`, background: '#fff', padding: '28px 20px', textAlign: 'center' }}>
+            <div style={{ borderRadius: 18, border: `2px solid ${ACCENT}`, background: 'rgba(255,255,255,0.05)', padding: '28px 20px', textAlign: 'center' }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: ACCENT }}>{room.category}</div>
               <div style={{ fontSize: 30, fontWeight: 800, color: INK, marginTop: 6 }}>{room.word}</div>
               <div style={{ fontSize: 12, color: FAINT, marginTop: 10, lineHeight: 1.6 }}>
@@ -259,7 +260,7 @@ export default function LiarGame({ onBack, spotSlug }: { onBack: () => void; spo
                   key={p.id}
                   onClick={() => act('vote', { target: p.id })}
                   disabled={busy}
-                  style={{ height: 52, borderRadius: 12, fontSize: 14.5, fontWeight: 800, border: '1.5px solid', borderColor: picked ? ACCENT : LINE, background: picked ? ACCENT : '#fff', color: picked ? '#fff' : INK, cursor: 'pointer' }}
+                  style={{ height: 52, borderRadius: 12, fontSize: 14.5, fontWeight: 800, border: '1.5px solid', borderColor: picked ? ACCENT : LINE, background: picked ? ACCENT_SOLID : 'rgba(255,255,255,0.07)', color: picked ? '#fff' : INK, cursor: 'pointer' }}
                 >
                   {p.nick} {picked && '✓'}
                 </button>
@@ -275,11 +276,11 @@ export default function LiarGame({ onBack, spotSlug }: { onBack: () => void; spo
       {/* ── 라이어 역추리 ── */}
       {room.phase === 'liar_guess' && (
         <>
-          <div style={{ borderRadius: 16, background: '#fef3c7', border: '2px solid #f59e0b', padding: '18px 16px', textAlign: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 14.5, fontWeight: 800, color: '#92400e' }}>
+          <div style={{ borderRadius: 16, background: 'rgba(245,158,11,0.15)', border: '2px solid rgba(245,158,11,0.55)', padding: '18px 16px', textAlign: 'center', marginBottom: 14 }}>
+            <div style={{ fontSize: 14.5, fontWeight: 800, color: '#fcd34d' }}>
               🎯 {accusedNick} 지목 — 라이어 적중!
             </div>
-            <div style={{ fontSize: 12, color: '#a16207', marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: '#fbbf24', marginTop: 4 }}>
               하지만 라이어가 제시어를 맞히면 역전승…
             </div>
           </div>
@@ -306,12 +307,12 @@ export default function LiarGame({ onBack, spotSlug }: { onBack: () => void; spo
       {/* ── 결과 ── */}
       {room.phase === 'done' && (
         <>
-          <div style={{ borderRadius: 18, border: `2px solid ${room.winner === 'liar' ? INK : ACCENT}`, background: room.winner === 'liar' ? INK : '#fff', padding: '26px 20px', textAlign: 'center' }}>
+          <div style={{ borderRadius: 18, border: `2px solid ${room.winner === 'liar' ? INK : ACCENT}`, background: room.winner === 'liar' ? INK : 'rgba(255,255,255,0.05)', padding: '26px 20px', textAlign: 'center' }}>
             <div style={{ fontSize: 34 }}>{room.winner === 'liar' ? '😈' : '🎉'}</div>
-            <div style={{ fontSize: 19, fontWeight: 800, color: room.winner === 'liar' ? '#fff' : INK, marginTop: 8 }}>
+            <div style={{ fontSize: 19, fontWeight: 800, color: room.winner === 'liar' ? '#0c0c0e' : INK, marginTop: 8 }}>
               {room.winner === 'liar' ? '라이어 승리!' : '시민 승리!'}
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: room.winner === 'liar' ? '#a78bfa' : ACCENT, marginTop: 10 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: room.winner === 'liar' ? '#7c3aed' : ACCENT, marginTop: 10 }}>
               라이어는 {liarNick} · 제시어는 &quot;{room.word}&quot;
             </div>
             {room.liar_guess && (
@@ -334,7 +335,7 @@ export default function LiarGame({ onBack, spotSlug }: { onBack: () => void; spo
         </>
       )}
 
-      {err && <p style={{ color: '#dc2626', fontSize: 12.5, fontWeight: 700, marginTop: 12 }}>{err}</p>}
+      {err && <p style={{ color: '#f87171', fontSize: 12.5, fontWeight: 700, marginTop: 12 }}>{err}</p>}
     </Frame>
   );
 }
@@ -345,7 +346,7 @@ function PlayerChips({ players, meId }: { players: PlayerView[]; meId?: string }
       {players.map((p) => (
         <span
           key={p.id}
-          style={{ padding: '8px 13px', borderRadius: 999, fontSize: 13, fontWeight: 800, background: p.id === meId ? INK : '#f3f4f6', color: p.id === meId ? '#fff' : INK }}
+          style={{ padding: '8px 13px', borderRadius: 999, fontSize: 13, fontWeight: 800, background: p.id === meId ? '#fff' : 'rgba(255,255,255,0.08)', color: p.id === meId ? '#0c0c0e' : INK }}
         >
           {p.is_host && '👑 '}
           {p.nick}
