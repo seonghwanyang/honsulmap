@@ -118,7 +118,7 @@ function getDeviceId(): string {
   return id;
 }
 const MBTIS = ['INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP'];
-const STATUS_LABEL: Record<string, string> = { new: '접수 대기', accepted: '준비 중', done: '완료', canceled: '취소됨' };
+const STATUS_LABEL: Record<string, string> = { new: '주문됨', accepted: '준비 중', done: '확인됨', canceled: '취소됨' };
 
 // 마이크로 애니메이션 — 라이브러리 없이 CSS 키프레임으로 (톤앤매너: 절제된 이징)
 const STYLES = `
