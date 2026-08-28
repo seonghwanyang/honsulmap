@@ -90,9 +90,9 @@ function QrSheet() {
             style={{ border: '1px solid #e5e7eb', borderRadius: 14, padding: '18px 14px', textAlign: 'center', background: '#fff' }}
           >
             <div style={{ fontSize: 11, fontWeight: 800, color: '#9ca3af', letterSpacing: '0.5px' }}>{spot?.name}</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#111827', margin: '3px 0 10px' }}>주문은 여기서 📱</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#111827', margin: '3px 0 10px', letterSpacing: '-0.2px' }}>주문은 여기서</div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={c.dataUrl} alt={`Seat ${c.label} QR`} style={{ width: '100%', maxWidth: 170, aspectRatio: '1' }} />
+            <img src={c.dataUrl} alt={`Seat ${c.label} QR`} style={{ display: 'block', width: '100%', maxWidth: 170, aspectRatio: '1', margin: '0 auto' }} />
             <div style={{ fontSize: 22, fontWeight: 800, color: '#111827', marginTop: 10 }}>Seat {c.label}</div>
             <div style={{ fontSize: 9.5, color: '#9ca3af', marginTop: 5, wordBreak: 'break-all' }}>{c.url.replace(/^https?:\/\//, '')}</div>
           </div>
