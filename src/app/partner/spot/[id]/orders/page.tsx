@@ -247,6 +247,21 @@ function OrdersBoard() {
     reload();
   };
 
+  const kickSeat = async (seat: BoardSeat) => {
+    if (!confirm(`Seat ${seat.label} 세션을 종료할까요?\n해당 손님은 다시 체크인해야 해요. (원격 장난 주문·유령 점유 정리용)`)) return;
+    setOccupied((prev) => {
+      const next = new Set(prev);
+      next.delete(seat.id);
+      return next;
+    });
+    await fetch(`/api/partner/spots/${id}/orders`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ end_seat_session: seat.id }),
+    });
+    reload();
+  };
+
   const setSongStatus = async (songId: string, status: Song['status']) => {
     setSongs((prev) => prev.map((s) => (s.id === songId ? { ...s, status } : s)));
     await fetch(`/api/partner/spots/${id}/songs`, {
@@ -392,6 +407,7 @@ function OrdersBoard() {
               {zones.reduce((acc, z) => acc + z.seats.filter((s) => s.seat_type === 'seat' && occupied.has(s.id)).length, 0)}/
               {zones.reduce((acc, z) => acc + z.seats.filter((s) => s.seat_type === 'seat').length, 0)} 사용 중
             </span>
+            <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>사용 중 좌석을 누르면 세션 종료</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {zones.map((z) => (
@@ -408,8 +424,10 @@ function OrdersBoard() {
                         return <div key={i} style={{ aspectRatio: '1', borderRadius: 6, background: '#f3f4f6' }} />;
                       const on = occupied.has(seat.id);
                       return (
-                        <div
+                        <button
                           key={i}
+                          onClick={() => on && kickSeat(seat)}
+                          title={on ? `Seat ${seat.label} 세션 종료` : undefined}
                           style={{
                             aspectRatio: '1',
                             borderRadius: 6,
@@ -417,13 +435,15 @@ function OrdersBoard() {
                             placeItems: 'center',
                             fontSize: 9.5,
                             fontWeight: 800,
+                            padding: 0,
                             background: on ? '#111827' : '#fff',
                             color: on ? '#fff' : '#9ca3af',
                             border: on ? '1.4px solid #111827' : seat.seat_type === 'buffer' ? '1.4px dashed #d1d5db' : '1.4px solid #d1d5db',
+                            cursor: on ? 'pointer' : 'default',
                           }}
                         >
                           {seat.label}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>

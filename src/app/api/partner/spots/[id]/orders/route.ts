@@ -74,6 +74,19 @@ export async function PATCH(
   if (!admin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
+
+  // 좌석 강제 비우기 — 원격 장난 세션/유령 점유를 보드에서 원터치로 정리.
+  if (typeof body.end_seat_session === 'string' && body.end_seat_session) {
+    const { error } = await admin
+      .from('table_sessions')
+      .update({ active: false })
+      .eq('spot_id', id)
+      .eq('seat_id', body.end_seat_session)
+      .eq('active', true);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
   const orderId = typeof body.order_id === 'string' ? body.order_id : '';
   const status = typeof body.status === 'string' ? body.status : '';
   if (!orderId || !VALID_STATUSES.includes(status as (typeof VALID_STATUSES)[number]))
