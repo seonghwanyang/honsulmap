@@ -32,13 +32,22 @@ export async function GET(
   const admin = await assertMember(id);
   if (!admin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const { data: orders } = await admin
-    .from('table_orders')
-    .select('id, seat_label, status, total, created_at, items:table_order_items(item_name, price, qty, request, gift_target_seat)')
-    .eq('spot_id', id)
-    .gte('created_at', businessDayStart())
-    .order('created_at', { ascending: false })
-    .limit(200);
+  const [{ data: orders }, { data: occ }] = await Promise.all([
+    admin
+      .from('table_orders')
+      .select('id, seat_label, status, total, created_at, items:table_order_items(item_name, price, qty, request, gift_target_seat)')
+      .eq('spot_id', id)
+      .gte('created_at', businessDayStart())
+      .order('created_at', { ascending: false })
+      .limit(200),
+    // 미니 좌석맵용 점유 현황 — 활성 세션의 좌석 id
+    admin
+      .from('table_sessions')
+      .select('seat_id')
+      .eq('spot_id', id)
+      .eq('active', true)
+      .gt('expires_at', new Date().toISOString()),
+  ]);
 
   const list = orders ?? [];
   const seatTotals: Record<string, number> = {};
@@ -47,7 +56,11 @@ export async function GET(
     seatTotals[o.seat_label] = (seatTotals[o.seat_label] ?? 0) + (o.total ?? 0);
   }
 
-  return NextResponse.json({ orders: list, seat_totals: seatTotals });
+  return NextResponse.json({
+    orders: list,
+    seat_totals: seatTotals,
+    occupied_seat_ids: (occ ?? []).map((s) => s.seat_id),
+  });
 }
 
 const VALID_STATUSES = ['new', 'accepted', 'done', 'canceled'] as const;

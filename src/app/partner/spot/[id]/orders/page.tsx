@@ -42,6 +42,20 @@ interface Song {
   status: 'queued' | 'played' | 'skipped';
   created_at: string;
 }
+interface BoardSeat {
+  id: string;
+  label: string;
+  row: number;
+  col: number;
+  seat_type: 'seat' | 'buffer' | 'block';
+}
+interface BoardZone {
+  id: string;
+  name: string;
+  grid_rows: number;
+  grid_cols: number;
+  seats: BoardSeat[];
+}
 
 const LIVE_OPTIONS: { value: string; label: string }[] = [
   { value: 'ready', label: '☕ 준비 중' },
@@ -51,19 +65,32 @@ const LIVE_OPTIONS: { value: string; label: string }[] = [
   { value: 'closed', label: '휴무' },
 ];
 
-function beep() {
+// 도어차임 스타일 딩-동 (B5→E6) — 순수 WebAudio 합성이라 소리 파일 불필요.
+// soft=true는 미접수 리마인더용 (한 음, 더 작게).
+function beep(soft = false) {
   try {
     const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.5);
-    osc.onended = () => ctx.close();
+    const note = (freq: number, t0: number, dur: number, peak: number) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(g);
+      g.connect(ctx.destination);
+      const t = ctx.currentTime + t0;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(peak, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.start(t);
+      osc.stop(t + dur);
+    };
+    if (soft) {
+      note(987.77, 0, 0.7, 0.09); // B5 한 음, 낮은 볼륨
+    } else {
+      note(987.77, 0, 0.9, 0.16); // B5 "딩"
+      note(1318.51, 0.13, 1.1, 0.15); // E6 "동"
+    }
+    setTimeout(() => ctx.close(), 1600);
   } catch {
     /* 오디오 권한 없으면 무음 */
   }
@@ -86,17 +113,31 @@ function OrdersBoard() {
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
   const knownIds = useRef<Set<string> | null>(null);
+  // 미니 좌석맵 + 채팅 배지 + 미접수 리마인더용
+  const [zones, setZones] = useState<BoardZone[]>([]);
+  const [spotSlug, setSpotSlug] = useState('');
+  const [occupied, setOccupied] = useState<Set<string>>(new Set());
+  const [chatNew, setChatNew] = useState(0); // 보드 켠 이후 새 채팅 수
+  const chatBase = useRef<number | null>(null);
+  const waitingRef = useRef(0);
 
   const reload = useCallback(async () => {
-    const [res, qRes, sRes] = await Promise.all([
+    const [res, qRes, sRes, cRes] = await Promise.all([
       fetch(`/api/partner/spots/${id}/orders`),
       fetch(`/api/partner/spots/${id}/quests`),
       fetch(`/api/partner/spots/${id}/songs`),
+      fetch(`/api/chat/${id}`), // 공개 GET — message_count로 새 채팅 배지
     ]);
     if (!res.ok) return;
     const d = await res.json();
     const q = qRes.ok ? await qRes.json() : { claims: [] };
     const s = sRes.ok ? await sRes.json() : { songs: [] };
+    if (cRes.ok) {
+      const c = await cRes.json();
+      const count: number = c.message_count ?? 0;
+      if (chatBase.current === null) chatBase.current = count; // 첫 로드 기준점
+      setChatNew(Math.max(0, count - chatBase.current));
+    }
     const list: Order[] = d.orders ?? [];
     const claimList: QuestClaim[] = q.claims ?? [];
     const songList: Song[] = s.songs ?? [];
@@ -117,15 +158,48 @@ function OrdersBoard() {
     setSeatTotals(d.seat_totals ?? {});
     setClaims(claimList);
     setSongs(songList);
+    setOccupied(new Set<string>(d.occupied_seat_ids ?? []));
     setLoading(false);
   }, [id]);
 
   useEffect(() => {
     fetch(`/api/partner/spots/${id}/tables`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.config?.live_status && setLiveStatus(d.config.live_status))
+      .then((d) => {
+        if (d?.config?.live_status) setLiveStatus(d.config.live_status);
+        if (d?.zones) setZones(d.zones); // 미니 좌석맵 배치도
+        if (d?.spot?.slug) setSpotSlug(d.spot.slug);
+      })
       .catch(() => {});
   }, [id]);
+
+  // 미접수 리마인더 — "접수 대기"가 남아 있으면 30초마다 부드러운 한 음.
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (waitingRef.current > 0) beep(true);
+    }, 30000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // 화면 꺼짐 방지 — 영업 중 보드를 켜두는 화면이라 Wake Lock 유지.
+  useEffect(() => {
+    let lock: { release: () => Promise<void> } | null = null;
+    const acquire = async () => {
+      try {
+        type WakeLockNav = Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } };
+        lock = (await (navigator as WakeLockNav).wakeLock?.request('screen')) ?? null;
+      } catch {
+        /* 미지원/저전력 모드면 무시 */
+      }
+    };
+    acquire();
+    const onVisible = () => document.visibilityState === 'visible' && acquire();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      lock?.release().catch(() => {});
+    };
+  }, []);
 
   const setLive = async (v: string) => {
     setLiveStatus(v);
@@ -135,6 +209,17 @@ function OrdersBoard() {
       body: JSON.stringify({ live_status: v }),
     });
   };
+
+  // 탭 배지 — 브라우저 탭 제목에 처리 대기 건수. 리마인더 카운터도 여기서 동기화.
+  useEffect(() => {
+    const newOrders = orders.filter((o) => o.status === 'new').length;
+    waitingRef.current = newOrders;
+    const n =
+      newOrders +
+      songs.filter((s) => s.status === 'queued').length +
+      claims.filter((c) => c.status === 'claimed').length;
+    document.title = n > 0 ? `(${n}) 주문 보드 | 혼술맵` : '주문 보드 | 혼술맵';
+  }, [orders, songs, claims]);
 
   const rewardClaim = async (claimId: string) => {
     setClaims((prev) => prev.map((c) => (c.id === claimId ? { ...c, status: 'rewarded' } : c)));
@@ -201,10 +286,18 @@ function OrdersBoard() {
         }
       />
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <Link href={`/partner/spot/${id}/tables`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
           ← 테이블 설정 (배치도·메뉴·퀘스트)
         </Link>
+        {chatNew > 0 && spotSlug && (
+          <Link
+            href={`/spot/${spotSlug}`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 14px', borderRadius: 10, background: '#f5f3ff', border: '1px solid #ddd6fe', fontSize: 12.5, fontWeight: 800, color: '#7c3aed', textDecoration: 'none' }}
+          >
+            💬 새 채팅 {chatNew}개 →
+          </Link>
+        )}
       </div>
 
       {/* 라이브 상태 원터치 — 손님 페이지 배지에 즉시 반영 */}
@@ -289,6 +382,57 @@ function OrdersBoard() {
 
       {waiting.length > 0 && <Section label={`접수 대기 ${waiting.length}`}>{waiting.map((o) => <OrderCard key={o.id} o={o} onStatus={setStatus} />)}</Section>}
       {working.length > 0 && <Section label={`준비 중 ${working.length}`}>{working.map((o) => <OrderCard key={o.id} o={o} onStatus={setStatus} />)}</Section>}
+
+      {/* 미니 좌석맵 — 지금 홀 상황 (읽기 전용, 5초 폴링 반영) */}
+      {zones.length > 0 && (
+        <Card style={{ padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 800, color: '#6b7280' }}>지금 홀 상황</h2>
+            <span style={{ fontSize: 11.5, color: '#9ca3af', fontWeight: 600 }}>
+              {zones.reduce((acc, z) => acc + z.seats.filter((s) => s.seat_type === 'seat' && occupied.has(s.id)).length, 0)}/
+              {zones.reduce((acc, z) => acc + z.seats.filter((s) => s.seat_type === 'seat').length, 0)} 사용 중
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {zones.map((z) => (
+              <div key={z.id}>
+                <div style={{ fontSize: 11.5, fontWeight: 800, color: '#374151', marginBottom: 6 }}>{z.name}</div>
+                <div style={{ overflowX: 'auto' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${z.grid_cols}, minmax(24px, 30px))`, gap: 4 }}>
+                    {Array.from({ length: z.grid_rows * z.grid_cols }, (_, i) => {
+                      const row = Math.floor(i / z.grid_cols);
+                      const col = i % z.grid_cols;
+                      const seat = z.seats.find((s) => s.row === row && s.col === col);
+                      if (!seat) return <div key={i} style={{ aspectRatio: '1' }} />;
+                      if (seat.seat_type === 'block')
+                        return <div key={i} style={{ aspectRatio: '1', borderRadius: 6, background: '#f3f4f6' }} />;
+                      const on = occupied.has(seat.id);
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            aspectRatio: '1',
+                            borderRadius: 6,
+                            display: 'grid',
+                            placeItems: 'center',
+                            fontSize: 9.5,
+                            fontWeight: 800,
+                            background: on ? '#111827' : '#fff',
+                            color: on ? '#fff' : '#9ca3af',
+                            border: on ? '1.4px solid #111827' : seat.seat_type === 'buffer' ? '1.4px dashed #d1d5db' : '1.4px solid #d1d5db',
+                          }}
+                        >
+                          {seat.label}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* 좌석별 누적 — 카운터 계산 대조용 */}
       {Object.keys(seatTotals).length > 0 && (
