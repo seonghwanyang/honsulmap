@@ -34,6 +34,14 @@ interface QuestClaim {
   reward: string;
   seat_label: string;
 }
+interface Song {
+  id: string;
+  seat_label: string;
+  title: string;
+  artist: string | null;
+  status: 'queued' | 'played' | 'skipped';
+  created_at: string;
+}
 
 const LIVE_OPTIONS: { value: string; label: string }[] = [
   { value: 'ready', label: '☕ 준비 중' },
@@ -73,32 +81,42 @@ function OrdersBoard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [seatTotals, setSeatTotals] = useState<Record<string, number>>({});
   const [claims, setClaims] = useState<QuestClaim[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
   const [liveStatus, setLiveStatus] = useState<string>('open');
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
   const knownIds = useRef<Set<string> | null>(null);
 
   const reload = useCallback(async () => {
-    const [res, qRes] = await Promise.all([
+    const [res, qRes, sRes] = await Promise.all([
       fetch(`/api/partner/spots/${id}/orders`),
       fetch(`/api/partner/spots/${id}/quests`),
+      fetch(`/api/partner/spots/${id}/songs`),
     ]);
     if (!res.ok) return;
     const d = await res.json();
     const q = qRes.ok ? await qRes.json() : { claims: [] };
+    const s = sRes.ok ? await sRes.json() : { songs: [] };
     const list: Order[] = d.orders ?? [];
     const claimList: QuestClaim[] = q.claims ?? [];
-    // 첫 로드는 소리 없이, 이후 새 주문/새 달성 등장 시 비프
+    const songList: Song[] = s.songs ?? [];
+    // 첫 로드는 소리 없이, 이후 새 주문/새 달성/새 신청곡 등장 시 비프
     if (knownIds.current) {
       const fresh =
         list.some((o) => !knownIds.current!.has(o.id)) ||
-        claimList.some((c) => !knownIds.current!.has(c.id));
+        claimList.some((c) => !knownIds.current!.has(c.id)) ||
+        songList.some((sg) => !knownIds.current!.has(sg.id));
       if (fresh) beep();
     }
-    knownIds.current = new Set([...list.map((o) => o.id), ...claimList.map((c) => c.id)]);
+    knownIds.current = new Set([
+      ...list.map((o) => o.id),
+      ...claimList.map((c) => c.id),
+      ...songList.map((sg) => sg.id),
+    ]);
     setOrders(list);
     setSeatTotals(d.seat_totals ?? {});
     setClaims(claimList);
+    setSongs(songList);
     setLoading(false);
   }, [id]);
 
@@ -140,6 +158,16 @@ function OrdersBoard() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order_id: orderId, status }),
+    });
+    reload();
+  };
+
+  const setSongStatus = async (songId: string, status: Song['status']) => {
+    setSongs((prev) => prev.map((s) => (s.id === songId ? { ...s, status } : s)));
+    await fetch(`/api/partner/spots/${id}/songs`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: songId, status }),
     });
     reload();
   };
@@ -214,6 +242,40 @@ function OrdersBoard() {
                 >
                   보상 지급 완료
                 </button>
+              </Card>
+            ))}
+        </Section>
+      )}
+
+      {/* 신청곡 큐 — 재생/패스 처리 */}
+      {songs.filter((s) => s.status === 'queued').length > 0 && (
+        <Section label={`신청곡 ${songs.filter((s) => s.status === 'queued').length}`}>
+          {songs
+            .filter((s) => s.status === 'queued')
+            .map((s) => (
+              <Card key={s.id} style={{ padding: '13px 16px', borderLeft: '4px solid #7c3aed' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#111827' }}>
+                    🎵 {s.title}
+                    {s.artist && <span style={{ fontWeight: 600, color: '#6b7280' }}> — {s.artist}</span>}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: '#7c3aed' }}>Seat {s.seat_label}</span>
+                  <span style={{ fontSize: 11.5, color: '#9ca3af', fontWeight: 600 }}>{timeAgo(s.created_at)}</span>
+                  <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={() => setSongStatus(s.id, 'played')}
+                      style={{ height: 34, padding: '0 13px', borderRadius: 9, background: '#111827', color: '#fff', fontSize: 12, fontWeight: 800, border: 'none', cursor: 'pointer' }}
+                    >
+                      재생됨
+                    </button>
+                    <button
+                      onClick={() => setSongStatus(s.id, 'skipped')}
+                      style={{ height: 34, padding: '0 13px', borderRadius: 9, background: '#fff', color: '#6b7280', fontSize: 12, fontWeight: 700, border: '1px solid #e5e7eb', cursor: 'pointer' }}
+                    >
+                      패스
+                    </button>
+                  </span>
+                </div>
               </Card>
             ))}
         </Section>
