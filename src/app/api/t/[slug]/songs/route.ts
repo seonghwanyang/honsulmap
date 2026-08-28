@@ -23,6 +23,16 @@ export async function GET(
   if (!spot) return NextResponse.json({ error: '가게를 찾을 수 없어요.' }, { status: 404 });
 
   const admin = supabaseAdmin();
+  // 사장님이 신청곡을 끈 가게 — UI 숨김
+  const { data: cfg } = await admin
+    .from('store_table_config')
+    .select('modes')
+    .eq('spot_id', spot.id)
+    .maybeSingle();
+  if ((cfg?.modes as { songs?: boolean } | null)?.songs === false) {
+    return NextResponse.json({ songs: [], available: false });
+  }
+
   const { data, error } = await admin
     .from('song_requests')
     .select('id, seat_label, title, artist, status, created_at')
@@ -58,6 +68,15 @@ export async function POST(
   if (!title) return NextResponse.json({ error: '곡명을 입력해주세요.' }, { status: 400 });
 
   const admin = supabaseAdmin();
+  const { data: cfg } = await admin
+    .from('store_table_config')
+    .select('modes')
+    .eq('spot_id', spot.id)
+    .maybeSingle();
+  if ((cfg?.modes as { songs?: boolean } | null)?.songs === false) {
+    return NextResponse.json({ error: '이 가게는 지금 신청곡을 받지 않아요.' }, { status: 403 });
+  }
+
   const { data: session } = await admin
     .from('table_sessions')
     .select('id, spot_id, seat_id, active, expires_at')
