@@ -6,6 +6,7 @@ import { useUser } from '@/lib/useUser';
 import Image from 'next/image';
 import LoginModal from '@/components/LoginModal';
 import ReportModal from '@/components/ReportModal';
+import { isBlockedNick } from '@/lib/blocklist';
 import type { ChatMessage } from '@/lib/types';
 import { chatNick, chatAvatar } from '@/lib/chatNick';
 
@@ -42,7 +43,8 @@ export default function ChatRoom({
   const [err, setErr] = useState<string | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(true);
-  const [reportTarget, setReportTarget] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
+  const [, forceBlocked] = useState(0); // 차단 시 재렌더로 메시지 숨김 반영
 
   const listRef = useRef<HTMLDivElement | null>(null);
   // 이미 가진 메시지 id — Realtime 에코/POST 응답 중복 방지.
@@ -293,6 +295,7 @@ export default function ChatRoom({
         ) : (
           <div className="flex flex-col gap-2">
             {[...messages]
+              .filter((m) => m.user_id === user?.id || !isBlockedNick(m.name))
               .sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0))
               .map((m) => {
               const mine = m.user_id === user?.id;
@@ -366,7 +369,7 @@ export default function ChatRoom({
                         {!mine && (
                           <button
                             type="button"
-                            onClick={() => setReportTarget(m.id)}
+                            onClick={() => setReportTarget({ id: m.id, name: m.name })}
                             style={{ fontSize: 10.5, color: '#9ca3af', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                           >
                             신고
@@ -451,7 +454,9 @@ export default function ChatRoom({
         open={reportTarget !== null}
         onClose={() => setReportTarget(null)}
         targetType="chat_message"
-        targetId={reportTarget ?? ''}
+        targetId={reportTarget?.id ?? ''}
+        authorNickname={reportTarget?.name}
+        onBlocked={() => forceBlocked((n) => n + 1)}
       />
     </div>
   );

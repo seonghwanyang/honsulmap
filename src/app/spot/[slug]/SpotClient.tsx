@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import ReportModal from '@/components/ReportModal';
+import { isBlockedNick } from '@/lib/blocklist';
 import InlineAd from '@/components/ads/InlineAd';
 import { INLINE_AD_UNITS } from '@/lib/ads/config';
 import { Spot, SpotWithStories, Story } from '@/lib/types';
@@ -84,7 +85,8 @@ function CommentSection({ spotId }: { spotId: string }) {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [reportId, setReportId] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ id: string; nick: string } | null>(null);
+  const [, forceBlocked] = useState(0); // 차단 시 재렌더로 숨김 반영
 
   useEffect(() => {
     const fetch_ = async () => {
@@ -179,7 +181,7 @@ function CommentSection({ spotId }: { spotId: string }) {
       </form>
 
       <div className="divide-y" style={{ borderColor: '#f3f4f6' }}>
-        {comments.map((c) => (
+        {comments.filter((c) => !isBlockedNick(c.nickname)).map((c) => (
           <div key={c.id} className="py-3">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-semibold" style={{ color: '#111827' }}>
@@ -189,7 +191,7 @@ function CommentSection({ spotId }: { spotId: string }) {
                 {relativeTime(c.created_at)}
               </span>
               <button
-                onClick={() => setReportId(c.id)}
+                onClick={() => setReportTarget({ id: c.id, nick: c.nickname })}
                 className="ml-auto text-xs"
                 style={{ color: '#9ca3af' }}
               >
@@ -204,10 +206,12 @@ function CommentSection({ spotId }: { spotId: string }) {
       </div>
 
       <ReportModal
-        open={!!reportId}
-        onClose={() => setReportId(null)}
+        open={!!reportTarget}
+        onClose={() => setReportTarget(null)}
         targetType="comment"
-        targetId={reportId || ''}
+        targetId={reportTarget?.id || ''}
+        authorNickname={reportTarget?.nick}
+        onBlocked={() => forceBlocked((n) => n + 1)}
       />
     </div>
   );
