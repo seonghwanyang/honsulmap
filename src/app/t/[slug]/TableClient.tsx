@@ -181,7 +181,7 @@ export default function TableClient({
   // 다크 실험 (?dark=1) — 랜딩의 차콜 톤을 메인 화면까지. 기본은 라이트 유지.
   const dark = !!darkParam;
   const pal = dark
-    ? { bg: '#0c0c0e', chrome: 'rgba(14,14,17,0.92)', line: 'rgba(255,255,255,0.09)', ink: '#fff', muted: 'rgba(255,255,255,0.55)', faint: 'rgba(255,255,255,0.42)', pill: 'rgba(255,255,255,0.07)', pillText: 'rgba(255,255,255,0.68)', accent: '#a78bfa' }
+    ? { bg: 'radial-gradient(85% 46% at 0% 0%, rgba(255,236,210,0.11) 0%, rgba(255,236,210,0.035) 38%, rgba(255,236,210,0) 62%), #0c0c0e', chrome: 'rgba(14,14,17,0.66)', line: 'rgba(255,255,255,0.09)', ink: '#fff', muted: 'rgba(255,255,255,0.55)', faint: 'rgba(255,255,255,0.42)', pill: 'rgba(255,255,255,0.07)', pillText: 'rgba(255,255,255,0.68)', accent: '#a78bfa' }
     : { bg: '#f8f9fa', chrome: 'rgba(255,255,255,0.94)', line: LINE, ink: INK, muted: MUTED, faint: FAINT, pill: '#f3f4f6', pillText: '#4b5563', accent: ACCENT };
 
   // 손님 여정 (우우 벤치마크): 랜딩(브랜드+라이브 상태+큰 버튼 3개) → 체크인 → 홈.
@@ -384,7 +384,7 @@ export default function TableClient({
   // ═══ 랜딩 — 가게의 문 앞 (우우 여정 벤치마크: 브랜드 → 체크인/메뉴/게임) ═══
   if (view === 'landing' && !session) {
     return (
-      <div style={{ minHeight: '100dvh', background: 'radial-gradient(120% 85% at 50% 0%, #1b1b1f 0%, #111114 48%, #0a0a0c 100%)', display: 'flex', flexDirection: 'column', padding: '0 26px' }}>
+      <div style={{ minHeight: '100dvh', background: 'radial-gradient(85% 50% at 0% 0%, rgba(255,236,210,0.13) 0%, rgba(255,236,210,0.04) 36%, rgba(255,236,210,0) 62%), radial-gradient(120% 85% at 50% 0%, #1b1b1f 0%, #111114 48%, #0a0a0c 100%)', display: 'flex', flexDirection: 'column', padding: '0 26px' }}>
         <style>{STYLES}</style>
         <div className="hsmt-fade-up hsmt-d1" style={{ paddingTop: 'max(30px, env(safe-area-inset-top))', textAlign: 'center' }}>
           <span className={marcellus.className} style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', letterSpacing: '4px' }}>
