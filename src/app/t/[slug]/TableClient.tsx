@@ -307,17 +307,31 @@ export default function TableClient({
   );
 
   // ── 주문 전송 ──
+  // 멱등키 — 같은 내용의 재시도(전송 실패 후 재탭)는 같은 키를 재사용해 서버가
+  // 중복 insert를 거르고, 성공하거나 내용이 바뀌면 새 키를 발급한다.
+  const orderKeyRef = useRef<{ sig: string; key: string } | null>(null);
+
   const submitOrder = useCallback(
     async (items: { id: string; qty: number; request?: string; gift_target_seat?: string }[], successMsg: string) => {
       if (!session) {
         setCheckinOpen(true);
         return false;
       }
+      const sig = JSON.stringify(items);
+      if (!orderKeyRef.current || orderKeyRef.current.sig !== sig) {
+        orderKeyRef.current = {
+          sig,
+          key:
+            typeof crypto !== 'undefined' && 'randomUUID' in crypto
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        };
+      }
       setBusy(true);
       const res = await fetch(`/api/t/${spot.slug}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: session.id, items }),
+        body: JSON.stringify({ session_id: session.id, items, client_key: orderKeyRef.current.key }),
       });
       setBusy(false);
       const d = await res.json().catch(() => ({}));
@@ -330,6 +344,7 @@ export default function TableClient({
         showToast(d.error || '전송에 실패했어요.');
         return false;
       }
+      orderKeyRef.current = null; // 성공 — 다음 주문은 새 키 (같은 메뉴 또 시켜도 정상 접수)
       showToast(successMsg);
       refreshOrders();
       return true;

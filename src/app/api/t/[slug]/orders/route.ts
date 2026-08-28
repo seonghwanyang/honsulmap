@@ -107,12 +107,34 @@ export async function POST(
 
   const total = inputs.reduce((acc, it) => acc + byId.get(it.id)!.price * it.qty, 0);
 
-  const { data: order, error: oErr } = await admin
+  // 멱등키 — 재시도/재탭으로 같은 주문이 두 번 들어가면 기존 주문을 성공으로 재응답.
+  const clientKey =
+    typeof body.client_key === 'string' && body.client_key.length > 0 && body.client_key.length <= 64
+      ? body.client_key
+      : null;
+  const baseRow = { spot_id: spot.id, session_id: session.id, seat_label: seat?.label ?? '?', total };
+  let ins = await admin
     .from('table_orders')
-    .insert({ spot_id: spot.id, session_id: session.id, seat_label: seat?.label ?? '?', total })
+    .insert(clientKey ? { ...baseRow, client_key: clientKey } : baseRow)
     .select('id')
     .single();
-  if (oErr) return NextResponse.json({ error: oErr.message }, { status: 500 });
+  if (ins.error && clientKey) {
+    const msg = ins.error.message ?? '';
+    if (ins.error.code === '23505' || msg.includes('duplicate')) {
+      const { data: dup } = await admin
+        .from('table_orders')
+        .select('id, total')
+        .eq('client_key', clientKey)
+        .maybeSingle();
+      if (dup) return NextResponse.json({ ok: true, order_id: dup.id, total: dup.total, deduped: true });
+    }
+    // 마이그레이션(2026-08-30_order_client_key.sql) 전 — 키 없이 재시도
+    if (msg.includes('client_key')) {
+      ins = await admin.from('table_orders').insert(baseRow).select('id').single();
+    }
+  }
+  const order = ins.data;
+  if (ins.error || !order) return NextResponse.json({ error: ins.error?.message ?? '주문 저장에 실패했어요.' }, { status: 500 });
 
   const { error: iErr } = await admin.from('table_order_items').insert(
     inputs.map((it) => {

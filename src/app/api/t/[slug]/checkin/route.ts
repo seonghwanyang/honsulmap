@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { sessionExpiry } from '@/lib/tableDay';
 
 // 좌석 체크인 — 좌석 번호만 입력하면 시작. 사람 구분은 브라우저가 조용히
@@ -66,6 +67,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  if (!(await rateLimit('table-checkin', clientIp(request), 60, 8))) {
+    return NextResponse.json({ error: '체크인 시도가 너무 잦아요. 잠시 후 다시 해주세요.' }, { status: 429 });
+  }
+
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
   const spot = await loadSpot(slug);
