@@ -5,8 +5,12 @@
 // ₩0 아이템(호출·추천·신고·선물)은 장바구니 없이 원탭 전송.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Marcellus } from 'next/font/google';
 import { DEFAULT_PURPOSES, DEFAULT_VIBES } from '@/lib/checkinDefaults';
 import GamesTab from './GamesTab';
+
+// 라틴 디스플레이 서체 — HONSULMAP TABLE / SEAT 표기 전용 (칵테일 메뉴판 무드)
+const marcellus = Marcellus({ weight: '400', subsets: ['latin'] });
 
 type SeatType = 'seat' | 'buffer' | 'block';
 export interface Zone {
@@ -75,11 +79,19 @@ const LINE = '#e5e7eb';
 const ACCENT = '#7c3aed';
 
 const LIVE_LABEL: Record<string, string> = {
-  ready: '☕ 오픈 준비 중',
-  open: '🟢 자리 여유 있어요',
-  busy: '⚡ 빠르게 자리 차는 중',
-  full: '🔴 지금 만석이에요',
+  ready: '오픈 준비 중',
+  open: '자리 여유 있어요',
+  busy: '빠르게 자리 차는 중',
+  full: '지금 만석이에요',
   closed: '오늘은 휴무예요',
+};
+// 상태 점 색 — 이모지 대신 작은 컬러 도트로 (세련된 미니멀)
+const LIVE_DOT: Record<string, string> = {
+  ready: '#fbbf24',
+  open: '#34d399',
+  busy: '#fb923c',
+  full: '#f87171',
+  closed: '#9ca3af',
 };
 const AGE_BANDS = ['20대 초반', '20대 중반', '20대 후반', '30대 초반', '30대 중반', '30대 후반', '40대+'];
 // 체크인 선택지 기본값 — 사장님이 테이블 설정에서 가게별로 덮어쓸 수 있다
@@ -364,10 +376,10 @@ export default function TableClient({
   // ═══ 랜딩 — 가게의 문 앞 (우우 여정 벤치마크: 브랜드 → 체크인/메뉴/게임) ═══
   if (view === 'landing' && !session) {
     return (
-      <div style={{ minHeight: '100dvh', background: INK, display: 'flex', flexDirection: 'column', padding: '0 26px' }}>
+      <div style={{ minHeight: '100dvh', background: 'radial-gradient(120% 85% at 50% 0%, #1b1b1f 0%, #111114 48%, #0a0a0c 100%)', display: 'flex', flexDirection: 'column', padding: '0 26px' }}>
         <style>{STYLES}</style>
         <div className="hsmt-fade-up hsmt-d1" style={{ paddingTop: 'max(30px, env(safe-area-inset-top))', textAlign: 'center' }}>
-          <span style={{ fontSize: 10.5, fontWeight: 800, color: 'rgba(255,255,255,0.35)', letterSpacing: '3px' }}>
+          <span className={marcellus.className} style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', letterSpacing: '4px' }}>
             HONSULMAP TABLE
           </span>
         </div>
@@ -383,10 +395,10 @@ export default function TableClient({
                   alt={spot.name}
                   width={88}
                   height={88}
-                  style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.16)', boxShadow: '0 0 44px rgba(124, 58, 237, 0.28)' }}
+                  style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 0 0 7px rgba(255,255,255,0.04), 0 22px 60px rgba(0,0,0,0.55)' }}
                 />
               ) : (
-                <div style={{ width: 88, height: 88, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.16)', display: 'grid', placeItems: 'center', fontSize: 34, fontWeight: 800, color: 'rgba(255,255,255,0.85)', boxShadow: '0 0 44px rgba(124, 58, 237, 0.28)' }}>
+                <div style={{ width: 88, height: 88, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', fontSize: 34, fontWeight: 800, color: 'rgba(255,255,255,0.85)', boxShadow: '0 0 0 7px rgba(255,255,255,0.04), 0 22px 60px rgba(0,0,0,0.55)' }}>
                   {spot.name.slice(0, 1)}
                 </div>
               )}
@@ -394,17 +406,21 @@ export default function TableClient({
             <h1 className="hsmt-fade-up hsmt-d2" style={{ fontSize: 29, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1.3, wordBreak: 'keep-all' }}>
               {spot.name}
             </h1>
-            <div className="hsmt-fade-up hsmt-d3" style={{ width: 28, height: 1, background: 'rgba(255,255,255,0.25)', margin: '20px auto' }} />
+            <div className="hsmt-fade-up hsmt-d3" style={{ width: 44, height: 1, background: 'linear-gradient(90deg, transparent, rgba(167,139,250,0.55), transparent)', margin: '20px auto' }} />
             <p className="hsmt-fade-up hsmt-d3" style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.8 }}>
               혼자 와도, 어색하지 않게.
             </p>
-            <div className="hsmt-fade-up hsmt-d3" style={{ marginTop: 24, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 15px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa' }} />
+            <div className="hsmt-fade-up hsmt-d3" style={{ marginTop: 26, display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,0.66)', letterSpacing: '0.2px' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: LIVE_DOT[liveStatus] ?? '#34d399', boxShadow: `0 0 9px ${LIVE_DOT[liveStatus] ?? '#34d399'}` }} />
               {LIVE_LABEL[liveStatus] ?? liveStatus}
             </div>
             {seatParam && (
-              <div className="hsmt-fade-up hsmt-d3" style={{ marginTop: 16, fontSize: 12, fontWeight: 800, color: '#a78bfa', letterSpacing: '2.5px' }}>
-                SEAT {seatParam}
+              <div className="hsmt-fade-up hsmt-d3" style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                <span style={{ width: 18, height: 1, background: 'rgba(255,255,255,0.2)' }} />
+                <span className={marcellus.className} style={{ fontSize: 15, color: 'rgba(255,255,255,0.92)', letterSpacing: '4.5px' }}>
+                  SEAT {seatParam}
+                </span>
+                <span style={{ width: 18, height: 1, background: 'rgba(255,255,255,0.2)' }} />
               </div>
             )}
           </div>
@@ -495,7 +511,8 @@ export default function TableClient({
             </button>
           )}
         </div>
-        <div style={{ marginTop: 8, display: 'inline-flex', padding: '5px 11px', borderRadius: 999, background: '#f3f4f6', fontSize: 12, fontWeight: 700, color: '#374151' }}>
+        <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: '#f3f4f6', fontSize: 12, fontWeight: 600, color: '#4b5563' }}>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: LIVE_DOT[liveStatus] ?? '#34d399' }} />
           {LIVE_LABEL[liveStatus] ?? liveStatus}
         </div>
       </div>
