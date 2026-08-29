@@ -76,6 +76,7 @@ export default function ChatTab({
   const endRef = useRef<HTMLDivElement | null>(null);
   const countRef = useRef(0);
   const seqRef = useRef(0); // 폴링 레이스 가드 — 전송 직전 출발한 옛 응답이 새 메시지를 덮지 않게
+  const tickRef = useRef(0); // 방 상태·신청곡은 3틱(12초)마다 — 메시지만 4초 유지
 
   useEffect(() => {
     createBrowserSupabase()
@@ -86,15 +87,17 @@ export default function ChatTab({
 
   const refresh = useCallback(async () => {
     const seq = ++seqRef.current;
+    const full = tickRef.current % 3 === 0;
+    tickRef.current++;
     try {
       const [roomRes, msgRes, songRes] = await Promise.all([
-        fetch(`/api/chat/${spotId}`, { cache: 'no-store' }),
+        full ? fetch(`/api/chat/${spotId}`, { cache: 'no-store' }) : Promise.resolve(null),
         fetch(`/api/chat/${spotId}/messages`, { cache: 'no-store' }),
-        fetch(`/api/t/${encodeURIComponent(slug)}/songs`, { cache: 'no-store' }),
+        full ? fetch(`/api/t/${encodeURIComponent(slug)}/songs`, { cache: 'no-store' }) : Promise.resolve(null),
       ]);
-      const roomD = roomRes.ok ? await roomRes.json() : null;
+      const roomD = roomRes && roomRes.ok ? await roomRes.json() : null;
       const msgD = msgRes.ok ? await msgRes.json() : null;
-      const songD = songRes.ok ? await songRes.json() : null;
+      const songD = songRes && songRes.ok ? await songRes.json() : null;
       if (seq !== seqRef.current) return; // 더 최신 폴링이 있음 — 이 응답 폐기
       if (roomD) setRoom(roomD.room ?? null);
       if (msgD) {

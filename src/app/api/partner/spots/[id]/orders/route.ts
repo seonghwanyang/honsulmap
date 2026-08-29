@@ -3,7 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart } from '@/lib/tableDay';
 import { isTableTester } from '@/lib/tableTesters';
-import { tossFetch, tossMerchantId } from '@/lib/tossplace';
+import { tossFetchAll, tossMerchantId } from '@/lib/tossplace';
 
 // 토스 포스 주문 원본 (조회 API 응답 중 보드에 필요한 필드만)
 interface TossOrderRaw {
@@ -35,7 +35,7 @@ async function assertMember(spotId: string) {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -61,11 +61,19 @@ export async function GET(
   ]);
 
   // 토스 포스 주문 — 연동된 가게만, 오늘 영업분. 토스 장애 시 조용히 빈 배열.
+  // 주의: orderStates 기본값이 [COMPLETED, CANCELLED]라 진행 중 주문이 빠진다 — 명시 필수.
+  // from(영업일 시작) + 페이지네이션으로 바쁜 날 100건 초과도 보장.
   const mid = tossMerchantId(cfg?.modes);
-  let posOrders: { id: string; order_number: string; state: string; created_at: string; total: number; items: { name: string; qty: number; price: number }[] }[] = [];
-  if (mid) {
-    const raw = await tossFetch<TossOrderRaw[]>(`/merchants/${mid}/order/orders`);
+  const wantPos = request.nextUrl.searchParams.get('pos') === '1';
+  let posOrders:
+    | { id: string; order_number: string; state: string; created_at: string; total: number; items: { name: string; qty: number; price: number }[] }[]
+    | null = null; // null = 이번 응답엔 토스 미조회 (클라이언트가 기존 값 유지)
+  if (mid && wantPos) {
     const dayStart = businessDayStart();
+    const states = ['OPENED', 'COMPLETED', 'CANCELLED'].map((s) => `orderStates=${s}`).join('&');
+    const raw = await tossFetchAll<TossOrderRaw>(
+      `/merchants/${mid}/order/orders?from=${encodeURIComponent(dayStart)}&${states}`,
+    );
     posOrders = (raw ?? [])
       .filter((o) => o.createdAt >= dayStart)
       .map((o) => {
