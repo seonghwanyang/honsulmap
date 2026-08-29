@@ -1290,11 +1290,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             )
           : 0;
       const isAd = isAdSpot(spot);
-      const sz = isAd ? 38 : hasStory ? 32 : 24;
-      const iconSz = isAd ? 16 : hasStory ? 14 : 11;
-      const tailW = isAd ? 7 : hasStory ? 6 : 4;
-      const tailH = isAd ? 8 : hasStory ? 7 : 5;
-      const strokeColor = hasStory ? '#fff' : isAd ? '#7C3AED' : '#9ca3af';
+      // 광고 핀은 일반 스토리 핀(32)의 ~1.5배 — 클러스터가 깨지는 순간 확실히 튄다
+      const sz = isAd ? 46 : hasStory ? 32 : 24;
+      const iconSz = isAd ? 19 : hasStory ? 14 : 11;
+      const tailW = isAd ? 8 : hasStory ? 6 : 4;
+      const tailH = isAd ? 9 : hasStory ? 7 : 5;
+      const strokeColor = hasStory ? '#fff' : isAd ? '#B45309' : '#9ca3af';
       const glassIcon = spotIcon(spot, iconSz, strokeColor);
       // 인스타 프사가 있으면 원을 꽉 채우고(absolute overlay), 없거나 로드 실패
       // (onerror)면 기본 아이콘으로 폴백 — glassIcon이 항상 뒤에 깔려 있다.
@@ -1309,18 +1310,21 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       const stalePastel = `color-mix(in srgb, ${baseBg} 45%, #fff 55%)`;
       const bg = !hasStory ? '#fff' : isFresh ? baseBg : stalePastel;
       const border = isAd
-        ? '2.5px solid #7C3AED'
+        ? '3px solid #EAB308' // 금색 링 (프리미엄)
         : !hasStory
           ? '1.5px solid #d1d5db'
           : isFresh
             ? '2px solid #fff'
             : `2px solid color-mix(in srgb, #fff 70%, ${baseBg} 30%)`;
-      const tailColor = isAd ? '#7C3AED' : !hasStory ? '#d1d5db' : isFresh ? baseBg : stalePastel;
+      const tailColor = isAd ? '#EAB308' : !hasStory ? '#d1d5db' : isFresh ? baseBg : stalePastel;
+      // 광고 핀은 래퍼 drop-shadow(필터)가 라벨 텍스트를 래스터화해 번지게 하므로
+      // 필터를 끄고 원 자체에 box-shadow(금색 글로우)를 준다.
       const shadow = isAd
-        ? 'drop-shadow(0 3px 8px rgba(124,58,237,0.35))'
+        ? 'none'
         : hasStory
           ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
           : 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))';
+      const circleShadow = isAd ? 'box-shadow:0 0 0 3px rgba(234,179,8,0.3),0 3px 10px rgba(0,0,0,0.28);' : '';
       const name = esc(spot.name);
       // Persistent name label to the right of the pin (Kakao-style), shown
       // only when the zoom-tiered collision pass (below) selected this spot.
@@ -1332,8 +1336,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         showCard && isFresh && spot.latest_story_thumb
           ? `<img src="${esc(spot.latest_story_thumb)}" alt="" onerror="this.remove()" style="position:absolute;left:0;top:calc(100% + 4px);width:60px;height:88px;object-fit:cover;border-radius:10px;border:1.5px solid #fff;box-shadow:0 0 0 1.5px #7C3AED,0 2px 6px rgba(0,0,0,0.28);background:#f3f4f6;pointer-events:auto;">`
           : '';
+      // text-shadow:none 필수 — 라벨의 흰색 헤일로가 배지 글자에 상속되면 번져 보인다
       const adChip = isAd
-        ? `<span style="display:inline-block;vertical-align:1px;margin-left:4px;font-size:10px;font-weight:800;letter-spacing:0.4px;line-height:1;background:#7C3AED;color:#fff;border-radius:5px;padding:2.5px 5px;box-shadow:0 1px 2px rgba(0,0,0,0.15);">AD</span>`
+        ? `<span style="display:inline-block;vertical-align:1px;margin-left:4px;font-size:10.5px;font-weight:800;letter-spacing:0.4px;line-height:1;background:#EAB308;color:#111827;border-radius:5px;padding:2.5px 5px;text-shadow:none;">AD</span>`
         : '';
       const rightLabel = showLabel
         ? `<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:${isAd ? '11.5' : '11'}px;font-weight:${isAd ? 700 : 600};color:#111827;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff;pointer-events:none;">${name}${adChip}${storyThumb}</span>`
@@ -1366,7 +1371,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
             <span style="position:absolute;left:50%;bottom:-4px;margin-left:-4px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid #111827;"></span>
             ${name}${tipBadge}
           </div>
-          <div style="position:relative;width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};display:flex;align-items:center;justify-content:center;">
+          <div style="position:relative;width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${border};${circleShadow}display:flex;align-items:center;justify-content:center;">
             ${avatarImg}${glassIcon}${storyDot}${benefitMark}${rightLabel}
           </div>
           <div style="width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${tailColor};margin-top:-1px;"></div>
@@ -1380,7 +1385,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         // Fresh pins (<24h) sit highest, then stale (had a story but
         // outside the 24h window), then never-had-a-story. Keeps today's
         // activity visible when shore clusters get tight.
-        zIndex: isAd ? 400 + freshRecencyMin : isFresh ? 200 + freshRecencyMin : hasStory ? 150 : 100,
+        // 광고 > fresh(최대 200+1440=1640) > stale > 무스토리 — 광고는 항상 개별 핀 최상위
+        zIndex: isAd ? 2000 + freshRecencyMin : isFresh ? 200 + freshRecencyMin : hasStory ? 150 : 100,
         icon: {
           content,
           size: new window.naver.maps.Size(sz, totalH),
@@ -1552,8 +1558,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         const marker = new window.naver.maps.Marker({
           position: new window.naver.maps.LatLng(avgLat, avgLng),
           map: mapInstanceRef.current!,
-          // 묶음 클러스터는 광고 핀(400)보다 위 — 겹칠 때 내비게이션 우선 (2026-08-30 피드백)
-          zIndex: isSingle ? 100 : 500,
+          // 묶음 클러스터는 광고 핀(2000대)보다 위 — 겹칠 때 내비게이션 우선 (2026-08-30 피드백)
+          zIndex: isSingle ? 100 : 3000,
           icon: { content, size: new window.naver.maps.Size(sz, totalH), anchor: new window.naver.maps.Point(sz / 2, totalH) },
         });
         overlaysRef.current.push(marker);
