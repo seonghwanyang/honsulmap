@@ -1332,9 +1332,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // 미니 스토리 카드 — fresh 핀의 이름라벨과 같은 열(왼쪽 정렬), 라벨 아래 4px에서
       // 세로형(60×88, 스토리 비율)으로 시작. showCard는 클러스터 해체 줌부터 일괄 true
       // (겹침 허용). 탭하면 버블링으로 가게 패널이 열림.
+      // 광고 핀의 스토리 카드는 더 크게(76×111) + 금테 (일반: 60×88 보라링)
       const storyThumb =
         showCard && isFresh && spot.latest_story_thumb
-          ? `<img src="${esc(spot.latest_story_thumb)}" alt="" onerror="this.remove()" style="position:absolute;left:0;top:calc(100% + 4px);width:60px;height:88px;object-fit:cover;border-radius:10px;border:1.5px solid #fff;box-shadow:0 0 0 1.5px #7C3AED,0 2px 6px rgba(0,0,0,0.28);background:#f3f4f6;pointer-events:auto;">`
+          ? `<img src="${esc(spot.latest_story_thumb)}" alt="" onerror="this.remove()" style="position:absolute;left:0;top:calc(100% + 4px);width:${isAd ? 76 : 60}px;height:${isAd ? 111 : 88}px;object-fit:cover;border-radius:${isAd ? 12 : 10}px;border:1.5px solid #fff;box-shadow:0 0 0 ${isAd ? '2px #EAB308' : '1.5px #7C3AED'},0 2px 6px rgba(0,0,0,0.28);background:#f3f4f6;pointer-events:auto;">`
           : '';
       // text-shadow:none 필수 — 라벨의 흰색 헤일로가 배지 글자에 상속되면 번져 보인다
       const adChip = isAd
