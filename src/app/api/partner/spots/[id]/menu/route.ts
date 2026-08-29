@@ -91,28 +91,30 @@ export async function PUT(
   const { error: delErr } = await admin.from('store_menu_categories').delete().eq('spot_id', id);
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
 
-  for (let ci = 0; ci < categories.length; ci++) {
-    const c = categories[ci];
-    const { data: cat, error: cErr } = await admin
+  // 벌크 저장 — 카테고리 일괄 insert 후 반환 id를 순서대로 매핑해 아이템도 일괄 insert.
+  // (기존 카테고리별 순차 왕복은 메뉴가 크면 수 초씩 걸렸다)
+  if (categories.length) {
+    const { data: cats, error: cErr } = await admin
       .from('store_menu_categories')
-      .insert({ spot_id: id, name: c.name.trim(), sort: ci })
-      .select('id')
-      .single();
-    if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
+      .insert(categories.map((c, ci) => ({ spot_id: id, name: c.name.trim(), sort: ci })))
+      .select('id');
+    if (cErr || !cats || cats.length !== categories.length)
+      return NextResponse.json({ error: cErr?.message ?? '카테고리 저장에 실패했어요.' }, { status: 500 });
 
-    if (c.items.length) {
-      const { error: iErr } = await admin.from('store_menu_items').insert(
-        c.items.map((it, ii) => ({
-          category_id: cat.id,
-          spot_id: id,
-          name: it.name.trim(),
-          price: it.price,
-          description: it.description?.trim() || null,
-          sold_out: !!it.sold_out,
-          zero_action: it.zero_action ?? null,
-          sort: ii,
-        })),
-      );
+    const rows = categories.flatMap((c, ci) =>
+      c.items.map((it, ii) => ({
+        category_id: cats[ci].id,
+        spot_id: id,
+        name: it.name.trim(),
+        price: it.price,
+        description: it.description?.trim() || null,
+        sold_out: !!it.sold_out,
+        zero_action: it.zero_action ?? null,
+        sort: ii,
+      })),
+    );
+    if (rows.length) {
+      const { error: iErr } = await admin.from('store_menu_items').insert(rows);
       if (iErr) return NextResponse.json({ error: iErr.message }, { status: 500 });
     }
   }
