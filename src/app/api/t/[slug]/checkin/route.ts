@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
+import { createServerSupabase } from '@/lib/supabase/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { sessionExpiry, businessDayStart } from '@/lib/tableDay';
@@ -17,22 +18,32 @@ function hashDevice(deviceId: string, spotId: string) {
 }
 
 // 방문 기록 — 가게×기기해시×영업일 1행 (영구, 익명). 반환값 = 누적 방문 일수(단골 지표).
+// 혼술맵 로그인 상태로 체크인하면 user_id를 붙이고, 그 기기의 과거 익명 방문도 계정에
+// 소급 귀속 — 폰을 바꿔도 로그인하면 방문 수가 이어진다.
 // 마이그레이션(2026-08-31_data_capture.sql) 전이면 조용히 null.
 async function recordVisit(
   admin: ReturnType<typeof supabaseAdmin>,
   spotId: string,
   guestKey: string,
+  userId: string | null,
 ): Promise<number | null> {
   try {
     const { error: insErr } = await admin
       .from('spot_visits')
-      .insert({ spot_id: spotId, guest_key: guestKey, business_day_start: businessDayStart() });
+      .insert({ spot_id: spotId, guest_key: guestKey, business_day_start: businessDayStart(), user_id: userId });
     if (insErr && insErr.code !== '23505') return null; // 같은 날 재체크인(중복)만 무시
-    const { count } = await admin
-      .from('spot_visits')
-      .select('id', { count: 'exact', head: true })
-      .eq('spot_id', spotId)
-      .eq('guest_key', guestKey);
+    if (userId) {
+      // 이 기기의 익명 방문 기록을 계정에 소급 연결 (오늘 중복 행 포함)
+      await admin
+        .from('spot_visits')
+        .update({ user_id: userId })
+        .eq('spot_id', spotId)
+        .eq('guest_key', guestKey)
+        .is('user_id', null);
+    }
+    let q = admin.from('spot_visits').select('id', { count: 'exact', head: true }).eq('spot_id', spotId);
+    q = userId ? q.or(`guest_key.eq.${guestKey},user_id.eq.${userId}`) : q.eq('guest_key', guestKey);
+    const { count } = await q;
     return count ?? null;
   } catch {
     return null;
@@ -100,6 +111,17 @@ export async function POST(
   if (!spot) return NextResponse.json({ error: '가게를 찾을 수 없어요.' }, { status: 404 });
 
   const admin = supabaseAdmin();
+  // 혼술맵 로그인 상태면 방문 기록에 계정 연결 (익명 체크인은 그대로 — 선택적)
+  let authUserId: string | null = null;
+  try {
+    const sb = await createServerSupabase();
+    const {
+      data: { user },
+    } = await sb.auth.getUser();
+    authUserId = user?.id ?? null;
+  } catch {
+    /* 비로그인 — 익명 유지 */
+  }
   const { data: config } = await admin
     .from('store_table_config')
     .select('enabled, modes')
@@ -150,7 +172,7 @@ export async function POST(
       await admin.from('table_sessions').update({ active: false }).eq('id', existing.id);
     } else if (existing.phone4_hash === phoneHash) {
       const { phone4_hash: _omit, ...pub } = existing;
-      const visitCount = await recordVisit(admin, spot.id, phoneHash);
+      const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);
       return NextResponse.json({ session: { ...pub, seat_label: seat.label, visit_count: visitCount } });
     } else {
       return NextResponse.json(
@@ -180,7 +202,7 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const visitCount = await recordVisit(admin, spot.id, phoneHash);
+  const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);
   return NextResponse.json(
     { session: { ...created, seat_label: seat.label, visit_count: visitCount } },
     { status: 201 },
