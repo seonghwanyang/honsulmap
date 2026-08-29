@@ -261,7 +261,13 @@ function OrdersBoard() {
   };
 
   const kickSeat = async (seat: BoardSeat) => {
-    if (!confirm(`Seat ${seat.label} 세션을 종료할까요?\n해당 손님은 다시 체크인해야 해요. (원격 장난 주문·유령 점유 정리용)`)) return;
+    const total = seatTotals[seat.label] ?? 0;
+    if (
+      !confirm(
+        `Seat ${seat.label} 체크아웃할까요?\n오늘 누적 ₩${total.toLocaleString()} — 카운터 결제 확인 후 진행하세요.\n(좌석이 비워지고, 같은 손님이 다시 오면 새로 체크인합니다)`,
+      )
+    )
+      return;
     setOccupied((prev) => {
       const next = new Set(prev);
       next.delete(seat.id);
@@ -448,7 +454,7 @@ function OrdersBoard() {
               {zones.reduce((acc, z) => acc + z.seats.filter((s) => s.seat_type === 'seat' && occupied.has(s.id)).length, 0)}/
               {zones.reduce((acc, z) => acc + z.seats.filter((s) => s.seat_type === 'seat').length, 0)} 사용 중
             </span>
-            <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>사용 중 좌석을 누르면 세션 종료</span>
+            <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>사용 중 좌석 탭 = 체크아웃 (누적 확인 후 좌석 비우기)</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {zones.map((z) => (
