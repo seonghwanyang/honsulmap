@@ -283,9 +283,10 @@ interface NaverSize { width: number; height: number; }
 interface NaverMarker { setMap(map: NaverMap | null): void; setPosition(latlng: NaverLatLng): void; }
 
 const CLUSTER_ZOOM = 12;
-// 마커 광고의 클러스터 면제 시작 줌 — 시 단위부터. 전국/광역(<10)에선 광고도
-// 클러스터에 합류해 지도가 어지럽지 않게 (2026-08-30 피드백).
-const AD_UNCLUSTER_ZOOM = 10;
+// 마커 광고의 클러스터 면제 시작 줌 — 구(district) 단위부터. 그보다 넓은 뷰
+// (수도권 89개 클러스터급 = 줌 10 이하)에선 광고도 클러스터에 합류해 지도가
+// 어지럽지 않게 (2026-08-30 피드백: "전국 클러스터에서는 안 깨져도 될 듯").
+const AD_UNCLUSTER_ZOOM = 11;
 const STORY_FRESH_MS = 24 * 60 * 60 * 1000;
 
 // 3-state freshness derived from the markers payload's latest_story_at
