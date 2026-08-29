@@ -82,10 +82,13 @@ export default async function TablePage({
     s.is_public ? s : { seat_id: s.seat_id, gender: s.gender, is_public: false },
   );
 
+  // modes에는 토스 매장번호 등 내부 값도 있어 손님에게는 필요한 플래그만 추려 보낸다
+  const modes = (config.modes as { order?: boolean; social?: boolean } | null) ?? {};
+
   return (
     <TableClient
       spot={spot}
-      modes={(config.modes as { order?: boolean; social?: boolean }) ?? {}}
+      modes={{ order: modes.order, social: modes.social }}
       liveStatus={config.live_status ?? 'open'}
       zones={zones ?? []}
       seats={seats ?? []}

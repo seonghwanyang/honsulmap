@@ -3,6 +3,16 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart } from '@/lib/tableDay';
 import { isTableTester } from '@/lib/tableTesters';
+import { tossFetch, tossMerchantId } from '@/lib/tossplace';
+
+// 토스 포스 주문 원본 (조회 API 응답 중 보드에 필요한 필드만)
+interface TossOrderRaw {
+  id: string;
+  orderNumber: string;
+  orderState: string;
+  createdAt: string;
+  lineItems?: { item?: { title?: string }; itemPrice?: { priceValue?: number }; quantity?: number }[];
+}
 
 // 주문 보드 (사장님) — 폴링 기반 (Realtime publication 설정 없이 동작).
 // GET: 오늘 영업분 주문 + 좌석별 합계. PATCH: 상태 변경.
@@ -32,7 +42,7 @@ export async function GET(
   const admin = await assertMember(id);
   if (!admin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const [{ data: orders }, { data: occ }] = await Promise.all([
+  const [{ data: orders }, { data: occ }, { data: cfg }] = await Promise.all([
     admin
       .from('table_orders')
       .select('id, seat_label, status, total, created_at, items:table_order_items(item_name, price, qty, request, gift_target_seat)')
@@ -47,7 +57,33 @@ export async function GET(
       .eq('spot_id', id)
       .eq('active', true)
       .gt('expires_at', new Date().toISOString()),
+    admin.from('store_table_config').select('modes').eq('spot_id', id).maybeSingle(),
   ]);
+
+  // 토스 포스 주문 — 연동된 가게만, 오늘 영업분. 토스 장애 시 조용히 빈 배열.
+  const mid = tossMerchantId(cfg?.modes);
+  let posOrders: { id: string; order_number: string; state: string; created_at: string; total: number; items: { name: string; qty: number; price: number }[] }[] = [];
+  if (mid) {
+    const raw = await tossFetch<TossOrderRaw[]>(`/merchants/${mid}/order/orders`);
+    const dayStart = businessDayStart();
+    posOrders = (raw ?? [])
+      .filter((o) => o.createdAt >= dayStart)
+      .map((o) => {
+        const items = (o.lineItems ?? []).map((li) => ({
+          name: li.item?.title ?? '?',
+          qty: li.quantity ?? 1,
+          price: li.itemPrice?.priceValue ?? 0,
+        }));
+        return {
+          id: o.id,
+          order_number: o.orderNumber,
+          state: o.orderState,
+          created_at: o.createdAt,
+          total: items.reduce((acc, it) => acc + it.price * it.qty, 0),
+          items,
+        };
+      });
+  }
 
   const list = orders ?? [];
   const seatTotals: Record<string, number> = {};
@@ -60,6 +96,8 @@ export async function GET(
     orders: list,
     seat_totals: seatTotals,
     occupied_seat_ids: (occ ?? []).map((s) => s.seat_id),
+    pos_orders: posOrders,
+    toss_connected: !!mid,
   });
 }
 
