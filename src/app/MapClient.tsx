@@ -115,6 +115,21 @@ function AdBannerSlot({
     setAnim(true);
     setIdx((i) => (i >= n ? 1 : i + 1)); // transitionEnd 유실 시에도 트랙 밖으로 안 나가게
   }, [n]);
+  // 이전 광고(양방향). 앞쪽 클론이 없어 첫 배너에서 이전 → 마지막으로 무전환 점프.
+  const idxRef = useRef(0);
+  useEffect(() => { idxRef.current = idx; }, [idx]);
+  const goPrev = useCallback(() => {
+    if (idxRef.current > 0) { setAnim(true); setIdx((i) => i - 1); }
+    else { setAnim(false); setIdx(Math.max(0, n - 1)); }
+  }, [n]);
+  // 좌우 스와이프 — 탭(가게 열기)과 구분: 30px 이상 끌면 넘김 처리.
+  const touchXRef = useRef(0);
+  const swipedRef = useRef(false);
+  const onSwipeStart = (e: React.TouchEvent) => { touchXRef.current = e.touches[0].clientX; swipedRef.current = false; };
+  const onSwipeEnd = (e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchXRef.current;
+    if (Math.abs(dx) > 30) { swipedRef.current = true; if (dx < 0) goNext(); else goPrev(); }
+  };
   // banners 바뀌면 최근접(0)부터 시작.
   useEffect(() => { setIdx(0); }, [n]);
   // 자동 넘김 — idx 변할 때마다 타이머 재설정: 수동(다음 버튼)으로 넘겨도 대기시간 초기화됨.
@@ -141,7 +156,10 @@ function AdBannerSlot({
     <div style={{ flex: 1, minWidth: 0, maxWidth: 480, margin: '0 auto' }}>
       <button
         type="button"
+        onTouchStart={onSwipeStart}
+        onTouchEnd={onSwipeEnd}
         onClick={() => {
+          if (swipedRef.current) { swipedRef.current = false; return; } // 스와이프는 가게 열기 무시
           track('ad_click', { ad_id: current.id, slot_position: (idx % n) + 1, city });
           onOpen(current);
         }}
@@ -178,19 +196,36 @@ function AdBannerSlot({
         >
           AD
         </span>
-        <span
-          aria-label="다음 광고"
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            goNext();
-          }}
-          style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </span>
+        {n > 1 && (
+          <>
+            <span
+              aria-label="이전 광고"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                goPrev();
+              }}
+              style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </span>
+            <span
+              aria-label="다음 광고"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                goNext();
+              }}
+              style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </span>
+          </>
+        )}
       </button>
     </div>
   );
@@ -248,6 +283,9 @@ interface NaverSize { width: number; height: number; }
 interface NaverMarker { setMap(map: NaverMap | null): void; setPosition(latlng: NaverLatLng): void; }
 
 const CLUSTER_ZOOM = 12;
+// 마커 광고의 클러스터 면제 시작 줌 — 시 단위부터. 전국/광역(<10)에선 광고도
+// 클러스터에 합류해 지도가 어지럽지 않게 (2026-08-30 피드백).
+const AD_UNCLUSTER_ZOOM = 10;
 const STORY_FRESH_MS = 24 * 60 * 60 * 1000;
 
 // 3-state freshness derived from the markers payload's latest_story_at
@@ -1294,7 +1332,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           ? `<img src="${esc(spot.latest_story_thumb)}" alt="" onerror="this.remove()" style="position:absolute;left:0;top:calc(100% + 4px);width:60px;height:88px;object-fit:cover;border-radius:10px;border:1.5px solid #fff;box-shadow:0 0 0 1.5px #7C3AED,0 2px 6px rgba(0,0,0,0.28);background:#f3f4f6;pointer-events:auto;">`
           : '';
       const adChip = isAd
-        ? `<span style="display:inline-block;vertical-align:1px;margin-left:4px;font-size:8.5px;font-weight:800;letter-spacing:0.3px;background:#7C3AED;color:#fff;border-radius:4px;padding:1px 4px;">AD</span>`
+        ? `<span style="display:inline-block;vertical-align:1px;margin-left:4px;font-size:10px;font-weight:800;letter-spacing:0.4px;line-height:1;background:#7C3AED;color:#fff;border-radius:5px;padding:2.5px 5px;box-shadow:0 1px 2px rgba(0,0,0,0.15);">AD</span>`
         : '';
       const rightLabel = showLabel
         ? `<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:${isAd ? '11.5' : '11'}px;font-weight:${isAd ? 700 : 600};color:#111827;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff;pointer-events:none;">${name}${adChip}${storyThumb}</span>`
@@ -1426,12 +1464,17 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         overlaysRef.current.push(renderSpotMarker(spot, labelSet.has(spot.id), cardSet.has(spot.id)));
       });
     } else {
-      // 광고 핀은 클러스터에 안 묶인다 — 줌 아웃 상태에서도 개별 핀 + 이름 라벨 유지
-      const adSpots = visibleSpots.filter(isAdSpot);
+      // 광고 핀 클러스터 면제는 시 단위 줌(AD_UNCLUSTER_ZOOM)부터 — 실좌표에 개별 핀.
+      // 그보다 넓은 전국/광역 뷰에선 광고도 일반 클러스터에 합류한다.
+      const adExempt = currentZoom >= AD_UNCLUSTER_ZOOM;
+      const adSpots = adExempt ? visibleSpots.filter(isAdSpot) : [];
       adSpots.forEach((s) => {
         overlaysRef.current.push(renderSpotMarker(s, true, false));
       });
-      const clusters = clusterByGrid(visibleSpots.filter((s) => !isAdSpot(s)), currentZoom);
+      const clusters = clusterByGrid(
+        adExempt ? visibleSpots.filter((s) => !isAdSpot(s)) : visibleSpots,
+        currentZoom,
+      );
       clusters.forEach((cluster) => {
         const avgLat = cluster.reduce((s, sp) => s + sp.lat, 0) / cluster.length;
         const avgLng = cluster.reduce((s, sp) => s + sp.lng, 0) / cluster.length;
@@ -1508,6 +1551,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         const marker = new window.naver.maps.Marker({
           position: new window.naver.maps.LatLng(avgLat, avgLng),
           map: mapInstanceRef.current!,
+          // 묶음 클러스터는 광고 핀(400)보다 위 — 겹칠 때 내비게이션 우선 (2026-08-30 피드백)
+          zIndex: isSingle ? 100 : 500,
           icon: { content, size: new window.naver.maps.Size(sz, totalH), anchor: new window.naver.maps.Point(sz / 2, totalH) },
         });
         overlaysRef.current.push(marker);
