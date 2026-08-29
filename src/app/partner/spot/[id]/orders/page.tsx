@@ -129,10 +129,13 @@ function OrdersBoard() {
   const [chatNew, setChatNew] = useState(0); // 보드 켠 이후 새 채팅 수
   const chatBase = useRef<number | null>(null);
   const waitingRef = useRef(0);
+  const tickRef = useRef(0); // 포스 주문은 3틱(15초)마다 — 토스 호출 절약
 
   const reload = useCallback(async () => {
+    const withPos = tickRef.current % 3 === 0;
+    tickRef.current++;
     const [res, qRes, sRes, cRes] = await Promise.all([
-      fetch(`/api/partner/spots/${id}/orders`),
+      fetch(`/api/partner/spots/${id}/orders${withPos ? '?pos=1' : ''}`),
       fetch(`/api/partner/spots/${id}/quests`),
       fetch(`/api/partner/spots/${id}/songs`),
       fetch(`/api/chat/${id}`), // 공개 GET — message_count로 새 채팅 배지
@@ -168,7 +171,7 @@ function OrdersBoard() {
     setClaims(claimList);
     setSongs(songList);
     setOccupied(new Set<string>(d.occupied_seat_ids ?? []));
-    setPosOrders(d.pos_orders ?? []);
+    if (Array.isArray(d.pos_orders)) setPosOrders(d.pos_orders); // null = 이번 틱 미조회, 기존 유지
     setLoading(false);
   }, [id]);
 
