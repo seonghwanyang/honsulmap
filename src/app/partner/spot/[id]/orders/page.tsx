@@ -550,6 +550,17 @@ function OrderCard({ o, onStatus, muted = false }: { o: Order; onStatus: (id: st
           {it.request && <span style={{ color: '#dc2626', fontWeight: 700 }}> ({it.request})</span>}
         </div>
       ))}
+      {/* 완료된 주문도 취소 가능 — 오주문·테스트 주문을 좌석 누적에서 제외 (기록은 취소로 남음) */}
+      {o.status === 'done' && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 9 }}>
+          <button
+            onClick={() => confirm('이 주문을 취소 처리할까요?\n좌석 누적과 오늘 매출 대조에서 빠져요.') && onStatus(o.id, 'canceled')}
+            style={{ height: 32, padding: '0 12px', borderRadius: 9, background: '#fff', color: '#dc2626', fontSize: 11.5, fontWeight: 700, border: '1px solid #fecaca', cursor: 'pointer' }}
+          >
+            주문 취소
+          </button>
+        </div>
+      )}
       {(o.status === 'new' || o.status === 'accepted') && (
         <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>
           <button onClick={() => onStatus(o.id, 'done')} style={{ flex: 1, height: 42, borderRadius: 10, background: '#111827', color: '#fff', fontSize: 13.5, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
