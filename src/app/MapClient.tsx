@@ -1214,6 +1214,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     const activeBg = (spot: SpotWithStories) =>
       spot.category === 'guesthouse' ? '#F97316' : '#111827';
 
+    // 마커 광고 (네이버 부동산 벤치마크) — 기한 내면 클러스터 면제·라벨 상시·보라 링·AD 배지
+    const isAdSpot = (s: SpotWithStories) =>
+      !!(s.ad_marker_until && new Date(s.ad_marker_until) > new Date());
+
     // Returns the inner SVG glyph string for a spot based on category + vibe_tags
     const spotIcon = (spot: SpotWithStories, iconSz: number, strokeColor: string): string => {
       const stroke = `stroke="${strokeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"`;
@@ -1246,11 +1250,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
               ),
             )
           : 0;
-      const sz = hasStory ? 32 : 24;
-      const iconSz = hasStory ? 14 : 11;
-      const tailW = hasStory ? 6 : 4;
-      const tailH = hasStory ? 7 : 5;
-      const strokeColor = hasStory ? '#fff' : '#9ca3af';
+      const isAd = isAdSpot(spot);
+      const sz = isAd ? 38 : hasStory ? 32 : 24;
+      const iconSz = isAd ? 16 : hasStory ? 14 : 11;
+      const tailW = isAd ? 7 : hasStory ? 6 : 4;
+      const tailH = isAd ? 8 : hasStory ? 7 : 5;
+      const strokeColor = hasStory ? '#fff' : isAd ? '#7C3AED' : '#9ca3af';
       const glassIcon = spotIcon(spot, iconSz, strokeColor);
       // 인스타 프사가 있으면 원을 꽉 채우고(absolute overlay), 없거나 로드 실패
       // (onerror)면 기본 아이콘으로 폴백 — glassIcon이 항상 뒤에 깔려 있다.
@@ -1264,15 +1269,19 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // so the eye still picks out today's spots first.
       const stalePastel = `color-mix(in srgb, ${baseBg} 45%, #fff 55%)`;
       const bg = !hasStory ? '#fff' : isFresh ? baseBg : stalePastel;
-      const border = !hasStory
-        ? '1.5px solid #d1d5db'
-        : isFresh
-          ? '2px solid #fff'
-          : `2px solid color-mix(in srgb, #fff 70%, ${baseBg} 30%)`;
-      const tailColor = !hasStory ? '#d1d5db' : isFresh ? baseBg : stalePastel;
-      const shadow = hasStory
-        ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-        : 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))';
+      const border = isAd
+        ? '2.5px solid #7C3AED'
+        : !hasStory
+          ? '1.5px solid #d1d5db'
+          : isFresh
+            ? '2px solid #fff'
+            : `2px solid color-mix(in srgb, #fff 70%, ${baseBg} 30%)`;
+      const tailColor = isAd ? '#7C3AED' : !hasStory ? '#d1d5db' : isFresh ? baseBg : stalePastel;
+      const shadow = isAd
+        ? 'drop-shadow(0 3px 8px rgba(124,58,237,0.35))'
+        : hasStory
+          ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+          : 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))';
       const name = esc(spot.name);
       // Persistent name label to the right of the pin (Kakao-style), shown
       // only when the zoom-tiered collision pass (below) selected this spot.
@@ -1284,8 +1293,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         showCard && isFresh && spot.latest_story_thumb
           ? `<img src="${esc(spot.latest_story_thumb)}" alt="" onerror="this.remove()" style="position:absolute;left:0;top:calc(100% + 4px);width:60px;height:88px;object-fit:cover;border-radius:10px;border:1.5px solid #fff;box-shadow:0 0 0 1.5px #7C3AED,0 2px 6px rgba(0,0,0,0.28);background:#f3f4f6;pointer-events:auto;">`
           : '';
+      const adChip = isAd
+        ? `<span style="display:inline-block;vertical-align:1px;margin-left:4px;font-size:8.5px;font-weight:800;letter-spacing:0.3px;background:#7C3AED;color:#fff;border-radius:4px;padding:1px 4px;">AD</span>`
+        : '';
       const rightLabel = showLabel
-        ? `<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:600;color:#111827;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff;pointer-events:none;">${name}${storyThumb}</span>`
+        ? `<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:${isAd ? '11.5' : '11'}px;font-weight:${isAd ? 700 : 600};color:#111827;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff;pointer-events:none;">${name}${adChip}${storyThumb}</span>`
         : '';
       // Purple story dot — fresh only. Stale spots had a story but it's
       // outside the 24h activity window, so we drop the dot/tipBadge to
@@ -1329,7 +1341,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         // Fresh pins (<24h) sit highest, then stale (had a story but
         // outside the 24h window), then never-had-a-story. Keeps today's
         // activity visible when shore clusters get tight.
-        zIndex: isFresh ? 200 + freshRecencyMin : hasStory ? 150 : 100,
+        zIndex: isAd ? 400 + freshRecencyMin : isFresh ? 200 + freshRecencyMin : hasStory ? 150 : 100,
         icon: {
           content,
           size: new window.naver.maps.Size(sz, totalH),
@@ -1398,6 +1410,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           });
 
       }
+      // 광고 핀은 충돌 솎기와 무관하게 라벨 상시 노출 (겹침 허용 — zIndex 최상위라 광고가 위)
+      visibleSpots.forEach((s) => {
+        if (isAdSpot(s)) labelSet.add(s.id);
+      });
       // 미니 스토리 카드 — 클러스터가 깨져 개별 핀이 나오는 순간부터(CLUSTER_ZOOM)
       // fresh+썸네일 핀 전부, 겹침 허용 (2026-08-10 결정: 솎지 않고 한 번에 다,
       // 겹침 순서는 zIndex 최신 우선). 클러스터 상태(<CLUSTER_ZOOM)에선 카드 없음.
@@ -1410,7 +1426,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
         overlaysRef.current.push(renderSpotMarker(spot, labelSet.has(spot.id), cardSet.has(spot.id)));
       });
     } else {
-      const clusters = clusterByGrid(visibleSpots, currentZoom);
+      // 광고 핀은 클러스터에 안 묶인다 — 줌 아웃 상태에서도 개별 핀 + 이름 라벨 유지
+      const adSpots = visibleSpots.filter(isAdSpot);
+      adSpots.forEach((s) => {
+        overlaysRef.current.push(renderSpotMarker(s, true, false));
+      });
+      const clusters = clusterByGrid(visibleSpots.filter((s) => !isAdSpot(s)), currentZoom);
       clusters.forEach((cluster) => {
         const avgLat = cluster.reduce((s, sp) => s + sp.lat, 0) / cluster.length;
         const avgLng = cluster.reduce((s, sp) => s + sp.lng, 0) / cluster.length;

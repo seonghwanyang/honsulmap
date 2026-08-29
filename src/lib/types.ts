@@ -96,6 +96,8 @@ export interface Spot {
   benefit_detail?: string | null;
   benefit_active?: boolean;
   benefit_expires_at?: string | null;
+  // 지도 마커 광고 — 미래 시각이면 프리미엄 핀 (클러스터 면제·라벨 상시·AD 배지)
+  ad_marker_until?: string | null;
   naver_place_id: string | null;
   naver_rating?: number | null;
   naver_review_count?: number | null;
