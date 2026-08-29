@@ -295,8 +295,11 @@ function OrdersBoard() {
 
   if (loading) return <Spinner />;
 
-  // 간편 흐름 — 접수 단계 없이 새 주문은 한 섹션, [확인]/[취소] 원탭 처리.
-  const active = orders.filter((o) => o.status === 'new' || o.status === 'accepted');
+  // 간편 흐름 — 접수 단계 없이 [확인]/[취소] 원탭. 주방에 갈 주문과 ₩0 서비스
+  // 요청(호출·자리변경·신고 등)은 성격이 달라 섹션을 분리한다.
+  const activeAll = orders.filter((o) => o.status === 'new' || o.status === 'accepted');
+  const serviceReqs = activeAll.filter((o) => o.total === 0);
+  const active = activeAll.filter((o) => o.total > 0);
   const finished = orders.filter((o) => o.status === 'done' || o.status === 'canceled');
 
   return (
@@ -399,12 +402,17 @@ function OrdersBoard() {
         </Section>
       )}
 
-      {active.length === 0 && (
+      {activeAll.length === 0 && (
         <Card dashed style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 13.5 }}>
           대기 중인 주문이 없어요. 새 주문이 오면 여기에 소리와 함께 떠요.
         </Card>
       )}
 
+      {serviceReqs.length > 0 && (
+        <Section label={`서비스 요청 ${serviceReqs.length}`}>
+          {serviceReqs.map((o) => <OrderCard key={o.id} o={o} onStatus={setStatus} />)}
+        </Section>
+      )}
       {active.length > 0 && <Section label={`새 주문 ${active.length}`}>{active.map((o) => <OrderCard key={o.id} o={o} onStatus={setStatus} />)}</Section>}
 
       {/* 포스 주문 — 토스 연동 가게: 포스에서 찍힌 주문을 읽기 전용으로 (원장은 포스) */}
