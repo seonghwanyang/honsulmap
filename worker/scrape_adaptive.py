@@ -47,20 +47,27 @@ def _dry_run() -> bool:
 
 
 def _select_due_spots(client: Any, limit: int) -> list[dict[str, Any]]:
-    """Spots that are due (next_scrape_at <= now) with a non-empty IG handle,
-    most-overdue first."""
+    """Spots that are due (next_scrape_at <= now) with a non-empty IG handle.
+    마커 광고 활성 가게(ad_marker_until 미래)가 큐 맨 앞 — 광고주 스토리는 백로그가
+    쌓여도 가장 먼저 갱신한다. 그다음 most-overdue first."""
     now_iso = datetime.now(timezone.utc).isoformat()
-    resp = (
-        client.table("spots")
-        .select("id, name, instagram_id, last_scraped_at, consecutive_empty, next_scrape_at")
-        .not_.is_("instagram_id", None)
-        .neq("instagram_id", "")
-        .lte("next_scrape_at", now_iso)
-        .order("next_scrape_at", desc=False, nullsfirst=True)
-        .limit(limit)
-        .execute()
-    )
-    return resp.data or []
+
+    def _base_query():
+        return (
+            client.table("spots")
+            .select("id, name, instagram_id, last_scraped_at, consecutive_empty, next_scrape_at")
+            .not_.is_("instagram_id", None)
+            .neq("instagram_id", "")
+            .lte("next_scrape_at", now_iso)
+            .order("next_scrape_at", desc=False, nullsfirst=True)
+            .limit(limit)
+        )
+
+    ads = _base_query().gt("ad_marker_until", now_iso).execute().data or []
+    rest = _base_query().execute().data or []
+    seen = {s["id"] for s in ads}
+    merged = ads + [s for s in rest if s["id"] not in seen]
+    return merged[:limit]
 
 
 def _update_scrape_schedule(
