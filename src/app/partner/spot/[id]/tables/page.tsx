@@ -78,14 +78,57 @@ function TablesHub() {
 
   // 신청곡 스위치 — 기본 on(modes.songs !== false), 체크 즉시 저장
   const [songsOn, setSongsOn] = useState<boolean | null>(null);
+  // 토스 포스 연동 — modes.toss_merchant_id 존재 = 연동됨
+  const [tossMid, setTossMid] = useState<string | null>(null);
+  const [tossName, setTossName] = useState<string | null>(null);
+  const [tossInput, setTossInput] = useState('');
+  const [tossBusy, setTossBusy] = useState(false);
   useEffect(() => {
     fetch(`/api/partner/spots/${id}/tables`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d) setSongsOn((d.config?.modes as { songs?: boolean } | null)?.songs !== false);
+        if (!d) return;
+        const modes = (d.config?.modes ?? {}) as { songs?: boolean; toss_merchant_id?: string; toss_merchant_name?: string };
+        setSongsOn(modes.songs !== false);
+        setTossMid(modes.toss_merchant_id ?? null);
+        setTossName(modes.toss_merchant_name ?? null);
       })
       .catch(() => {});
   }, [id]);
+
+  const connectToss = async () => {
+    const v = tossInput.trim();
+    if (!v || tossBusy) return;
+    setTossBusy(true);
+    const res = await fetch(`/api/partner/spots/${id}/tables`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toss_merchant_id: v }),
+    });
+    setTossBusy(false);
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(d.error || '연동에 실패했어요.');
+    setTossMid(v);
+    setTossInput('');
+    // 이름은 서버가 검증하며 저장 — 재조회로 표시
+    fetch(`/api/partner/spots/${id}/tables`).then((r) => (r.ok ? r.json() : null)).then((dd) => {
+      const m = (dd?.config?.modes ?? {}) as { toss_merchant_name?: string };
+      setTossName(m.toss_merchant_name ?? null);
+    }).catch(() => {});
+  };
+
+  const disconnectToss = async () => {
+    if (!confirm('토스 포스 연동을 해제할까요?\n보드의 포스 주문 표시와 메뉴 가져오기가 꺼져요.')) return;
+    setTossBusy(true);
+    await fetch(`/api/partner/spots/${id}/tables`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toss_merchant_id: null }),
+    });
+    setTossBusy(false);
+    setTossMid(null);
+    setTossName(null);
+  };
 
   const toggleSongs = async (next: boolean) => {
     setSongsOn(next);
@@ -139,6 +182,40 @@ function TablesHub() {
           </Link>
         )}
       </div>
+
+      {/* 토스 포스 연동 — 연동되면 보드에 포스 주문 표시 + 메뉴 가져오기 활성화 */}
+      <Card style={{ padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#111827' }}>토스 포스 연동</span>
+          {tossMid ? (
+            <>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: '#16a34a' }}>
+                ✓ {tossName ? `${tossName} · ` : ''}매장번호 {tossMid}
+              </span>
+              <span style={{ fontSize: 11.5, color: '#9ca3af' }}>주문 보드에 포스 주문이 함께 떠요</span>
+              <button onClick={disconnectToss} disabled={tossBusy} style={{ marginLeft: 'auto', height: 32, padding: '0 12px', borderRadius: 9, background: '#fff', color: '#6b7280', fontSize: 12, fontWeight: 700, border: '1px solid #e5e7eb', cursor: 'pointer' }}>
+                해제
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                value={tossInput}
+                onChange={(e) => setTossInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="매장고유번호"
+                inputMode="numeric"
+                style={{ width: 130, height: 36, padding: '0 12px', borderRadius: 9, border: '1px solid #e5e7eb', fontSize: 13, outline: 'none' }}
+              />
+              <button onClick={connectToss} disabled={tossBusy || !tossInput.trim()} style={{ height: 36, padding: '0 14px', borderRadius: 9, background: tossInput.trim() ? '#111827' : '#f3f4f6', color: tossInput.trim() ? '#fff' : '#9ca3af', fontSize: 12.5, fontWeight: 800, border: 'none', cursor: 'pointer', opacity: tossBusy ? 0.6 : 1 }}>
+                {tossBusy ? '확인 중…' : '연동'}
+              </button>
+              <span style={{ fontSize: 11.5, color: '#9ca3af', lineHeight: 1.5 }}>
+                포스에서 설정 → 기타설정 → 서비스 연동으로 코드 입력 후, 매장고유번호를 넣어주세요
+              </span>
+            </>
+          )}
+        </div>
+      </Card>
 
       <Section title="🪑 좌석 배치도" open={open.layout} dirty={dirtyMap.layout} onToggle={() => toggle('layout')}>
         <LayoutSection spotId={id} onDirtyChange={setDirty('layout')} onConfigLoaded={handleConfigLoaded} />

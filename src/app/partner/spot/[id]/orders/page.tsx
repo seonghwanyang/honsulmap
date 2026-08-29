@@ -42,6 +42,14 @@ interface Song {
   status: 'queued' | 'played' | 'skipped';
   created_at: string;
 }
+interface PosOrder {
+  id: string;
+  order_number: string;
+  state: string;
+  created_at: string;
+  total: number;
+  items: { name: string; qty: number; price: number }[];
+}
 interface BoardSeat {
   id: string;
   label: string;
@@ -117,6 +125,7 @@ function OrdersBoard() {
   const [zones, setZones] = useState<BoardZone[]>([]);
   const [spotSlug, setSpotSlug] = useState('');
   const [occupied, setOccupied] = useState<Set<string>>(new Set());
+  const [posOrders, setPosOrders] = useState<PosOrder[]>([]);
   const [chatNew, setChatNew] = useState(0); // 보드 켠 이후 새 채팅 수
   const chatBase = useRef<number | null>(null);
   const waitingRef = useRef(0);
@@ -159,6 +168,7 @@ function OrdersBoard() {
     setClaims(claimList);
     setSongs(songList);
     setOccupied(new Set<string>(d.occupied_seat_ids ?? []));
+    setPosOrders(d.pos_orders ?? []);
     setLoading(false);
   }, [id]);
 
@@ -396,6 +406,27 @@ function OrdersBoard() {
       )}
 
       {active.length > 0 && <Section label={`새 주문 ${active.length}`}>{active.map((o) => <OrderCard key={o.id} o={o} onStatus={setStatus} />)}</Section>}
+
+      {/* 포스 주문 — 토스 연동 가게: 포스에서 찍힌 주문을 읽기 전용으로 (원장은 포스) */}
+      {posOrders.length > 0 && (
+        <Section label={`포스 주문 (오늘 ${posOrders.length})`}>
+          <Card style={{ padding: '6px 16px' }}>
+            {posOrders.slice(0, 20).map((o) => (
+              <div key={o.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '9px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
+                <span style={{ fontWeight: 800, color: '#111827', flexShrink: 0 }}>#{o.order_number}</span>
+                <span style={{ color: '#374151', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {o.items.map((it) => `${it.name}×${it.qty}`).join(', ') || '—'}
+                </span>
+                <span style={{ marginLeft: 'auto', flexShrink: 0, fontWeight: 800, color: '#111827' }}>₩{o.total.toLocaleString()}</span>
+                <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 800, color: o.state === 'COMPLETED' ? '#16a34a' : o.state === 'CANCELLED' ? '#dc2626' : '#7c3aed' }}>
+                  {o.state === 'COMPLETED' ? '완료' : o.state === 'CANCELLED' ? '취소' : '진행 중'}
+                </span>
+                <span style={{ flexShrink: 0, fontSize: 11, color: '#9ca3af' }}>{timeAgo(o.created_at)}</span>
+              </div>
+            ))}
+          </Card>
+        </Section>
+      )}
 
       {/* 미니 좌석맵 — 지금 홀 상황 (읽기 전용, 5초 폴링 반영) */}
       {zones.length > 0 && (

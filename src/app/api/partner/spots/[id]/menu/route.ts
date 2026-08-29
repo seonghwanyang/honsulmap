@@ -31,15 +31,18 @@ export async function GET(
   const admin = await assertMember(id);
   if (!admin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const [{ data: spot }, { data: categories }, { data: items }] = await Promise.all([
+  const [{ data: spot }, { data: categories }, { data: items }, { data: cfg }] = await Promise.all([
     admin.from('spots').select('name, slug, naver_menus').eq('id', id).single(),
     admin.from('store_menu_categories').select('*').eq('spot_id', id).order('sort'),
     admin.from('store_menu_items').select('*').eq('spot_id', id).order('sort'),
+    admin.from('store_table_config').select('modes').eq('spot_id', id).maybeSingle(),
   ]);
 
   return NextResponse.json({
     spot: { name: spot?.name, slug: spot?.slug },
     naver_menus: spot?.naver_menus ?? [],
+    // 토스 포스 연동 여부 — [토스 포스 메뉴 가져오기] 버튼 노출용
+    toss_connected: typeof (cfg?.modes as { toss_merchant_id?: unknown } | null)?.toss_merchant_id === 'string',
     categories: (categories ?? []).map((c) => ({
       ...c,
       items: (items ?? []).filter((i) => i.category_id === c.id),

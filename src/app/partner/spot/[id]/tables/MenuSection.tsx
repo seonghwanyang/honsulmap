@@ -59,6 +59,8 @@ export default function MenuSection({
 }) {
   const [cats, setCats] = useState<EdCat[]>([]);
   const [naverMenus, setNaverMenus] = useState<NaverMenu[]>([]);
+  const [tossOn, setTossOn] = useState(false); // 토스 포스 연동 가게 — 가져오기 버튼 노출
+  const [tossBusy, setTossBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   // saving: 'all' 또는 저장 중인 카테고리 key
   const [saving, setSaving] = useState<'all' | string | null>(null);
@@ -87,6 +89,7 @@ export default function MenuSection({
       .then((d) => {
         if (!d) return;
         setNaverMenus(Array.isArray(d.naver_menus) ? d.naver_menus : []);
+        setTossOn(!!d.toss_connected);
         const loaded: EdCat[] = (d.categories ?? []).map(
           (c: { name: string; items: { name: string; price: number; description: string | null; sold_out: boolean; zero_action: ZeroAction }[] }) => ({
             key: nk(),
@@ -133,6 +136,32 @@ export default function MenuSection({
   const addCat = (cat: EdCat) => {
     setCats((prev) => [...prev, cat]);
     markCat(cat.key);
+  };
+
+  // 토스 포스 카탈로그 가져오기 — 포스 카테고리 구조 그대로 편집기에 추가
+  const importToss = async () => {
+    if (tossBusy) return;
+    setTossBusy(true);
+    const res = await fetch(`/api/partner/spots/${spotId}/toss-catalog`);
+    setTossBusy(false);
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(d.error || '토스 메뉴를 불러오지 못했어요.');
+    const categories: { name: string; items: { name: string; price: number; description: string | null }[] }[] = d.categories ?? [];
+    if (!categories.length) return alert('가져올 판매중 메뉴가 없어요.');
+    for (const c of categories) {
+      addCat({
+        key: nk(),
+        name: c.name,
+        items: c.items.map((m) => ({
+          key: nk(),
+          name: m.name,
+          priceStr: String(m.price),
+          description: m.description ?? '',
+          sold_out: false,
+          zero_action: null,
+        })),
+      });
+    }
   };
 
   const importNaver = () => {
@@ -219,6 +248,11 @@ export default function MenuSection({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {tossOn && (
+          <button onClick={importToss} disabled={tossBusy} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5, color: '#2563eb' }}>
+            {tossBusy ? '불러오는 중…' : '토스 포스 메뉴 가져오기'}
+          </button>
+        )}
         {naverMenus.length > 0 && (
           <button onClick={importNaver} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
             네이버 메뉴 {naverMenus.length}개 가져오기

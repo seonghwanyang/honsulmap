@@ -70,14 +70,36 @@ export async function PATCH(
     patch.live_status = body.live_status;
   }
 
-  // 신청곡 스위치 — modes jsonb에 병합 (기본 on, false일 때만 숨김)
-  if (typeof body.songs === 'boolean') {
+  // modes jsonb 병합 항목 — 신청곡 스위치, 토스 포스 매장 연동
+  if (typeof body.songs === 'boolean' || 'toss_merchant_id' in body) {
     const { data: cfg } = await supabaseAdmin()
       .from('store_table_config')
       .select('modes')
       .eq('spot_id', id)
       .maybeSingle();
-    patch.modes = { ...((cfg?.modes as Record<string, unknown>) ?? {}), songs: body.songs };
+    const modes = { ...((cfg?.modes as Record<string, unknown>) ?? {}) };
+    if (typeof body.songs === 'boolean') modes.songs = body.songs;
+    if ('toss_merchant_id' in body) {
+      const v = body.toss_merchant_id;
+      if (v === null || v === '') {
+        delete modes.toss_merchant_id; // 연동 해제
+      } else if (typeof v === 'string' && /^\d{1,20}$/.test(v.trim())) {
+        // 실제로 우리 앱이 설치된 매장인지 토스에 확인 후 저장
+        const { tossFetch } = await import('@/lib/tossplace');
+        const merchant = await tossFetch<{ id: number; name: string }>(`/merchants/${v.trim()}`);
+        if (!merchant) {
+          return NextResponse.json(
+            { error: '매장 확인에 실패했어요. 포스에서 서비스 연동(코드 입력)을 먼저 해주세요.' },
+            { status: 400 },
+          );
+        }
+        modes.toss_merchant_id = v.trim();
+        modes.toss_merchant_name = merchant.name ?? null;
+      } else {
+        return NextResponse.json({ error: '매장고유번호는 숫자만 입력해주세요.' }, { status: 400 });
+      }
+    }
+    patch.modes = modes;
   }
 
   // 체크인 선택지 커스텀 (null = 기본 목록으로 복귀)
