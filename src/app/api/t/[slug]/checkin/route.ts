@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
-import { sessionExpiry } from '@/lib/tableDay';
+import { sessionExpiry, businessDayStart } from '@/lib/tableDay';
 
 // 좌석 체크인 — 좌석 번호만 입력하면 시작. 사람 구분은 브라우저가 조용히
 // 발급한 디바이스 UUID(해시만 저장 — phone4_hash 컬럼 재사용)로 한다.
@@ -14,6 +14,29 @@ const PROFILE_FIELDS =
 
 function hashDevice(deviceId: string, spotId: string) {
   return createHash('sha256').update(`${deviceId}:${spotId}:honsulmap-table`).digest('hex');
+}
+
+// 방문 기록 — 가게×기기해시×영업일 1행 (영구, 익명). 반환값 = 누적 방문 일수(단골 지표).
+// 마이그레이션(2026-08-31_data_capture.sql) 전이면 조용히 null.
+async function recordVisit(
+  admin: ReturnType<typeof supabaseAdmin>,
+  spotId: string,
+  guestKey: string,
+): Promise<number | null> {
+  try {
+    const { error: insErr } = await admin
+      .from('spot_visits')
+      .insert({ spot_id: spotId, guest_key: guestKey, business_day_start: businessDayStart() });
+    if (insErr && insErr.code !== '23505') return null; // 같은 날 재체크인(중복)만 무시
+    const { count } = await admin
+      .from('spot_visits')
+      .select('id', { count: 'exact', head: true })
+      .eq('spot_id', spotId)
+      .eq('guest_key', guestKey);
+    return count ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function loadSpot(slug: string) {
@@ -127,7 +150,8 @@ export async function POST(
       await admin.from('table_sessions').update({ active: false }).eq('id', existing.id);
     } else if (existing.phone4_hash === phoneHash) {
       const { phone4_hash: _omit, ...pub } = existing;
-      return NextResponse.json({ session: { ...pub, seat_label: seat.label } });
+      const visitCount = await recordVisit(admin, spot.id, phoneHash);
+      return NextResponse.json({ session: { ...pub, seat_label: seat.label, visit_count: visitCount } });
     } else {
       return NextResponse.json(
         { error: '이 좌석은 이미 사용 중이에요. 직원에게 문의해주세요.' },
@@ -156,5 +180,9 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ session: { ...created, seat_label: seat.label } }, { status: 201 });
+  const visitCount = await recordVisit(admin, spot.id, phoneHash);
+  return NextResponse.json(
+    { session: { ...created, seat_label: seat.label, visit_count: visitCount } },
+    { status: 201 },
+  );
 }

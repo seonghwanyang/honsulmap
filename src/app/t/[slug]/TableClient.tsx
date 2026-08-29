@@ -57,6 +57,7 @@ interface MySession {
   seat_id: string;
   seat_label: string;
   gender: 'm' | 'f' | null;
+  visit_count?: number | null; // 이 가게 누적 방문 일수 (단골 인식)
 }
 interface OrderRow {
   id: string;
@@ -352,6 +353,16 @@ export default function TableClient({
     [session, spot.slug, storageKey, showToast, refreshOrders],
   );
 
+  // 메뉴 행동 로그 (담김/뺌) — "담았는데 안 시킨 메뉴" 분석용. 실패는 조용히 무시.
+  const logMenuEvent = (item: MenuItem, action: 'cart_add' | 'cart_remove') => {
+    if (!session) return;
+    fetch(`/api/t/${spot.slug}/menu-event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: session.id, item_id: item.id, item_name: item.name, action }),
+    }).catch(() => {});
+  };
+
   const tapMenuItem = (item: MenuItem) => {
     if (item.sold_out) return;
     if (!orderOn) return;
@@ -370,6 +381,7 @@ export default function TableClient({
       if (confirm(label)) submitOrder([{ id: item.id, qty: 1 }], '전송했어요!');
       return;
     }
+    if (!cart.some((c) => c.item.id === item.id)) logMenuEvent(item, 'cart_add'); // 첫 담김만
     setCart((prev) => {
       const i = prev.findIndex((c) => c.item.id === item.id);
       if (i >= 0) {
@@ -506,7 +518,11 @@ export default function TableClient({
               setView('main');
               setTab('map');
               refreshState();
-              showToast(`Seat ${s.seat_label} 체크인 완료!`);
+              showToast(
+                s.visit_count && s.visit_count > 1
+                  ? `Seat ${s.seat_label} 체크인 · ${s.visit_count}번째 방문이에요 🍻`
+                  : `Seat ${s.seat_label} 체크인 완료!`,
+              );
             }}
           />
         )}
@@ -683,7 +699,11 @@ export default function TableClient({
             setView('main');
             setTab('map');
             refreshState();
-            showToast(`Seat ${s.seat_label} 체크인 완료!`);
+            showToast(
+            s.visit_count && s.visit_count > 1
+              ? `Seat ${s.seat_label} 체크인 · ${s.visit_count}번째 방문이에요 🍻`
+              : `Seat ${s.seat_label} 체크인 완료!`,
+          );
           }}
         />
       )}
@@ -696,6 +716,7 @@ export default function TableClient({
           busy={busy}
           onClose={() => setCartOpen(false)}
           onSubmit={placeCart}
+          onRemoveItem={(item) => logMenuEvent(item, 'cart_remove')}
         />
       )}
       {giftPick && (
@@ -1129,6 +1150,7 @@ function CartSheet({
   busy,
   onClose,
   onSubmit,
+  onRemoveItem,
 }: {
   cart: { item: MenuItem; qty: number; request: string }[];
   setCart: React.Dispatch<React.SetStateAction<{ item: MenuItem; qty: number; request: string }[]>>;
@@ -1136,9 +1158,15 @@ function CartSheet({
   busy: boolean;
   onClose: () => void;
   onSubmit: () => void;
+  onRemoveItem?: (item: MenuItem) => void; // 행동 로그 (담았다 뺌)
 }) {
-  const setQty = (id: string, qty: number) =>
+  const setQty = (id: string, qty: number) => {
+    if (qty <= 0) {
+      const gone = cart.find((c) => c.item.id === id);
+      if (gone) onRemoveItem?.(gone.item);
+    }
     setCart((prev) => (qty <= 0 ? prev.filter((c) => c.item.id !== id) : prev.map((c) => (c.item.id === id ? { ...c, qty } : c))));
+  };
   return (
     <Sheet title="주문 확인" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
