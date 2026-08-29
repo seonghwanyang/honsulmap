@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { getFingerprint } from '@/lib/utils';
 import { track } from '@/lib/analytics';
 import { REGIONS as ALL_REGIONS, CITIES, type Region } from '@/lib/types';
+import { useSuppressAdBannerWhile } from '@/lib/adBanner';
 
 interface Props {
   open: boolean;
@@ -46,6 +47,8 @@ export default function SpotRequestModal({ open, onClose }: Props) {
   // SSR-safe portal flag: avoid touching document.body until after mount.
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+  // 가게 제안 모달이 열려 있는 동안 하단 광고 배너를 숨긴다(버튼 가림 방지).
+  useSuppressAdBannerWhile(open);
 
   useEffect(() => {
     if (!open) {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { getFingerprint } from '@/lib/utils';
 import { blockNick } from '@/lib/blocklist';
 import { useBackClose } from '@/lib/useBackClose';
+import { useSuppressAdBannerWhile } from '@/lib/adBanner';
 
 interface Props {
   open: boolean;
@@ -40,6 +41,8 @@ export default function ReportModal({ open, onClose, targetType, targetId, autho
   }, [open]);
 
   useBackClose(open, onClose);
+  // 신고/차단 모달이 열려 있는 동안 하단 광고 배너를 숨긴다(버튼 가림 방지).
+  useSuppressAdBannerWhile(open);
 
   if (!open) return null;
 

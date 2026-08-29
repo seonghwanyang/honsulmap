@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import { track } from '@/lib/analytics';
 import { useBackClose } from '@/lib/useBackClose';
+import { useSuppressAdBannerWhile } from '@/lib/adBanner';
 
 interface Props {
   open: boolean;
@@ -25,6 +26,8 @@ export default function LoginModal({ open, onClose, reason }: Props) {
   }, []);
 
   useBackClose(open, onClose);
+  // 로그인 모달이 열려 있는 동안 하단 광고 배너를 숨긴다(버튼 가림 방지).
+  useSuppressAdBannerWhile(open);
 
   if (!open || !mounted) return null;
 
