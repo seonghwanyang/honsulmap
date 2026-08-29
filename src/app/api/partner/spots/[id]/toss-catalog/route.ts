@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isTableTester } from '@/lib/tableTesters';
-import { tossFetch, tossMerchantId } from '@/lib/tossplace';
+import { tossFetchAll, tossMerchantId } from '@/lib/tossplace';
 
 // 토스 포스 카탈로그 → 메뉴판 가져오기용 (사장님 메뉴 편집기 시드).
 // 판매중(enabled + ON_SALE) 상품을 포스 카테고리 순서 그대로 그룹핑해 내려준다.
@@ -49,7 +49,7 @@ export async function GET(
   const mid = tossMerchantId(cfg?.modes);
   if (!mid) return NextResponse.json({ connected: false, categories: [] });
 
-  const raw = await tossFetch<TossCatalogItem[]>(`/merchants/${mid}/catalog/items`, 6000);
+  const raw = await tossFetchAll<TossCatalogItem>(`/merchants/${mid}/catalog/items`);
   if (!raw) return NextResponse.json({ error: '토스에서 메뉴를 불러오지 못했어요.' }, { status: 502 });
 
   const sellable = raw.filter((it) => it.enabled && it.state === 'ON_SALE' && (it.price?.priceValue ?? 0) > 0);

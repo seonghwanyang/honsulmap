@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
+import { tossPost, tossMerchantId } from '@/lib/tossplace';
 
 // 손님 주문 — 세션(체크인) 필수. 가격은 서버가 메뉴 테이블에서 다시 계산
 // (클라이언트가 보낸 금액은 신뢰하지 않는다). 후불이라 결제는 없음.
@@ -151,6 +152,56 @@ export async function POST(
     }),
   );
   if (iErr) return NextResponse.json({ error: iErr.message }, { status: 500 });
+
+  // ── 토스 포스 주입 (연동 가게 + 주입 권한 승인 시 자동 활성) ──
+  // 실주문(가격>0)만 포스로. ₩0 서비스 요청은 보드 전용. 실패해도 우리 주문은 유효
+  // (보드가 원본) — 403(권한 전)은 조용히, 그 외는 로그만.
+  const kitchenItems = inputs.filter((it) => byId.get(it.id)!.price > 0);
+  if (kitchenItems.length) {
+    const { data: cfg } = await admin
+      .from('store_table_config')
+      .select('modes')
+      .eq('spot_id', spot.id)
+      .maybeSingle();
+    const mid = tossMerchantId(cfg?.modes);
+    if (mid) {
+      const posTotal = kitchenItems.reduce((acc, it) => acc + byId.get(it.id)!.price * it.qty, 0);
+      const taxAmount = Math.round((posTotal * 10) / 110);
+      const res = await tossPost(`/merchants/${mid}/order/orders?printOrderSheet=true`, {
+        order: {
+          orderKey: order.id,
+          orderNumber: `좌석${seat?.label ?? '?'}`,
+          lineItems: kitchenItems.map((it) => {
+            const m = byId.get(it.id)!;
+            return {
+              diningOption: 'HERE',
+              targetType: 'AD_HOC',
+              item: { title: m.name.slice(0, 60), category: { title: '혼술맵 QR' } },
+              itemPrice: { title: '기본', priceType: 'FIXED', priceUnit: 1, priceValue: m.price, isTaxFree: false, taxInclusive: true },
+              quantity: it.qty,
+              memo: typeof it.request === 'string' ? it.request.slice(0, 100) : '',
+            };
+          }),
+          chargePrice: {
+            listPrice: posTotal,
+            discountAmount: 0,
+            tipAmount: 0,
+            serviceChargeAmount: 0,
+            taxAmount,
+            supplyAmount: posTotal - taxAmount,
+            taxExemptAmount: 0,
+            totalAmount: posTotal,
+          },
+          memo: `혼술맵 QR 주문 · 좌석 ${seat?.label ?? '?'}`,
+          openedAt: new Date().toISOString(),
+        },
+        payments: [],
+      });
+      if (res && res.status !== 201 && res.status !== 200 && res.status !== 403) {
+        console.warn('[tossplace] order push failed:', res.status, JSON.stringify(res.data).slice(0, 200));
+      }
+    }
+  }
 
   return NextResponse.json({ ok: true, order_id: order.id, total }, { status: 201 });
 }
