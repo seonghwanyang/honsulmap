@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import { useUser } from '@/lib/useUser';
 import ChatRoom from '@/components/chat/ChatRoom';
+import { useSuppressAdBannerWhile } from '@/lib/adBanner';
 
 // 가게별 채팅(#6) — 플로팅 런처 + 윈도우(FB 메신저 풍). 패널 인라인 '채팅 입장'을
 // 대체. 방이 open일 때만 ChatEntry가 렌더한다. 실제 대화는 ChatRoom 재사용.
@@ -35,6 +36,8 @@ export default function ChatLauncher({ spotId, spotName, notice, initialCount, c
   useEffect(() => {
     openRef.current = open;
   }, [open]);
+  // 채팅 창이 열려 있는 동안 하단 광고 배너를 숨긴다(메시지 입력창 가림 방지).
+  useSuppressAdBannerWhile(open);
 
   // 윈도우가 닫혀 있을 때도 배지를 라이브로 — 이 방의 INSERT만 구독해 +1.
   // 로그인 유저만(RLS authenticated). 윈도우가 열려 있으면 ChatRoom의 onCount가

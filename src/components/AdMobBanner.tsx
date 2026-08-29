@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { AD_BANNER_EVENT, isAdBannerSuppressed } from '@/lib/adBanner';
 
 // 네이티브 앱에서만 하단 앵커 배너(AdMob)를 띄운다. 웹/PWA에선 no-op.
 // 위치: 우리 하단 네비 알약 '위'에 겹치지 않게 — 네비 실제 위치를 측정해 margin-bottom 계산.
@@ -40,6 +41,7 @@ export default function AdMobBanner() {
   useEffect(() => {
     let shown = false;
     let sizeListener: { remove: () => Promise<void> } | null = null;
+    let onVis: ((e: Event) => void) | null = null;
     (async () => {
       const { Capacitor } = await import('@capacitor/core');
       if (!Capacitor.isNativePlatform()) return; // 웹 무시
@@ -88,6 +90,17 @@ export default function AdMobBanner() {
           isTesting: IS_TESTING,
         });
         shown = true;
+
+        // 모달(로그인·신고 등)이 화면 하단을 덮을 때 배너를 잠깐 숨긴다 — 네이티브
+        // 배너는 웹뷰 위에 떠서 CSS로 못 가리므로 로그인 버튼 등이 광고에 가려지는
+        // 문제(App Store 2.1a) 방지. 모달이 닫히면 resume.
+        onVis = (e: Event) => {
+          const visible = (e as CustomEvent<{ visible: boolean }>).detail?.visible;
+          void (visible ? AdMob.resumeBanner() : AdMob.hideBanner()).catch(() => {});
+        };
+        window.addEventListener(AD_BANNER_EVENT, onVis);
+        // 배너가 뜬 시점에 이미 모달이 열려 있으면 즉시 숨김.
+        if (isAdBannerSuppressed()) void AdMob.hideBanner().catch(() => {});
       } catch {
         // 플러그인 없음/광고 로드 실패 — 앱 동작에 영향 없음.
       }
@@ -96,6 +109,7 @@ export default function AdMobBanner() {
     return () => {
       // 배너가 사라지면 FAB도 원위치로.
       document.documentElement.style.removeProperty('--admob-banner-top');
+      if (onVis) window.removeEventListener(AD_BANNER_EVENT, onVis);
       (async () => {
         const { Capacitor } = await import('@capacitor/core');
         if (!Capacitor.isNativePlatform()) return;
