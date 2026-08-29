@@ -384,6 +384,33 @@ export default function TableClient({
   const cartTotal = cart.reduce((a, c) => a + c.item.price * c.qty, 0);
   const cartCount = cart.reduce((a, c) => a + c.qty, 0);
 
+  // 좌석 이동 — 좌석맵에서 빈자리 탭. 성공 시 세션 좌석 갱신 + 보드에 이벤트 카드.
+  const moveSeat = async (seat: Seat) => {
+    if (!session || busy) return;
+    if (!confirm(`Seat ${seat.label}(으)로 자리를 옮길까요?`)) return;
+    setBusy(true);
+    const res = await fetch(`/api/t/${spot.slug}/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: session.id, seat_label: seat.label }),
+    });
+    setBusy(false);
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 410) {
+        localStorage.removeItem(storageKey);
+        setSession(null);
+        setCheckinOpen(true);
+      }
+      showToast(d.error || '자리 이동에 실패했어요.');
+      return;
+    }
+    setSession({ ...session, seat_id: d.seat_id, seat_label: d.seat_label });
+    showToast(`Seat ${d.seat_label}로 자리를 옮겼어요 🪑`);
+    refreshState();
+    refreshOrders();
+  };
+
   const placeCart = async () => {
     const ok = await submitOrder(
       cart.map((c) => ({ id: c.item.id, qty: c.qty, request: c.request || undefined })),
@@ -588,6 +615,7 @@ export default function TableClient({
             sessionBySeat={sessionBySeat}
             mySeatId={session?.seat_id ?? null}
             onTapOccupied={(seat, s) => social && s.is_public && setProfileView({ seat, s })}
+            onTapEmpty={session ? moveSeat : undefined}
           />
         )}
         {tab === 'menu' && (
@@ -703,12 +731,14 @@ function SeatMap({
   sessionBySeat,
   mySeatId,
   onTapOccupied,
+  onTapEmpty,
 }: {
   zones: Zone[];
   seats: Seat[];
   sessionBySeat: Map<string, PublicSession>;
   mySeatId: string | null;
   onTapOccupied: (seat: Seat, s: PublicSession) => void;
+  onTapEmpty?: (seat: Seat) => void; // 체크인 상태에서 빈 좌석 탭 = 자리 이동
 }) {
   if (!zones.length)
     return <p style={{ textAlign: 'center', color: FAINT, fontSize: 13, padding: '40px 0' }}>배치도가 아직 등록되지 않았어요.</p>;
@@ -746,9 +776,12 @@ function SeatMap({
                   return (
                     <button
                       key={i}
-                      onClick={() => sess && !mine && onTapOccupied(seat, sess)}
+                      onClick={() => {
+                        if (sess && !mine) onTapOccupied(seat, sess);
+                        else if (!sess && seat.seat_type === 'seat' && onTapEmpty) onTapEmpty(seat);
+                      }}
                       className={mine ? 'hsmt-mine' : undefined}
-                      style={{ aspectRatio: '1', borderRadius: 9, display: 'grid', placeItems: 'center', fontSize: 10.5, fontWeight: 800, cursor: sess && !mine ? 'pointer' : 'default', ...style }}
+                      style={{ aspectRatio: '1', borderRadius: 9, display: 'grid', placeItems: 'center', fontSize: 10.5, fontWeight: 800, cursor: (sess && !mine) || (!sess && seat.seat_type === 'seat' && onTapEmpty) ? 'pointer' : 'default', ...style }}
                     >
                       <span style={{ lineHeight: 1.15 }}>
                         {seat.label}
@@ -772,6 +805,11 @@ function SeatMap({
         <Legend swatch={{ background: ACCENT_SOLID }}>내 자리</Legend>
         <Legend swatch={{ border: '1.6px dashed rgba(255,255,255,0.28)' }}>대기석</Legend>
       </div>
+      {onTapEmpty && (
+        <p style={{ textAlign: 'center', fontSize: 11.5, color: FAINT, marginTop: -4, paddingBottom: 4 }}>
+          빈자리를 탭하면 자리를 옮길 수 있어요
+        </p>
+      )}
     </div>
   );
 }
