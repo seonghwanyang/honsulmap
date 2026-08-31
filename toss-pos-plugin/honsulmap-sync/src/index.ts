@@ -1,0 +1,162 @@
+/**
+ * 혼술맵 테이블 싱크 — 토스 POS 워커 플러그인.
+ *
+ * QR 주문을 혼술맵 서버 피드에서 5초마다 끌어와, 포스 카탈로그와 이름+가격으로
+ * 매칭한 뒤 좌석 번호와 이름이 일치하는 테이블에 주문을 직접 생성한다
+ * (order.add + tableId). 매칭 실패는 서버에 ack(unmatched)로 알려 Open API
+ * 폴백(현황 탭행)이 처리하게 한다 — 어떤 경우에도 주문은 포스에 정확히 한 번.
+ *
+ * 일부 SDK 응답 필드(카탈로그 가격 구조, chargePrice 의미)는 문서에 미기재라
+ * 방어적으로 읽고 로그를 남긴다 — 첫 실기기(개발 배포) 테스트에서 검증한다.
+ */
+import { posPluginSdk } from "@tossplace/pos-plugin-sdk";
+
+const FEED_URL = "https://honsulmap.com/api/tossplugin/feed";
+const PLUGIN_KEY = "HSMPK-b3fe4a8c9f42148098bcf6497cd5c83639061d232e774064";
+const POLL_MS = 5000;
+const REFRESH_MS = 10 * 60 * 1000;
+
+type FeedItem = { name: string; price: number; qty: number; request?: string | null };
+type FeedOrder = { id: string; seat_label: string; total: number; items: FeedItem[] };
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const sdk = posPluginSdk as any;
+
+let merchantId: number | null = null;
+let tables: any[] = [];
+let catalogIndex = new Map<string, any>();
+const inflight = new Set<string>();
+
+const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
+
+function catalogPrice(c: any): number {
+  return Number(c?.price?.value ?? c?.price?.priceValue ?? c?.price ?? NaN);
+}
+
+async function refreshTables() {
+  try {
+    tables = (await sdk.table.getTables()) ?? [];
+    console.log("[hsm] 테이블", tables.length, "개 로드");
+  } catch (e) {
+    console.log("[hsm] 테이블 로드 실패", e);
+    tables = [];
+  }
+}
+
+async function refreshCatalog() {
+  try {
+    const cats = (await sdk.catalog.getCatalogs()) ?? [];
+    catalogIndex = new Map();
+    for (const c of cats) {
+      const title = String(c?.title ?? "").trim();
+      if (!title) continue;
+      catalogIndex.set(`${title}|${catalogPrice(c)}`, c);
+      if (!catalogIndex.has(title)) catalogIndex.set(title, c); // 가격 변경 대비 이름 폴백
+    }
+    console.log("[hsm] 카탈로그", cats.length, "개 인덱싱");
+  } catch (e) {
+    console.log("[hsm] 카탈로그 로드 실패", e);
+  }
+}
+
+// "좌석 N" ↔ 포스 테이블 이름 매칭 — 숫자만 뽑아 비교 ("테이블 3" == 좌석 "3")
+function matchTableId(seatLabel: string): number | undefined {
+  const want = digits(seatLabel);
+  if (!want) return undefined;
+  const hit = tables.find((t) => digits(t?.title) === want);
+  return hit?.id;
+}
+
+function toLineItem(fi: FeedItem) {
+  const c = catalogIndex.get(`${fi.name}|${fi.price}`) ?? catalogIndex.get(fi.name);
+  if (!c) throw new Error(`카탈로그 미매칭: ${fi.name}`);
+  const req = (fi.request ?? "").trim();
+  return {
+    diningOption: "HERE",
+    item: { id: c.id, title: c.title, category: c.category, type: "ITEM" },
+    quantity: { value: fi.qty },
+    chargePrice: { value: fi.price * fi.qty }, // 라인 청구액으로 가정 — 실기기에서 금액 검증
+    optionChoices: [],
+    ...(req ? { memo: req } : {}),
+  };
+}
+
+async function ack(orderId: string, outcome: "added" | "unmatched" | "error", tossOrderId?: unknown) {
+  try {
+    await sdk.http.post(
+      FEED_URL,
+      { mid: String(merchantId), order_id: orderId, outcome, toss_order_id: tossOrderId ?? null },
+      [
+        ["Content-Type", "application/json"],
+        ["x-hsm-plugin-key", PLUGIN_KEY],
+      ],
+    );
+  } catch (e) {
+    console.log("[hsm] ack 실패", orderId, e);
+  }
+}
+
+async function handle(order: FeedOrder) {
+  if (inflight.has(order.id)) return;
+  inflight.add(order.id);
+  try {
+    let lineItems: ReturnType<typeof toLineItem>[];
+    try {
+      lineItems = order.items.map(toLineItem);
+    } catch (e) {
+      console.log("[hsm] 매칭 실패 → 서버 폴백", order.id, e);
+      await ack(order.id, "unmatched");
+      return;
+    }
+    const tableId = matchTableId(order.seat_label);
+    const dto = {
+      orderKey: order.id,
+      memo: `혼술맵 QR · 좌석 ${order.seat_label}`,
+      discounts: [],
+      lineItems,
+      ...(tableId ? { tableId } : {}),
+    };
+    const created = await sdk.order.add(dto);
+    console.log("[hsm] 주문 생성 OK", order.id, "→ table", tableId ?? "(미지정)", "posOrder", created?.id);
+    await ack(order.id, "added", created?.id);
+  } catch (e) {
+    console.log("[hsm] order.add 실패 → 서버 폴백", order.id, e);
+    await ack(order.id, "error");
+  } finally {
+    inflight.delete(order.id);
+  }
+}
+
+async function tick() {
+  if (!merchantId) return;
+  try {
+    const res = await sdk.http.get(`${FEED_URL}?mid=${merchantId}`, [["x-hsm-plugin-key", PLUGIN_KEY]]);
+    if (res?.code !== 200) return;
+    const parsed = JSON.parse(res.body ?? "{}");
+    for (const o of parsed.orders ?? []) await handle(o);
+  } catch (e) {
+    console.log("[hsm] tick 실패", e);
+  }
+}
+
+async function main() {
+  const merchant = await sdk.merchant.getMerchant();
+  merchantId = Number(merchant?.id ?? merchant?.merchantId);
+  console.log("[hsm] 혼술맵 테이블 싱크 시작 — merchant", merchantId);
+  await refreshTables();
+  await refreshCatalog();
+  // 테이블 변경(추가/이동/합석 등) 시 갱신 — on 미지원 환경 대비 try
+  try {
+    for (const ev of ["add", "update", "delete", "move", "merge", "clear"]) {
+      sdk.table.on?.(ev, refreshTables);
+    }
+  } catch {
+    /* 이벤트 미지원이면 주기 갱신만 */
+  }
+  setInterval(refreshTables, REFRESH_MS);
+  setInterval(refreshCatalog, REFRESH_MS);
+  setInterval(tick, POLL_MS);
+  void tick();
+}
+
+void main();
