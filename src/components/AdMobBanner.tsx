@@ -42,6 +42,8 @@ export default function AdMobBanner() {
     let shown = false;
     let sizeListener: { remove: () => Promise<void> } | null = null;
     let onVis: ((e: Event) => void) | null = null;
+    let onFocusChange: (() => void) | null = null;
+    let mo: MutationObserver | null = null;
     (async () => {
       const { Capacitor } = await import('@capacitor/core');
       if (!Capacitor.isNativePlatform()) return; // 웹 무시
@@ -91,16 +93,46 @@ export default function AdMobBanner() {
         });
         shown = true;
 
-        // 모달(로그인·신고 등)이 화면 하단을 덮을 때 배너를 잠깐 숨긴다 — 네이티브
-        // 배너는 웹뷰 위에 떠서 CSS로 못 가리므로 로그인 버튼 등이 광고에 가려지는
-        // 문제(App Store 2.1a) 방지. 모달이 닫히면 resume.
+        // ── 콘텐츠 가림 방지 (App Store 2.1a) ────────────────────────────
+        // 네이티브 배너는 웹뷰 '위'에 떠서 CSS로 못 가린다. 그래서 (a) 화면을 덮는
+        // 모달(fixed·inset-0·z≥10000)이 뜨거나 (b) 입력창에 포커스가 가면(키보드)
+        // 자동으로 hideBanner, 사라지면 resumeBanner 한다. 여기에 per-component
+        // 명시 suppress(채팅 등)를 OR로 합쳐 하나의 상태로 제어한다.
+        let bannerHidden = false;
+        let explicitHide = isAdBannerSuppressed();
+        let autoHide = false;
+        const applyHidden = () => {
+          const want = explicitHide || autoHide;
+          if (want === bannerHidden) return;
+          bannerHidden = want;
+          void (want ? AdMob.hideBanner() : AdMob.resumeBanner()).catch(() => {});
+        };
+        // 화면을 덮는 풀스크린 오버레이(우리 모달 규칙: fixed·inset-0·z≥10000)가 있나?
+        const hasBlockingOverlay = () =>
+          Array.from(document.body.children).some((el) => {
+            const s = getComputedStyle(el);
+            if (s.position !== 'fixed') return false;
+            if ((parseInt(s.zIndex, 10) || 0) < 10000) return false;
+            const r = el.getBoundingClientRect();
+            return r.width >= window.innerWidth * 0.9 && r.height >= window.innerHeight * 0.6;
+          });
+        const isTyping = () => {
+          const el = document.activeElement as HTMLElement | null;
+          return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+        };
+        const evaluate = () => { autoHide = hasBlockingOverlay() || isTyping(); applyHidden(); };
         onVis = (e: Event) => {
           const visible = (e as CustomEvent<{ visible: boolean }>).detail?.visible;
-          void (visible ? AdMob.resumeBanner() : AdMob.hideBanner()).catch(() => {});
+          explicitHide = !(visible ?? true);
+          applyHidden();
         };
         window.addEventListener(AD_BANNER_EVENT, onVis);
-        // 배너가 뜬 시점에 이미 모달이 열려 있으면 즉시 숨김.
-        if (isAdBannerSuppressed()) void AdMob.hideBanner().catch(() => {});
+        onFocusChange = () => evaluate();
+        document.addEventListener('focusin', onFocusChange);
+        document.addEventListener('focusout', onFocusChange);
+        mo = new MutationObserver(() => evaluate());
+        mo.observe(document.body, { childList: true });
+        evaluate(); // 배너 뜬 시점에 이미 열려 있는 모달/포커스 반영
       } catch {
         // 플러그인 없음/광고 로드 실패 — 앱 동작에 영향 없음.
       }
@@ -110,6 +142,11 @@ export default function AdMobBanner() {
       // 배너가 사라지면 FAB도 원위치로.
       document.documentElement.style.removeProperty('--admob-banner-top');
       if (onVis) window.removeEventListener(AD_BANNER_EVENT, onVis);
+      if (onFocusChange) {
+        document.removeEventListener('focusin', onFocusChange);
+        document.removeEventListener('focusout', onFocusChange);
+      }
+      if (mo) mo.disconnect();
       (async () => {
         const { Capacitor } = await import('@capacitor/core');
         if (!Capacitor.isNativePlatform()) return;
