@@ -23,14 +23,15 @@ function QrSheet() {
   const [spot, setSpot] = useState<{ name: string; slug: string } | null>(null);
   const [cards, setCards] = useState<SeatQR[]>([]);
   const [loading, setLoading] = useState(true);
-  // 가게마다 부착 사이즈가 달라 QR 크기·자르기 간격을 화면에서 조절 (가게별 기억)
-  const [qrSize, setQrSize] = useState(170);
+  // 가게마다 부착 사이즈가 달라 카드 높이(cm)·자르기 간격을 화면에서 조절 (가게별 기억).
+  // 기본 6cm = 테이블 부착 표준 (2026-08-31 확정 디자인: 랜딩 톤 다크 카드).
+  const [heightCm, setHeightCm] = useState(6);
   const [gap, setGap] = useState(16);
 
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(`hsm_qr_opts_${id}`) ?? 'null');
-      if (saved?.qrSize) setQrSize(saved.qrSize);
+      if (saved?.heightCm) setHeightCm(saved.heightCm);
       if (saved?.gap) setGap(saved.gap);
     } catch {
       /* 기본값 유지 */
@@ -39,11 +40,14 @@ function QrSheet() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(`hsm_qr_opts_${id}`, JSON.stringify({ qrSize, gap }));
+      localStorage.setItem(`hsm_qr_opts_${id}`, JSON.stringify({ heightCm, gap }));
     } catch {
       /* 저장 실패 무시 */
     }
-  }, [id, qrSize, gap]);
+  }, [id, heightCm, gap]);
+
+  // 6cm 기준 비율 스케일 — 폰트·QR·여백이 카드 높이에 비례
+  const sc = heightCm / 6;
 
   useEffect(() => {
     (async () => {
@@ -77,7 +81,7 @@ function QrSheet() {
       <style>{`
         @media print {
           .qr-controls { display: none !important; }
-          .qr-card { break-inside: avoid; border: 1px dashed #d1d5db !important; }
+          .qr-card { break-inside: avoid; }
           nav, header { display: none !important; }
           @page { margin: 10mm; }
         }
@@ -101,16 +105,18 @@ function QrSheet() {
       {/* 크기·간격 조절 — 가게마다 부착 위치가 달라서 (설정은 이 가게에 기억됨) */}
       <div className="qr-controls" style={{ display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap', marginBottom: 18, padding: '12px 16px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, fontWeight: 700, color: '#374151' }}>
-          QR 크기
-          <input type="range" min={110} max={320} step={10} value={qrSize} onChange={(e) => setQrSize(Number(e.target.value))} style={{ width: 140 }} />
-          <span style={{ color: '#6b7280', fontVariantNumeric: 'tabular-nums', width: 46 }}>{qrSize}px</span>
+          카드 높이
+          <input type="range" min={4} max={8} step={0.5} value={heightCm} onChange={(e) => setHeightCm(Number(e.target.value))} style={{ width: 140 }} />
+          <span style={{ color: '#6b7280', fontVariantNumeric: 'tabular-nums', width: 46 }}>{heightCm}cm</span>
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, fontWeight: 700, color: '#374151' }}>
           자르기 간격
           <input type="range" min={6} max={40} step={2} value={gap} onChange={(e) => setGap(Number(e.target.value))} style={{ width: 140 }} />
           <span style={{ color: '#6b7280', fontVariantNumeric: 'tabular-nums', width: 46 }}>{gap}px</span>
         </label>
-        <span style={{ fontSize: 11.5, color: '#9ca3af' }}>인쇄 대화상자에서 "PDF로 저장"을 고르면 PDF로 한 번에 나와요</span>
+        <span style={{ fontSize: 11.5, color: '#9ca3af' }}>
+          인쇄 시 "배경 그래픽" 옵션을 켜야 다크 카드가 나와요 · "PDF로 저장" 선택 시 PDF로 한 번에
+        </span>
       </div>
 
       {cards.length === 0 && (
@@ -119,20 +125,44 @@ function QrSheet() {
         </p>
       )}
 
-      <div className="qr-grid" style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${qrSize + 48}px, 1fr))`, gap }}>
+      <div className="qr-grid" style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, ${(heightCm * 0.867).toFixed(2)}cm)`, gap, justifyContent: 'start' }}>
         {cards.map((c) => (
-          <div
-            key={`${c.zone}-${c.label}`}
-            className="qr-card"
-            style={{ border: '1px solid #e5e7eb', borderRadius: 14, padding: '18px 14px 14px', textAlign: 'center', background: '#fff' }}
-          >
-            <div style={{ fontSize: Math.max(16, Math.round(qrSize * 0.115)), fontWeight: 800, color: '#111827', letterSpacing: '-0.4px', lineHeight: 1.25, wordBreak: 'keep-all', marginBottom: 12 }}>
-              {spot?.name}
+          // 바깥 점선 = 가위 재단 가이드
+          <div key={`${c.zone}-${c.label}`} style={{ border: '1px dashed #d1d5db', padding: 3, borderRadius: 14, breakInside: 'avoid' }}>
+            <div
+              className="qr-card"
+              style={{
+                width: `${(heightCm * 0.867).toFixed(2)}cm`,
+                height: `${heightCm}cm`,
+                borderRadius: 12,
+                overflow: 'hidden',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: `${13 * sc}px ${10 * sc}px ${9 * sc}px`,
+                background:
+                  'radial-gradient(130% 100% at 18% 0%, rgba(255,236,210,0.13) 0%, rgba(255,236,210,0) 55%), radial-gradient(120% 85% at 50% 0%, #1b1b1f 0%, #0c0c0e 100%)',
+                WebkitPrintColorAdjust: 'exact',
+                printColorAdjust: 'exact',
+              }}
+            >
+              <div style={{ fontSize: 14 * sc, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.2, wordBreak: 'keep-all' }}>
+                {spot?.name}
+              </div>
+              <div style={{ background: '#fff', borderRadius: 8 * sc, padding: 6 * sc, marginTop: 8 * sc, boxShadow: '0 0 0 1.5px #EAB308' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={c.dataUrl} alt={`Seat ${c.label} QR`} style={{ display: 'block', width: 122 * sc, height: 122 * sc }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 * sc, marginTop: 9 * sc }}>
+                <span style={{ width: 15 * sc, height: 1, background: 'rgba(255,255,255,0.22)' }} />
+                <span style={{ fontSize: 13 * sc, letterSpacing: 4, color: '#EAB308', fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                  SEAT {c.label}
+                </span>
+                <span style={{ width: 15 * sc, height: 1, background: 'rgba(255,255,255,0.22)' }} />
+              </div>
+              <div style={{ fontSize: 8.5 * sc, letterSpacing: 3, color: 'rgba(255,255,255,0.42)', marginTop: 6 * sc, fontWeight: 700 }}>혼술맵</div>
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={c.dataUrl} alt={`Seat ${c.label} QR`} style={{ display: 'block', width: qrSize, height: qrSize, margin: '0 auto' }} />
-            <div style={{ fontSize: Math.max(20, Math.round(qrSize * 0.14)), fontWeight: 800, color: '#111827', marginTop: 12 }}>Seat {c.label}</div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: '#9ca3af', letterSpacing: '3px', marginTop: 8 }}>혼술맵</div>
           </div>
         ))}
       </div>
