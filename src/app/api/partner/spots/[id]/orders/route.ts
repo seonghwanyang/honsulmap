@@ -3,7 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart } from '@/lib/tableDay';
 import { isTableTester } from '@/lib/tableTesters';
-import { tossFetchAll, tossMerchantId } from '@/lib/tossplace';
+import { sweepUnackedPluginOrders, tossFetchAll, tossMerchantId, tossPushMode } from '@/lib/tossplace';
 
 // 토스 포스 주문 원본 (조회 API 응답 중 보드에 필요한 필드만)
 interface TossOrderRaw {
@@ -64,6 +64,11 @@ export async function GET(
   // 주의: orderStates 기본값이 [COMPLETED, CANCELLED]라 진행 중 주문이 빠진다 — 명시 필수.
   // from(영업일 시작) + 페이지네이션으로 바쁜 날 100건 초과도 보장.
   const mid = tossMerchantId(cfg?.modes);
+  // 플러그인 모드 안전망 — 보드가 영업 중 상시 폴링하므로 여기서 미처리 주문을 점검.
+  // 응답을 막지 않게 fire-and-forget.
+  if (mid && tossPushMode(cfg?.modes) === 'plugin') {
+    void sweepUnackedPluginOrders(admin, id, mid);
+  }
   const wantPos = request.nextUrl.searchParams.get('pos') === '1';
   let posOrders:
     | { id: string; order_number: string; state: string; created_at: string; total: number; items: { name: string; qty: number; price: number }[] }[]

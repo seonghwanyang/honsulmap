@@ -119,6 +119,53 @@ export function buildOpenApiOrderPayload(args: {
   };
 }
 
+// 플러그인 모드 안전망 — 포스 꺼짐/플러그인 사망으로 90초 넘게 미처리된 주문을
+// Open API로 폴백 주입. 주문 보드 폴링(영업 중 상시)에서 fire-and-forget으로 호출.
+// ack 레코드를 먼저 남겨 동시 폴링의 이중 폴백을 막는다.
+export async function sweepUnackedPluginOrders(
+  admin: ReturnType<typeof import('@/lib/supabase').supabaseAdmin>,
+  spotId: string,
+  mid: string,
+): Promise<void> {
+  try {
+    const since = new Date(Date.now() - 30 * 60000).toISOString();
+    const cutoff = new Date(Date.now() - 90_000).toISOString();
+    const { data: orders } = await admin
+      .from('table_orders')
+      .select('id, seat_label, items:table_order_items(item_name, price, qty, request)')
+      .eq('spot_id', spotId)
+      .gte('created_at', since)
+      .lte('created_at', cutoff)
+      .in('status', ['new', 'accepted'])
+      .gt('total', 0);
+    if (!orders?.length) return;
+    const { data: acks } = await admin
+      .from('tossplace_events')
+      .select('payload')
+      .eq('event_type', 'plugin.push.ack')
+      .gte('created_at', since);
+    const acked = new Set(
+      (acks ?? []).map((a) => (a.payload as { order_id?: string })?.order_id).filter(Boolean),
+    );
+    for (const o of orders) {
+      if (acked.has(o.id)) continue;
+      const items = o.items
+        .filter((it) => it.price > 0)
+        .map((it) => ({ name: it.item_name, price: it.price, qty: it.qty, request: it.request }));
+      if (!items.length) continue;
+      await admin.from('tossplace_events').insert({
+        event_type: 'plugin.push.ack',
+        payload: { order_id: o.id, outcome: 'timeout-fallback', mid },
+        headers: {},
+      });
+      await pushOrderToPos(mid, buildOpenApiOrderPayload({ orderKey: `${o.id}-fb`, seatLabel: o.seat_label, items }));
+      console.warn('[tossplugin] 플러그인 미응답 → Open API 폴백:', o.id);
+    }
+  } catch (e) {
+    console.warn('[tossplugin] sweep 실패:', (e as Error).message);
+  }
+}
+
 // 재시도 포함 주입 — 일시 오류(타임아웃/5xx) 1회 재시도. 403(권한 전)은 조용히.
 export async function pushOrderToPos(
   mid: string,
