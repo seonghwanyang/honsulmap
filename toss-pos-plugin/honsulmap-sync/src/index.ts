@@ -25,7 +25,12 @@ const sdk = posPluginSdk as any;
 let merchantId: number | null = null;
 let tables: any[] = [];
 let catalogIndex = new Map<string, any>();
+let catalogList: any[] = [];
 const inflight = new Set<string>();
+// 검수용 데모 — 혼술맵 미연동 매장(검수 환경)에서 동작을 보여주기 위해
+// 그 포스의 카탈로그 첫 상품 + 첫 테이블로 주문을 1회만 생성한다.
+let demoAttempts = 0;
+let demoDone = false;
 
 const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
 
@@ -46,6 +51,7 @@ async function refreshTables() {
 async function refreshCatalog() {
   try {
     const cats = (await sdk.catalog.getCatalogs()) ?? [];
+    catalogList = cats;
     catalogIndex = new Map();
     for (const c of cats) {
       const title = String(c?.title ?? "").trim();
@@ -127,12 +133,53 @@ async function handle(order: FeedOrder) {
   }
 }
 
+// 검수용 데모 주문 — 이 포스의 첫 상품·첫 테이블로 1회 생성 (외부 데이터 불필요)
+async function runDemoOnce() {
+  if (demoDone || demoAttempts >= 3) return;
+  demoAttempts++;
+  try {
+    if (!catalogList.length) await refreshCatalog();
+    if (!tables.length) await refreshTables();
+    const c = catalogList[0];
+    if (!c) {
+      console.log("[hsm][demo] 카탈로그가 비어 있어 데모를 건너뜁니다");
+      return;
+    }
+    const price = catalogPrice(c);
+    const table = tables[0];
+    const dto = {
+      orderKey: `hsm-demo-${Date.now()}`,
+      memo: "혼술맵 테이블 싱크 · 검수용 데모 주문입니다 — 취소하셔도 됩니다",
+      discounts: [],
+      lineItems: [
+        {
+          diningOption: "HERE",
+          item: { id: c.id, title: c.title, category: c.category, type: "ITEM" },
+          quantity: { value: 1 },
+          chargePrice: { value: Number.isFinite(price) ? price : 0 },
+          optionChoices: [],
+        },
+      ],
+      ...(table?.id ? { tableId: table.id } : {}),
+    };
+    const created = await sdk.order.add(dto);
+    demoDone = true;
+    console.log("[hsm][demo] 데모 주문 생성 OK → table", table?.id ?? "(미지정)", "order", created?.id);
+  } catch (e) {
+    console.log("[hsm][demo] 데모 주문 실패", demoAttempts, "회차", e);
+  }
+}
+
 async function tick() {
   if (!merchantId) return;
   try {
     const res = await sdk.http.get(`${FEED_URL}?mid=${merchantId}`, [["x-hsm-plugin-key", PLUGIN_KEY]]);
     if (res?.code !== 200) return;
     const parsed = JSON.parse(res.body ?? "{}");
+    if (parsed.demo) {
+      await runDemoOnce();
+      return;
+    }
     for (const o of parsed.orders ?? []) await handle(o);
   } catch (e) {
     console.log("[hsm] tick 실패", e);
