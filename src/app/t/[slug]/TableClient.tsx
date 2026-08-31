@@ -456,10 +456,10 @@ export default function TableClient({
                   alt={spot.name}
                   width={88}
                   height={88}
-                  style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 0 0 7px rgba(255,255,255,0.04), 0 22px 60px rgba(0,0,0,0.55)' }}
+                  style={{ width: 132, height: 132, borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 0 0 8px rgba(255,255,255,0.04), 0 26px 70px rgba(0,0,0,0.55)' }}
                 />
               ) : (
-                <div style={{ width: 88, height: 88, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', fontSize: 34, fontWeight: 800, color: 'rgba(255,255,255,0.85)', boxShadow: '0 0 0 7px rgba(255,255,255,0.04), 0 22px 60px rgba(0,0,0,0.55)' }}>
+                <div style={{ width: 132, height: 132, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', fontSize: 50, fontWeight: 800, color: 'rgba(255,255,255,0.85)', boxShadow: '0 0 0 8px rgba(255,255,255,0.04), 0 26px 70px rgba(0,0,0,0.55)' }}>
                   {spot.name.slice(0, 1)}
                 </div>
               )}

@@ -167,19 +167,21 @@ export async function POST(
     if (mid) {
       const posTotal = kitchenItems.reduce((acc, it) => acc + byId.get(it.id)!.price * it.qty, 0);
       const taxAmount = Math.round((posTotal * 10) / 110);
-      const res = await tossPost(`/merchants/${mid}/order/orders?printOrderSheet=true`, {
+      const payload = {
         order: {
           orderKey: order.id,
           orderNumber: `좌석${seat?.label ?? '?'}`,
           lineItems: kitchenItems.map((it) => {
             const m = byId.get(it.id)!;
+            const req = typeof it.request === 'string' ? it.request.trim().slice(0, 100) : '';
             return {
               diningOption: 'HERE',
               targetType: 'AD_HOC',
               item: { title: m.name.slice(0, 60), category: { title: '혼술맵 QR' } },
               itemPrice: { title: '기본', priceType: 'FIXED', priceUnit: 1, priceValue: m.price, isTaxFree: false, taxInclusive: true },
               quantity: it.qty,
-              memo: typeof it.request === 'string' ? it.request.slice(0, 100) : '',
+              // 토스는 빈 문자열 memo를 400으로 거부한다 — 요청사항 있을 때만 포함
+              ...(req ? { memo: req } : {}),
             };
           }),
           chargePrice: {
@@ -196,8 +198,16 @@ export async function POST(
           openedAt: new Date().toISOString(),
         },
         payments: [],
-      });
-      if (res && res.status !== 201 && res.status !== 200 && res.status !== 403) {
+      };
+      // 일시 오류(타임아웃/5xx)는 1회 재시도 — 주방 전표 유실 방지
+      let res = await tossPost(`/merchants/${mid}/order/orders?printOrderSheet=true`, payload, 8000);
+      if (!res || res.status >= 500) {
+        await new Promise((r) => setTimeout(r, 1200));
+        res = await tossPost(`/merchants/${mid}/order/orders?printOrderSheet=true`, payload, 8000);
+      }
+      if (!res) {
+        console.warn('[tossplace] order push no-response (timeout/network):', order.id);
+      } else if (res.status !== 200 && res.status !== 201 && res.status !== 403) {
         console.warn('[tossplace] order push failed:', res.status, JSON.stringify(res.data).slice(0, 200));
       }
     }
