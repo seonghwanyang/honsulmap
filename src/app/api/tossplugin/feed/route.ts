@@ -34,7 +34,9 @@ export async function GET(request: NextRequest) {
   if (!/^\d{1,20}$/.test(mid)) return NextResponse.json({ error: 'bad mid' }, { status: 400 });
 
   const ctx = await spotForMerchant(mid);
-  if (!ctx) return NextResponse.json({ orders: [] }); // 미연동/모드 아님 — 플러그인은 조용히 대기
+  // 미연동 매장(검수 환경 포함) — demo 플래그를 내려 플러그인이 자기 포스의
+  // 카탈로그·테이블로 검수용 데모 주문을 1회 생성하게 한다 (동작 시연용).
+  if (!ctx) return NextResponse.json({ orders: [], demo: true });
 
   const since = new Date(Date.now() - WINDOW_MIN * 60000).toISOString();
   const [{ data: orders }, { data: acks }] = await Promise.all([
