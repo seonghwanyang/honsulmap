@@ -69,5 +69,52 @@ export async function POST(request: NextRequest) {
     console.error('[tossplace] store threw:', (e as Error).message);
   }
 
+  // ── 좌석 자동 체크아웃 ──
+  // 우리가 만든 포스 주문(orderKey = 우리 주문 id)이 결제·완료/취소되면 우리 주문
+  // 상태를 맞추고, 그 좌석(세션)의 주방 주문이 전부 완결됐으면 좌석을 비운다.
+  // 테이블 단위가 아니라 좌석 단위 로직이라 현황 탭 방식·플러그인 방식 모두에서 동작.
+  try {
+    if (eventType === 'order.order.completed.v1' || eventType === 'order.order.cancelled.v1') {
+      const data = (payload.data ?? {}) as { orderKey?: unknown };
+      const rawKey = typeof data.orderKey === 'string' ? data.orderKey : '';
+      const ourId = rawKey.replace(/-(fb|retry)$/, ''); // 폴백/재전송 접미사 제거
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ourId)) {
+        const admin = supabaseAdmin();
+        const { data: ord } = await admin
+          .from('table_orders')
+          .select('id, session_id')
+          .eq('id', ourId)
+          .maybeSingle();
+        if (ord) {
+          const newStatus = eventType === 'order.order.cancelled.v1' ? 'canceled' : 'done';
+          await admin
+            .from('table_orders')
+            .update({ status: newStatus })
+            .eq('id', ourId)
+            .in('status', ['new', 'accepted']);
+          if (ord.session_id && newStatus === 'done') {
+            const { data: remain } = await admin
+              .from('table_orders')
+              .select('id')
+              .eq('session_id', ord.session_id)
+              .gt('total', 0)
+              .in('status', ['new', 'accepted'])
+              .limit(1);
+            if (!remain?.length) {
+              await admin
+                .from('table_sessions')
+                .update({ active: false })
+                .eq('id', ord.session_id)
+                .eq('active', true);
+              console.log('[auto-checkout] 좌석 자동 체크아웃 — session', ord.session_id);
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[auto-checkout] 처리 실패:', (e as Error).message);
+  }
+
   return NextResponse.json({ ok: true });
 }
