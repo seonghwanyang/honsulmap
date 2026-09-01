@@ -60,8 +60,9 @@ function QrSheet() {
       for (const z of d.zones ?? []) {
         for (const s of z.seats ?? []) {
           if (s.seat_type === 'block') continue;
-          // 한글 slug도 스캐너가 안전하게 읽도록 퍼센트 인코딩
-          const url = `${origin}/t/${encodeURIComponent(d.spot?.slug ?? '')}?seat=${encodeURIComponent(s.label)}`;
+          // 한글 slug도 스캐너가 안전하게 읽도록 퍼센트 인코딩.
+          // k= 좌석 서명 토큰 — URL 추측 체크인 방지 (서버에 시크릿 있을 때만 내려옴)
+          const url = `${origin}/t/${encodeURIComponent(d.spot?.slug ?? '')}?seat=${encodeURIComponent(s.label)}${s.qr_token ? `&k=${s.qr_token}` : ''}`;
           const dataUrl = await QRCode.toDataURL(url, { width: 640, margin: 1, color: { dark: '#111827', light: '#ffffff' } });
           list.push({ label: s.label, zone: z.name, url, dataUrl });
         }

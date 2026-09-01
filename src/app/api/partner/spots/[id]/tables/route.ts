@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isTableTester } from '@/lib/tableTesters';
+import { seatQrToken } from '@/lib/seatToken';
 
 // 배치도(구역+좌석) + 서비스 설정 조회/저장 — 사장님 에디터 전용.
 // 쓰기는 전량 교체(delete & insert): 배치도 수정은 영업 전 드물게 일어나는
@@ -43,7 +44,10 @@ export async function GET(
     config,
     zones: (zones ?? []).map((z) => ({
       ...z,
-      seats: (seats ?? []).filter((s) => s.zone_id === z.id),
+      seats: (seats ?? [])
+        .filter((s) => s.zone_id === z.id)
+        // QR 인쇄 페이지가 &k=에 쓰는 좌석 서명 토큰 — 사장님 인증 라우트라 노출 안전
+        .map((s) => ({ ...s, qr_token: seatQrToken(id, s.label) })),
     })),
   });
 }

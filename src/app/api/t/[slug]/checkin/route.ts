@@ -4,6 +4,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { sessionExpiry, businessDayStart } from '@/lib/tableDay';
+import { seatQrToken } from '@/lib/seatToken';
 
 // 좌석 체크인 — 좌석 번호만 입력하면 시작. 사람 구분은 브라우저가 조용히
 // 발급한 디바이스 UUID(해시만 저장 — phone4_hash 컬럼 재사용)로 한다.
@@ -156,6 +157,18 @@ export async function POST(
     .maybeSingle();
   if (!seat)
     return NextResponse.json({ error: '없는 좌석 번호예요. 좌석 옆 번호를 확인해주세요.' }, { status: 404 });
+
+  // QR 서명 토큰 검증 (가게별 옵트인) — 켜진 가게는 실물 QR의 k= 없이 체크인 불가.
+  // 스캔한 좌석의 토큰만 유효하므로 다른 좌석 번호로 바꿔 입력하는 것도 막힌다.
+  if ((config.modes as { qr_token_required?: boolean } | null)?.qr_token_required === true) {
+    const expected = seatQrToken(spot.id, seat.label);
+    const got = typeof body.seat_token === 'string' ? body.seat_token : '';
+    if (!expected || got !== expected)
+      return NextResponse.json(
+        { error: '좌석 QR을 스캔해서 들어와주세요. 앉은 좌석의 QR이 맞는지 확인해주세요.' },
+        { status: 401 },
+      );
+  }
 
   const phoneHash = hashDevice(deviceId, spot.id);
 
