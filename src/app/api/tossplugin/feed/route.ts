@@ -28,11 +28,35 @@ async function spotForMerchant(mid: string) {
   return data ? { admin, spotId: data.spot_id as string } : null;
 }
 
+// 플러그인 생존 하트비트 — 폴링이 올 때마다 modes.plugin_last_seen 갱신 (60초 스로틀).
+// 포스에서 플러그인이 실제로 돌고 있는지 원격 확인용 (토스 권고 "자체 로그"의 1단계).
+async function stampLiveness(mid: string) {
+  try {
+    const admin = supabaseAdmin();
+    const { data } = await admin
+      .from('store_table_config')
+      .select('spot_id, modes')
+      .eq('modes->>toss_merchant_id', mid)
+      .maybeSingle();
+    if (!data) return;
+    const modes = (data.modes ?? {}) as Record<string, unknown>;
+    const last = typeof modes.plugin_last_seen === 'string' ? Date.parse(modes.plugin_last_seen) : 0;
+    if (Date.now() - last < 60_000) return;
+    await admin
+      .from('store_table_config')
+      .update({ modes: { ...modes, plugin_last_seen: new Date().toISOString() } })
+      .eq('spot_id', data.spot_id);
+  } catch {
+    /* 하트비트 실패는 무시 */
+  }
+}
+
 export async function GET(request: NextRequest) {
   if (!authed(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const mid = request.nextUrl.searchParams.get('mid') ?? '';
   if (!/^\d{1,20}$/.test(mid)) return NextResponse.json({ error: 'bad mid' }, { status: 400 });
 
+  await stampLiveness(mid);
   const ctx = await spotForMerchant(mid);
   // 미연동 매장(검수 환경 포함) — demo 플래그를 내려 플러그인이 자기 포스의
   // 카탈로그·테이블로 검수용 데모 주문을 1회 생성하게 한다 (동작 시연용).
