@@ -9,7 +9,9 @@ import { seatQrToken } from '@/lib/seatToken';
 // 좌석 체크인 — 좌석 번호만 입력하면 시작. 사람 구분은 브라우저가 조용히
 // 발급한 디바이스 UUID(해시만 저장 — phone4_hash 컬럼 재사용)로 한다.
 // 같은 좌석에 활성 세션이 있으면 같은 기기일 때만 재입장(세션 복구).
-// 세션은 다음날 새벽 6시(KST)에 만료 — "영업 종료 후 자동 만료" 약속의 실체.
+// 같은 기기가 "다른" 좌석에 활성 세션이 있으면 새 세션 대신 그 세션을 이동 —
+// QR 재스캔 = 자리 이동 (주문 승계, 유령 좌석 방지).
+// 세션은 다음날 아침 8시(KST)에 만료 — "영업 종료 후 자동 만료" 약속의 실체.
 
 const PROFILE_FIELDS =
   'id, seat_id, gender, age_band, mbti, purpose, vibe, tmi, drink_pref, is_public, checked_in_at';
@@ -193,6 +195,57 @@ export async function POST(
         { status: 409 },
       );
     }
+  }
+
+  // QR 재스캔 = 자리 이동 — 이 기기의 활성 세션이 다른 좌석에 있으면
+  // 새 세션을 만들지 않고 기존 세션을 이 좌석으로 옮긴다 (주문·방문수 승계).
+  const { data: mines } = await admin
+    .from('table_sessions')
+    .select(`${PROFILE_FIELDS}, expires_at`)
+    .eq('spot_id', spot.id)
+    .eq('phone4_hash', phoneHash)
+    .eq('active', true)
+    .gt('expires_at', new Date().toISOString())
+    .order('checked_in_at', { ascending: false })
+    .limit(1);
+  const mine = mines?.[0];
+  if (mine) {
+    const { data: oldSeat } = await admin
+      .from('store_seats')
+      .select('label')
+      .eq('id', mine.seat_id)
+      .maybeSingle();
+    const { error: mvErr } = await admin
+      .from('table_sessions')
+      .update({ seat_id: seat.id })
+      .eq('id', mine.id);
+    if (mvErr) return NextResponse.json({ error: mvErr.message }, { status: 500 });
+
+    // 사장님 보드 알림 ₩0 카드 — 서빙 동선 안내 (move 라우트와 동일 포맷)
+    const { data: evt } = await admin
+      .from('table_orders')
+      .insert({ spot_id: spot.id, session_id: mine.id, seat_label: seat.label, total: 0 })
+      .select('id')
+      .single();
+    if (evt) {
+      await admin.from('table_order_items').insert({
+        order_id: evt.id,
+        item_name: `자리 이동: ${oldSeat?.label ?? '?'} → ${seat.label}`,
+        price: 0,
+        qty: 1,
+      });
+    }
+
+    const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);
+    return NextResponse.json({
+      session: {
+        ...mine,
+        seat_id: seat.id,
+        seat_label: seat.label,
+        visit_count: visitCount,
+        moved_from: oldSeat?.label ?? null,
+      },
+    });
   }
 
   const { data: created, error } = await admin

@@ -16,7 +16,7 @@ interface TossOrderRaw {
 
 // 주문 보드 (사장님) — 폴링 기반 (Realtime publication 설정 없이 동작).
 // GET: 오늘 영업분 주문 + 좌석별 합계. PATCH: 상태 변경.
-// "오늘 영업분" = 직전 새벽 6시(KST) 이후 — 새벽 장사가 전날 장부에 남게.
+// "오늘 영업분" = 직전 아침 8시(KST) 이후 — 새벽 장사가 전날 장부에 남게.
 
 async function assertMember(spotId: string) {
   const sb = await createServerSupabase();
