@@ -164,6 +164,7 @@ export default function TableClient({
   categories,
   initialSessions,
   seatParam,
+  tokenParam,
   checkinPurposes,
   checkinVibes,
 }: {
@@ -175,6 +176,7 @@ export default function TableClient({
   categories: MenuCategory[];
   initialSessions: PublicSession[];
   seatParam: string | null;
+  tokenParam: string | null;
   checkinPurposes: string[] | null;
   checkinVibes: string[] | null;
 }) {
@@ -508,6 +510,7 @@ export default function TableClient({
             slug={spot.slug}
             social={social}
             seatParam={seatParam}
+            tokenParam={tokenParam}
             purposes={purposeOptions}
             vibes={vibeOptions}
             onClose={() => setCheckinOpen(false)}
@@ -689,6 +692,7 @@ export default function TableClient({
           slug={spot.slug}
           social={social}
           seatParam={seatParam}
+          tokenParam={tokenParam}
           purposes={purposeOptions}
           vibes={vibeOptions}
           onClose={() => setCheckinOpen(false)}
@@ -1008,6 +1012,7 @@ function CheckinSheet({
   slug,
   social,
   seatParam,
+  tokenParam,
   purposes,
   vibes,
   onClose,
@@ -1016,6 +1021,7 @@ function CheckinSheet({
   slug: string;
   social: boolean;
   seatParam: string | null;
+  tokenParam: string | null;
   purposes: string[];
   vibes: string[];
   onClose: () => void;
@@ -1042,6 +1048,7 @@ function CheckinSheet({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         seat_label: seatLabel,
+        seat_token: tokenParam || undefined,
         device_id: getDeviceId(),
         gender: gender || undefined,
         age_band: ageBand || undefined,

@@ -28,11 +28,11 @@ export default async function TablePage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ seat?: string }>;
+  searchParams: Promise<{ seat?: string; k?: string }>;
 }) {
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug); // 한글 slug 대응
-  const { seat } = await searchParams;
+  const { seat, k } = await searchParams;
 
   const { data: spot } = await supabase
     .from('spots')
@@ -95,6 +95,7 @@ export default async function TablePage({
       categories={categories}
       initialSessions={publicSessions}
       seatParam={seat ?? null}
+      tokenParam={k ?? null}
       checkinPurposes={(config.checkin_purposes as string[] | null) ?? null}
       checkinVibes={(config.checkin_vibes as string[] | null) ?? null}
     />

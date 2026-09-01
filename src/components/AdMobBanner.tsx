@@ -57,8 +57,22 @@ export default function AdMobBanner() {
 
       try {
         // iOS: IDFA 접근 전 ATT(추적 동의) 요청 (iOS14+). 거부해도 광고는 비개인화로 나감.
+        // ⚠️ iOS는 앱이 'active' 상태가 아닐 때의 ATT 요청을 조용히 무시한다 → 콜드런치
+        // 직후 호출하면 프롬프트가 안 뜬다(App Store 2.1 리젝 원인). 앱이 active가 될
+        // 때까지 기다린 뒤 요청해야 프롬프트가 확실히 뜬다.
         if (platform === 'ios') {
           try {
+            const { App } = await import('@capacitor/app');
+            if (!(await App.getState()).isActive) {
+              await new Promise<void>((resolve) => {
+                let done = false;
+                const finish = () => { if (!done) { done = true; resolve(); } };
+                const timer = setTimeout(finish, 4000); // 안전 타임아웃
+                void App.addListener('appStateChange', ({ isActive }) => {
+                  if (isActive) { clearTimeout(timer); finish(); }
+                });
+              });
+            }
             await AdMob.requestTrackingAuthorization();
           } catch {
             // ATT 미지원/실패 — 광고엔 영향 없음
