@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { buildOpenApiOrderPayload, pushOrderToPos } from '@/lib/tossplace';
+import { buildOpenApiOrderPayload, extractOrderUuid, pushOrderToPos } from '@/lib/tossplace';
+import { businessDayStart } from '@/lib/tableDay';
 
 // 포스 플러그인 전용 피드 — 플러그인이 5초마다 끌어가 테이블에 주문을 직접 생성한다.
 //   GET  ?mid={토스 매장번호}: 미전송 QR 주문 목록 (toss_push='plugin' 가게만)
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
   if (!ctx) return NextResponse.json({ orders: [], demo: true });
 
   const since = new Date(Date.now() - WINDOW_MIN * 60000).toISOString();
-  const [{ data: orders }, { data: acks }] = await Promise.all([
+  const [{ data: orders }, { data: acks }, { data: dayOrders }] = await Promise.all([
     ctx.admin
       .from('table_orders')
       .select('id, seat_label, total, created_at, status, items:table_order_items(item_name, price, qty, request)')
@@ -77,15 +78,29 @@ export async function GET(request: NextRequest) {
       .select('payload')
       .eq('event_type', 'plugin.push.ack')
       .gte('created_at', new Date(Date.now() - 2 * WINDOW_MIN * 60000).toISOString()),
+    // 오늘 영업분 순번 — 포스 주문번호 표기용 (Q001, Q002 …)
+    ctx.admin
+      .from('table_orders')
+      .select('id')
+      .eq('spot_id', ctx.spotId)
+      .gte('created_at', businessDayStart())
+      .gt('total', 0)
+      .order('created_at', { ascending: true }),
   ]);
 
   const acked = new Set(
-    (acks ?? []).map((a) => (a.payload as { order_id?: string })?.order_id).filter(Boolean),
+    (acks ?? [])
+      .map((a) => (a.payload as { order_id?: string })?.order_id)
+      .filter((v): v is string => Boolean(v))
+      .map(extractOrderUuid),
   );
+  const seqOf = new Map((dayOrders ?? []).map((o, i) => [o.id, i + 1]));
   const pending = (orders ?? [])
     .filter((o) => !acked.has(o.id))
     .map((o) => ({
-      id: o.id,
+      // "Q순번_uuid" — 플러그인이 이 값을 orderKey로 그대로 쓰면 토스가 '_' 앞부분을
+      // 주문번호로 표시한다 (v2 플러그인 무수정 적용). 서버 쪽은 extractOrderUuid로 복원.
+      id: `Q${String(seqOf.get(o.id) ?? 0).padStart(3, '0')}_${o.id}`,
       seat_label: o.seat_label,
       created_at: o.created_at,
       total: o.total,
@@ -120,7 +135,8 @@ export async function POST(request: NextRequest) {
       });
     return NextResponse.json({ ok: true });
   }
-  const orderId = typeof body.order_id === 'string' ? body.order_id : '';
+  // 플러그인은 피드의 "Q순번_uuid" id를 그대로 돌려보낸다 — 원 UUID로 복원해 처리
+  const orderId = typeof body.order_id === 'string' ? extractOrderUuid(body.order_id) : '';
   const outcome = ['added', 'unmatched', 'error'].includes(body.outcome) ? (body.outcome as string) : 'error';
   if (!/^\d{1,20}$/.test(mid) || !orderId) return NextResponse.json({ error: 'bad request' }, { status: 400 });
 
