@@ -23,18 +23,32 @@ const IS_TESTING = false;
 const SAFE_MARGIN_FALLBACK = 96;
 const GAP_ABOVE_NAV = 8;
 
+// 하단 세이프에어리어(홈 인디케이터/제스처바) 높이(px).
+// 안드로이드(엣지투엣지 패치)는 --safe-area-inset-bottom 커스텀 프로퍼티를 주입하지만
+// iOS엔 없어서 0이 나온다 → env(safe-area-inset-bottom)를 프로브로 실측해 보정.
+function safeAreaInsetBottom(): number {
+  const injected =
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom'),
+    ) || 0;
+  if (injected) return injected;
+  const probe = document.createElement('div');
+  probe.style.cssText =
+    'position:fixed;left:0;bottom:0;width:0;height:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
+  document.body.appendChild(probe);
+  const h = probe.getBoundingClientRect().height;
+  probe.remove();
+  return h || 0;
+}
+
 function marginAboveNav(): number {
   const nav = document.querySelector('.app-bottom-nav');
   if (!nav) return SAFE_MARGIN_FALLBACK;
   const rect = nav.getBoundingClientRect();
-  // 네이티브(패치본)가 안드15+ 엣지투엣지에서 제스처바 인셋을 margin에 자체 가산하므로,
-  // 여기선 인셋(Capacitor SystemBars가 주입하는 --safe-area-inset-bottom)을 빼고
-  // '뷰포트 하단→네비 top 거리 + 여백'만 전달해 중복 가산을 막는다. 비엣지투엣지에선 0이라 무영향.
-  const safeBottom =
-    parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom'),
-    ) || 0;
-  return Math.max(0, Math.round(window.innerHeight - rect.top + GAP_ABOVE_NAV - safeBottom));
+  // 안드(패치본)는 엣지투엣지에서 제스처바 인셋을 margin에 자체 가산하고, iOS AdMob은
+  // BOTTOM 배너를 세이프에어리어 '위'에 배치한다. 두 경우 모두 인셋을 빼줘야 네비 바로
+  // 위에 붙는다 — 안 빼면 iOS에서 홈 인디케이터 높이만큼 배너가 떠 보인다.
+  return Math.max(0, Math.round(window.innerHeight - rect.top + GAP_ABOVE_NAV - safeAreaInsetBottom()));
 }
 
 export default function AdMobBanner() {
