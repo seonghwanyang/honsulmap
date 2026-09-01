@@ -99,6 +99,27 @@ export async function POST(request: NextRequest) {
   if (!authed(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await request.json().catch(() => ({}));
   const mid = typeof body.mid === 'string' ? body.mid : '';
+
+  // 플러그인 원격 로그 (토스 검수 권고 대응) — 미연동 매장(검수 환경) 로그도 받는다.
+  if (body.log && typeof body.log === 'object') {
+    const lg = body.log as { level?: unknown; msg?: unknown; detail?: unknown };
+    await supabaseAdmin()
+      .from('tossplace_events')
+      .insert({
+        event_type: 'plugin.log',
+        payload: {
+          mid,
+          level: String(lg.level ?? 'error').slice(0, 10),
+          msg: String(lg.msg ?? '').slice(0, 300),
+          detail: String(lg.detail ?? '').slice(0, 500),
+        },
+        headers: {},
+      })
+      .then(({ error }) => {
+        if (error) console.warn('[plugin.log] store failed:', error.message);
+      });
+    return NextResponse.json({ ok: true });
+  }
   const orderId = typeof body.order_id === 'string' ? body.order_id : '';
   const outcome = ['added', 'unmatched', 'error'].includes(body.outcome) ? (body.outcome as string) : 'error';
   if (!/^\d{1,20}$/.test(mid) || !orderId) return NextResponse.json({ error: 'bad request' }, { status: 400 });
