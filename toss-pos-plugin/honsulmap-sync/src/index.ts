@@ -34,6 +34,35 @@ let demoDone = false;
 
 const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
 
+// 원격 로그 (토스 검수 권고) — 실패 지점을 혼술맵 서버로 전송. 분당 20건 스로틀.
+let logCount = 0;
+let logWindow = 0;
+function remoteLog(level: "error" | "warn" | "info", msg: string, detail?: unknown) {
+  console.log(`[hsm][${level}]`, msg, detail ?? "");
+  const now = Date.now();
+  if (now - logWindow > 60_000) {
+    logWindow = now;
+    logCount = 0;
+  }
+  if (logCount >= 20) return;
+  logCount++;
+  try {
+    void sdk.http.post(
+      FEED_URL,
+      {
+        mid: String(merchantId ?? "?"),
+        log: { level, msg, detail: detail instanceof Error ? detail.message : String(detail ?? "") },
+      },
+      [
+        ["Content-Type", "application/json"],
+        ["x-hsm-plugin-key", PLUGIN_KEY],
+      ],
+    );
+  } catch {
+    /* 로그 전송 실패는 무시 */
+  }
+}
+
 function catalogPrice(c: any): number {
   return Number(c?.price?.value ?? c?.price?.priceValue ?? c?.price ?? NaN);
 }
@@ -43,7 +72,7 @@ async function refreshTables() {
     tables = (await sdk.table.getTables()) ?? [];
     console.log("[hsm] 테이블", tables.length, "개 로드");
   } catch (e) {
-    console.log("[hsm] 테이블 로드 실패", e);
+    remoteLog("error", "테이블 로드 실패", e);
     tables = [];
   }
 }
@@ -61,7 +90,7 @@ async function refreshCatalog() {
     }
     console.log("[hsm] 카탈로그", cats.length, "개 인덱싱");
   } catch (e) {
-    console.log("[hsm] 카탈로그 로드 실패", e);
+    remoteLog("error", "카탈로그 로드 실패", e);
   }
 }
 
@@ -98,7 +127,7 @@ async function ack(orderId: string, outcome: "added" | "unmatched" | "error", to
       ],
     );
   } catch (e) {
-    console.log("[hsm] ack 실패", orderId, e);
+    remoteLog("error", `ack 전송 실패 ${orderId}`, e);
   }
 }
 
@@ -110,7 +139,7 @@ async function handle(order: FeedOrder) {
     try {
       lineItems = order.items.map(toLineItem);
     } catch (e) {
-      console.log("[hsm] 매칭 실패 → 서버 폴백", order.id, e);
+      remoteLog("warn", `카탈로그 미매칭 → 폴백 ${order.id}`, e);
       await ack(order.id, "unmatched");
       return;
     }
@@ -126,7 +155,7 @@ async function handle(order: FeedOrder) {
     console.log("[hsm] 주문 생성 OK", order.id, "→ table", tableId ?? "(미지정)", "posOrder", created?.id);
     await ack(order.id, "added", created?.id);
   } catch (e) {
-    console.log("[hsm] order.add 실패 → 서버 폴백", order.id, e);
+    remoteLog("error", `order.add 실패 → 폴백 ${order.id}`, e);
     await ack(order.id, "error");
   } finally {
     inflight.delete(order.id);
@@ -166,7 +195,7 @@ async function runDemoOnce() {
     demoDone = true;
     console.log("[hsm][demo] 데모 주문 생성 OK → table", table?.id ?? "(미지정)", "order", created?.id);
   } catch (e) {
-    console.log("[hsm][demo] 데모 주문 실패", demoAttempts, "회차", e);
+    remoteLog("error", `데모 주문 실패 ${demoAttempts}회차`, e);
   }
 }
 
@@ -174,7 +203,7 @@ async function tick() {
   if (!merchantId) return;
   try {
     const res = await sdk.http.get(`${FEED_URL}?mid=${merchantId}`, [["x-hsm-plugin-key", PLUGIN_KEY]]);
-    if (res?.code !== 200) return;
+    if (res?.code !== 200) { remoteLog("warn", `피드 응답 이상 ${res?.code}`); return; }
     const parsed = JSON.parse(res.body ?? "{}");
     if (parsed.demo) {
       await runDemoOnce();
@@ -182,7 +211,7 @@ async function tick() {
     }
     for (const o of parsed.orders ?? []) await handle(o);
   } catch (e) {
-    console.log("[hsm] tick 실패", e);
+    remoteLog("error", "피드 조회 실패", e);
   }
 }
 
@@ -190,6 +219,7 @@ async function main() {
   const merchant = await sdk.merchant.getMerchant();
   merchantId = Number(merchant?.id ?? merchant?.merchantId);
   console.log("[hsm] 혼술맵 테이블 싱크 시작 — merchant", merchantId);
+  remoteLog("info", `플러그인 시작 — merchant ${merchantId}`);
   await refreshTables();
   await refreshCatalog();
   // 테이블 변경(추가/이동/합석 등) 시 갱신 — on 미지원 환경 대비 try
