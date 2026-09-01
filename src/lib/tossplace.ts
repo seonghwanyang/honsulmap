@@ -119,6 +119,13 @@ export function buildOpenApiOrderPayload(args: {
   };
 }
 
+// 피드가 주문 id를 "Q007_<uuid>" 형태로 내린다 (토스가 orderKey의 '_' 앞부분을
+// 포스 주문번호로 표시하는 것을 이용 — UUID가 그대로 주문번호로 찍히는 문제 해결).
+// ack·웹훅·스윕 어디서든 이 함수로 원 UUID를 복원한다. 폴백 접미사(-fb/-retry)도 제거.
+export function extractOrderUuid(key: string): string {
+  return (key.split('_').pop() ?? key).replace(/-(fb|retry)$/, '');
+}
+
 // 플러그인 모드 안전망 — 포스 꺼짐/플러그인 사망으로 90초 넘게 미처리된 주문을
 // Open API로 폴백 주입. 주문 보드 폴링(영업 중 상시)에서 fire-and-forget으로 호출.
 // ack 레코드를 먼저 남겨 동시 폴링의 이중 폴백을 막는다.
@@ -145,7 +152,10 @@ export async function sweepUnackedPluginOrders(
       .eq('event_type', 'plugin.push.ack')
       .gte('created_at', since);
     const acked = new Set(
-      (acks ?? []).map((a) => (a.payload as { order_id?: string })?.order_id).filter(Boolean),
+      (acks ?? [])
+        .map((a) => (a.payload as { order_id?: string })?.order_id)
+        .filter((v): v is string => Boolean(v))
+        .map(extractOrderUuid), // 구형(uuid)·신형(Q007_uuid) ack 모두 원 UUID로 비교
     );
     for (const o of orders) {
       if (acked.has(o.id)) continue;

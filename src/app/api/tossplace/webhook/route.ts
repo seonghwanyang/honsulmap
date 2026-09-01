@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase';
+import { extractOrderUuid } from '@/lib/tossplace';
 
 // 토스플레이스 웹훅 수신 — 개발자센터에 등록하는 Payload URL.
 // 서명 검증 (공식 스펙 docs.tossplace.com/reference/open-api/webhook.html):
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
     if (eventType === 'order.order.completed.v1' || eventType === 'order.order.cancelled.v1') {
       const data = (payload.data ?? {}) as { orderKey?: unknown };
       const rawKey = typeof data.orderKey === 'string' ? data.orderKey : '';
-      const ourId = rawKey.replace(/-(fb|retry)$/, ''); // 폴백/재전송 접미사 제거
+      const ourId = extractOrderUuid(rawKey); // "Q007_uuid"·"-fb/-retry" 접미사 → 원 UUID
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ourId)) {
         const admin = supabaseAdmin();
         const { data: ord } = await admin
