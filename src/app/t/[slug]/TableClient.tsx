@@ -58,6 +58,7 @@ interface MySession {
   seat_label: string;
   gender: 'm' | 'f' | null;
   visit_count?: number | null; // 이 가게 누적 방문 일수 (단골 인식)
+  moved_from?: string | null; // QR 재스캔이 자리 이동으로 처리된 경우 이전 좌석
 }
 interface OrderRow {
   id: string;
@@ -522,9 +523,11 @@ export default function TableClient({
               setTab('map');
               refreshState();
               showToast(
-                s.visit_count && s.visit_count > 1
-                  ? `Seat ${s.seat_label} 체크인 · ${s.visit_count}번째 방문이에요 🍻`
-                  : `Seat ${s.seat_label} 체크인 완료!`,
+                s.moved_from
+                  ? `Seat ${s.moved_from} → ${s.seat_label} 자리를 옮겼어요 🪑`
+                  : s.visit_count && s.visit_count > 1
+                    ? `Seat ${s.seat_label} 체크인 · ${s.visit_count}번째 방문이에요 🍻`
+                    : `Seat ${s.seat_label} 체크인 완료!`,
               );
             }}
           />
@@ -704,7 +707,9 @@ export default function TableClient({
             setTab('map');
             refreshState();
             showToast(
-            s.visit_count && s.visit_count > 1
+            s.moved_from
+              ? `Seat ${s.moved_from} → ${s.seat_label} 자리를 옮겼어요 🪑`
+              : s.visit_count && s.visit_count > 1
               ? `Seat ${s.seat_label} 체크인 · ${s.visit_count}번째 방문이에요 🍻`
               : `Seat ${s.seat_label} 체크인 완료!`,
           );
