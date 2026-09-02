@@ -31,6 +31,11 @@ export default function LoginModal({ open, onClose, reason }: Props) {
 
   if (!open || !mounted) return null;
 
+  // 네이티브 앱은 하단 앵커(bottom sheet) 대신 중앙 정렬 — 하단 AdMob 배너는
+  // 웹뷰 위에 얹히는 네이티브 뷰라, hideBanner가 기기/플러그인 사정으로 실패하면
+  // 하단 시트의 로그인 버튼이 배너에 가려 안 눌린다. 중앙이면 배너 유무와 무관하게 안 겹침.
+  const isNative = platform === 'ios' || platform === 'android';
+
   const signIn = async (provider: 'kakao' | 'google' | 'apple') => {
     if (busy) return;
     setBusy(provider);
@@ -68,7 +73,7 @@ export default function LoginModal({ open, onClose, reason }: Props) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-3"
+      className={`fixed inset-0 z-[10000] flex ${isNative ? 'items-center' : 'items-end sm:items-center'} justify-center p-3`}
       style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={onClose}
     >
