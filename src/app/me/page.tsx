@@ -22,6 +22,8 @@ export default function MyPage() {
   const { user, loading } = useUser();
   const [loginOpen, setLoginOpen] = useState(false);
   const [favs, setFavs] = useState<FavSpot[] | null>(null);
+  // 사장님 여부 — 연결된 가게 이름들 + 승인 대기 건수 (없으면 일반 유저)
+  const [myBiz, setMyBiz] = useState<{ names: string[]; pending: number } | null>(null);
   const [optedIn, setOptedIn] = useState<boolean | null>(null);
   const [nickname, setNickname] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -38,6 +40,7 @@ export default function MyPage() {
       setProfileLoaded(false);
       setNickname('');
       setAvatarUrl(null);
+      setMyBiz(null);
       return;
     }
     let alive = true;
@@ -49,6 +52,17 @@ export default function MyPage() {
       .catch(() => {
         if (alive) setFavs([]);
       });
+    fetch('/api/partner/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d) {
+          const names = (d.spots ?? [])
+            .map((m: { spot?: { name?: string } | null }) => m.spot?.name)
+            .filter(Boolean) as string[];
+          setMyBiz({ names, pending: (d.pendingClaims ?? []).length });
+        }
+      })
+      .catch(() => {});
     fetch('/api/me/marketing-consent')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -200,6 +214,27 @@ export default function MyPage() {
             </button>
           </div>
 
+          {/* 내 가게 (사장님 계정) — 연결된 가게나 승인 대기가 있을 때만 크게 노출 */}
+          {myBiz && (myBiz.names.length > 0 || myBiz.pending > 0) && (
+            <Link
+              href="/partner/dashboard"
+              style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#111827', borderRadius: 14, padding: '14px 16px', textDecoration: 'none' }}
+            >
+              <span style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.12)', display: 'grid', placeItems: 'center', fontSize: 18, flexShrink: 0 }}>
+                🏪
+              </span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {myBiz.names.length ? `내 가게 관리 — ${myBiz.names.join(', ')}` : '가게 인증 진행 중'}
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
+                  {myBiz.names.length ? '현황 · 광고 · 테이블 서비스' : `승인 대기 ${myBiz.pending}건 — 인증 코드 확인하기`}
+                </div>
+              </div>
+              <span style={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>›</span>
+            </Link>
+          )}
+
           {/* 알림(마케팅 수신) 동의 */}
           <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -329,14 +364,16 @@ export default function MyPage() {
             )}
           </section>
 
-          {/* 사장님 */}
-          <Link
-            href="/partner"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 16px', textDecoration: 'none' }}
-          >
-            <span style={{ fontSize: 13.5, color: '#374151', fontWeight: 600 }}>내 가게가 있나요? · 사장님 센터</span>
-            <span style={{ color: '#d1d5db' }}>›</span>
-          </Link>
+          {/* 사장님 창구 (일반 유저용) — 위에 내 가게 카드가 뜨는 계정에는 중복이라 숨김 */}
+          {!(myBiz && (myBiz.names.length > 0 || myBiz.pending > 0)) && (
+            <Link
+              href="/partner"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 16px', textDecoration: 'none' }}
+            >
+              <span style={{ fontSize: 13.5, color: '#374151', fontWeight: 600 }}>내 가게가 있나요? · 사장님 센터</span>
+              <span style={{ color: '#d1d5db' }}>›</span>
+            </Link>
+          )}
 
           {/* 계정 및 데이터 삭제 (Google Play 정책: 앱 내 삭제 경로) */}
           <Link
