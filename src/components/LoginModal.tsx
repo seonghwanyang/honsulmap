@@ -74,7 +74,12 @@ export default function LoginModal({ open, onClose, reason }: Props) {
   return createPortal(
     <div
       className={`fixed inset-0 z-[10000] flex ${isNative ? 'items-center' : 'items-end sm:items-center'} justify-center p-3`}
-      style={{ background: 'rgba(0,0,0,0.5)' }}
+      style={{
+        background: 'rgba(0,0,0,0.5)',
+        // 네이티브: 배너 실측 높이(--admob-banner-top)만큼 아래를 비워 "배너 윗공간"
+        // 안에서 중앙 정렬 — 작은 폰에서 모달 아래끝이 배너에 걸치는 것까지 차단.
+        ...(isNative ? { paddingBottom: 'calc(var(--admob-banner-top, 0px) + 12px)' } : {}),
+      }}
       onClick={onClose}
     >
       <div
