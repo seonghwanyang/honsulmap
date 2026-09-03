@@ -231,28 +231,26 @@ export default function ChatTab({
           {songOpen && (
             <div style={{ padding: '0 16px 14px' }}>
               {hasSession ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                   <input
                     value={songTitle}
                     onChange={(e) => setSongTitle(e.target.value.slice(0, 60))}
-                    placeholder="곡명"
-                    style={{ ...inputStyle, height: 40, fontSize: 13, width: '100%' }}
+                    placeholder="곡명 (예: 바람기억)"
+                    style={{ ...inputStyle, height: 48, fontSize: 15, width: '100%' }}
                   />
-                  <div style={{ display: 'flex', gap: 7 }}>
-                    <input
-                      value={songArtist}
-                      onChange={(e) => setSongArtist(e.target.value.slice(0, 40))}
-                      placeholder="가수 (선택)"
-                      style={{ ...inputStyle, height: 40, fontSize: 13 }}
-                    />
-                    <button
-                      onClick={requestSong}
-                      disabled={songBusy || !songTitle.trim()}
-                      style={{ height: 40, padding: '0 16px', borderRadius: 11, background: songTitle.trim() ? '#fff' : 'rgba(255,255,255,0.12)', color: songTitle.trim() ? '#0c0c0e' : 'rgba(255,255,255,0.45)', fontSize: 12.5, fontWeight: 800, border: 'none', cursor: 'pointer', flexShrink: 0, opacity: songBusy ? 0.6 : 1 }}
-                    >
-                      신청
-                    </button>
-                  </div>
+                  <input
+                    value={songArtist}
+                    onChange={(e) => setSongArtist(e.target.value.slice(0, 40))}
+                    placeholder="가수 (선택)"
+                    style={{ ...inputStyle, height: 48, fontSize: 15, width: '100%' }}
+                  />
+                  <button
+                    onClick={requestSong}
+                    disabled={songBusy || !songTitle.trim()}
+                    style={{ width: '100%', height: 48, borderRadius: 12, background: songTitle.trim() ? '#fff' : 'rgba(255,255,255,0.12)', color: songTitle.trim() ? '#0c0c0e' : 'rgba(255,255,255,0.45)', fontSize: 14.5, fontWeight: 800, border: 'none', cursor: 'pointer', opacity: songBusy ? 0.6 : 1 }}
+                  >
+                    {songBusy ? '신청 중…' : '🎵 신청하기'}
+                  </button>
                 </div>
               ) : (
                 <button onClick={onCheckin} style={{ width: '100%', height: 42, borderRadius: 11, background: '#fff', color: '#0c0c0e', fontSize: 13, fontWeight: 800, border: 'none', cursor: 'pointer' }}>

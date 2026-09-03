@@ -62,7 +62,7 @@ interface SpotData {
     benefit_expires_at: string | null;
     redeem_pin: string | null;
   };
-  stats: { views: number; visits: number; likes: number; mood_up: number; mood_down: number };
+  stats: { views: number; visits: number; likes: number; favorites?: number; mood_up: number; mood_down: number };
 }
 
 const inputStyle: React.CSSProperties = {
@@ -538,6 +538,14 @@ function SpotManageContent() {
                   {statsData.redemptions.total}건
                 </div>
                 <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>이번 주 {statsData.redemptions.d7}건</div>
+              </Card>
+              {/* 찜 = 단골 후보이자, 예정된 "찜한 손님 푸시"의 발송 대상 크기 */}
+              <Card style={{ padding: '14px 16px' }}>
+                <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>찜한 손님</div>
+                <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: '#ea580c' }}>
+                  {data?.stats.favorites ?? 0}명
+                </div>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>새 소식 푸시를 받게 될 손님</div>
               </Card>
             </div>
           </div>

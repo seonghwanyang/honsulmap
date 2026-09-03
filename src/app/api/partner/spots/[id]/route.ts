@@ -31,7 +31,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if ('error' in ctx) return ctx.error;
   const { admin, role } = ctx;
 
-  const [{ data: spot }, { data: vc }, { data: vis }] = await Promise.all([
+  const [{ data: spot }, { data: vc }, { data: vis }, { count: favCount }] = await Promise.all([
     admin
       .from('spots')
       .select(
@@ -41,6 +41,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       .maybeSingle(),
     admin.from('spot_view_counts').select('views').eq('spot_id', id).maybeSingle(),
     admin.from('spot_visit_counts').select('visits').eq('spot_id', id).maybeSingle(),
+    // 찜 수 — 나중에 "찜한 손님 푸시"의 발송 대상 크기이기도 하다
+    admin.from('favorites').select('user_id', { count: 'exact', head: true }).eq('spot_id', id),
   ]);
   if (!spot) return NextResponse.json({ error: '가게를 찾을 수 없습니다.' }, { status: 404 });
 
@@ -51,6 +53,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       views: vc?.views ?? 0,
       visits: vis?.visits ?? 0,
       likes: spot.like_count ?? 0,
+      favorites: favCount ?? 0,
       mood_up: spot.mood_up ?? 0,
       mood_down: spot.mood_down ?? 0,
     },
