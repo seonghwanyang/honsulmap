@@ -377,9 +377,10 @@ function OrdersBoard() {
         </Section>
       )}
 
-      {/* 신청곡 큐 — 재생/패스 처리 */}
-      {songs.filter((s) => s.status === 'queued').length > 0 && (
-        <Section label={`신청곡 ${songs.filter((s) => s.status === 'queued').length}`}>
+      {/* 신청곡 — 대기는 액션 카드, 처리된 곡(재생/패스)도 오늘 이력으로 남긴다
+          (전부 처리하면 섹션째 사라져 "신청곡이 안 뜬다"로 보이던 문제 방지) */}
+      {songs.length > 0 && (
+        <Section label={`신청곡 대기 ${songs.filter((s) => s.status === 'queued').length} · 오늘 ${songs.length}곡`}>
           {songs
             .filter((s) => s.status === 'queued')
             .map((s) => (
@@ -408,6 +409,25 @@ function OrdersBoard() {
                 </div>
               </Card>
             ))}
+          {songs.filter((s) => s.status !== 'queued').length > 0 && (
+            <Card style={{ padding: '10px 16px' }}>
+              {songs
+                .filter((s) => s.status !== 'queued')
+                .slice(0, 8)
+                .map((s) => (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 12.5, color: '#9ca3af' }}>
+                    <span style={{ fontWeight: 700 }}>
+                      🎵 {s.title}
+                      {s.artist && ` — ${s.artist}`}
+                    </span>
+                    <span style={{ fontSize: 11 }}>Seat {s.seat_label}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: s.status === 'played' ? '#16a34a' : '#c4c9d0' }}>
+                      {s.status === 'played' ? '재생됨' : '패스'}
+                    </span>
+                  </div>
+                ))}
+            </Card>
+          )}
         </Section>
       )}
 
