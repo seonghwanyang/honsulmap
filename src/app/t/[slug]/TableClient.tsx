@@ -664,7 +664,10 @@ export default function TableClient({
           />
         )}
         {tab === 'menu' && (
-          <MenuList categories={categories} orderOn={orderOn} cart={cart} onTap={tapMenuItem} />
+          // 장바구니 "주문하기" 플로팅 바(bottom 76 + 52px)가 마지막 메뉴를 가리지 않게 여유 패딩
+          <div style={{ paddingBottom: cartCount > 0 ? 84 : 0 }}>
+            <MenuList categories={categories} orderOn={orderOn} cart={cart} onTap={tapMenuItem} />
+          </div>
         )}
         {tab === 'games' && <GamesTab onGoMenu={() => setTab('menu')} spotSlug={spot.slug} />}
         {tab === 'chat' && (
@@ -1262,6 +1265,8 @@ function GiftSheet({
     <Sheet title="누구에게 보낼까요?" onClose={onClose}>
       <p style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.6, marginBottom: 14 }}>
         익명으로 전달돼요. 부담 주는 행동은 정중히 사양합니다 🙏
+        <br />
+        보낼 메뉴는 직원이 자리로 와서 함께 정해드려요 (계산은 내 좌석에).
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {seats.map((s) => {
