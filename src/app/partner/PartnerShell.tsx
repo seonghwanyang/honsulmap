@@ -288,6 +288,9 @@ export default function PartnerShell({ children }: { children: ReactNode }) {
           justifyContent: 'space-between',
           height: 56,
           padding: '0 16px',
+          // 앱(엣지투엣지) 노치/상태바 보정 — 인라인 sticky라 globals의 header.sticky.top-0 규칙이 안 닿음
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          boxSizing: 'content-box',
           background: 'rgba(255,255,255,0.92)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid #e5e7eb',

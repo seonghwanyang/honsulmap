@@ -551,7 +551,7 @@ export default function TableClient({
     <div style={{ minHeight: '100dvh', background: DARK_BG, paddingBottom: 'calc(150px + env(safe-area-inset-bottom, 0px))' }}>
       <style>{STYLES}</style>
       {/* ── 헤더 — 고정 아님, 콘텐츠와 함께 스크롤 (하단 탭바가 상시 내비 역할) ── */}
-      <div style={{ borderBottom: `1px solid ${LINE}`, padding: '13px 18px' }}>
+      <div style={{ borderBottom: `1px solid ${LINE}`, padding: '13px 18px', paddingTop: 'calc(13px + env(safe-area-inset-top, 0px))' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {!session && (
