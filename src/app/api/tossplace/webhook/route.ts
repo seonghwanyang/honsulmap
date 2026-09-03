@@ -76,38 +76,54 @@ export async function POST(request: NextRequest) {
   // 테이블 단위가 아니라 좌석 단위 로직이라 현황 탭 방식·플러그인 방식 모두에서 동작.
   try {
     if (eventType === 'order.order.completed.v1' || eventType === 'order.order.cancelled.v1') {
-      const data = (payload.data ?? {}) as { orderKey?: unknown };
+      const data = (payload.data ?? {}) as { orderKey?: unknown; orderId?: unknown };
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const admin = supabaseAdmin();
+      const ids = new Set<string>();
+
       const rawKey = typeof data.orderKey === 'string' ? data.orderKey : '';
-      const ourId = extractOrderUuid(rawKey); // "Q007_uuid"·"-fb/-retry" 접미사 → 원 UUID
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ourId)) {
-        const admin = supabaseAdmin();
-        const { data: ord } = await admin
-          .from('table_orders')
-          .select('id, session_id')
-          .eq('id', ourId)
-          .maybeSingle();
-        if (ord) {
-          const newStatus = eventType === 'order.order.cancelled.v1' ? 'canceled' : 'done';
+      const primary = extractOrderUuid(rawKey); // "Q007_uuid"·"-fb/-retry" 접미사 → 원 UUID
+      if (UUID_RE.test(primary)) ids.add(primary);
+
+      // addMenu(v3.1)로 한 포스 주문에 합쳐진 형제 주문들 — 같은 toss_order_id로
+      // ack된 우리 주문 전부를 함께 완결한다 (orderKey는 첫 주문 것만 오므로).
+      const tossId = data.orderId != null ? String(data.orderId) : '';
+      if (tossId) {
+        const { data: acks } = await admin
+          .from('tossplace_events')
+          .select('payload')
+          .eq('event_type', 'plugin.push.ack')
+          .eq('payload->>toss_order_id', tossId);
+        for (const a of acks ?? []) {
+          const oid = extractOrderUuid(String((a.payload as { order_id?: string })?.order_id ?? ''));
+          if (UUID_RE.test(oid)) ids.add(oid);
+        }
+      }
+
+      if (ids.size) {
+        const idList = [...ids];
+        const newStatus = eventType === 'order.order.cancelled.v1' ? 'canceled' : 'done';
+        const { data: ours } = await admin.from('table_orders').select('id, session_id').in('id', idList);
+        if (ours?.length) {
           await admin
             .from('table_orders')
             .update({ status: newStatus })
-            .eq('id', ourId)
+            .in('id', idList)
             .in('status', ['new', 'accepted']);
-          if (ord.session_id && newStatus === 'done') {
-            const { data: remain } = await admin
-              .from('table_orders')
-              .select('id')
-              .eq('session_id', ord.session_id)
-              .gt('total', 0)
-              .in('status', ['new', 'accepted'])
-              .limit(1);
-            if (!remain?.length) {
-              await admin
-                .from('table_sessions')
-                .update({ active: false })
-                .eq('id', ord.session_id)
-                .eq('active', true);
-              console.log('[auto-checkout] 좌석 자동 체크아웃 — session', ord.session_id);
+          if (newStatus === 'done') {
+            const sessions = [...new Set(ours.map((o) => o.session_id).filter(Boolean))] as string[];
+            for (const sid of sessions) {
+              const { data: remain } = await admin
+                .from('table_orders')
+                .select('id')
+                .eq('session_id', sid)
+                .gt('total', 0)
+                .in('status', ['new', 'accepted'])
+                .limit(1);
+              if (!remain?.length) {
+                await admin.from('table_sessions').update({ active: false }).eq('id', sid).eq('active', true);
+                console.log('[auto-checkout] 좌석 자동 체크아웃 — session', sid);
+              }
             }
           }
         }

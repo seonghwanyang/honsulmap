@@ -4,7 +4,6 @@ import './globals.css';
 import BottomNav from '@/components/BottomNav';
 import Footer from '@/components/Footer';
 import ClarityScript from '@/components/analytics/ClarityScript';
-import AdSenseScript from '@/components/ads/AdSenseScript';
 import AddToHomePrompt from '@/components/AddToHomePrompt';
 import AnalyticsIdentity from '@/components/AnalyticsIdentity';
 import PushRegistration from '@/components/PushRegistration';
@@ -179,7 +178,6 @@ export default function RootLayout({
         <AndroidBackHandler />
         <ClientErrorLogger />
         <ClarityScript />
-        <AdSenseScript />
       </body>
       {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
     </html>

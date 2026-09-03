@@ -204,6 +204,7 @@ export default function TableClient({
   const [cart, setCart] = useState<{ item: MenuItem; qty: number; request: string }[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [giftPick, setGiftPick] = useState<MenuItem | null>(null);
+  const [reportPick, setReportPick] = useState<MenuItem | null>(null);
   const [myOrders, setMyOrders] = useState<OrderRow[]>([]);
   const [seatTotal, setSeatTotal] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -380,12 +381,16 @@ export default function TableClient({
       setGiftPick(item);
       return;
     }
+    if (item.zero_action === 'report') {
+      // 신고는 내용이 있어야 사장님이 조치 가능 — 텍스트 입력 시트로
+      if (!session) return setCheckinOpen(true);
+      setReportPick(item);
+      return;
+    }
     if (item.zero_action) {
       if (!session) return setCheckinOpen(true);
       const label =
-        item.zero_action === 'call' ? '직원을 호출할까요?' :
-        item.zero_action === 'recommend' ? '직원에게 추천을 요청할까요?' :
-        '내용은 직원만 볼 수 있어요. 보낼까요?';
+        item.zero_action === 'call' ? '직원을 호출할까요?' : '직원에게 추천을 요청할까요?';
       if (confirm(label)) submitOrder([{ id: item.id, qty: 1 }], '전송했어요!');
       return;
     }
@@ -761,17 +766,28 @@ export default function TableClient({
       )}
       {giftPick && (
         <GiftSheet
-          item={giftPick}
+          categories={categories}
           seats={occupiedPublicSeats}
           sessionBySeat={sessionBySeat}
           busy={busy}
           onClose={() => setGiftPick(null)}
-          onSend={async (seatLabel) => {
+          onSend={async (seatLabel, itemId) => {
             const ok = await submitOrder(
-              [{ id: giftPick.id, qty: 1, gift_target_seat: seatLabel }],
+              [{ id: itemId, qty: 1, gift_target_seat: seatLabel }],
               `Seat ${seatLabel}에게 한 잔을 보냈어요 🥂`,
             );
             if (ok) setGiftPick(null);
+          }}
+        />
+      )}
+      {reportPick && (
+        <ReportSheet
+          item={reportPick}
+          busy={busy}
+          onClose={() => setReportPick(null)}
+          onSend={async (text) => {
+            const ok = await submitOrder([{ id: reportPick.id, qty: 1, request: text }], '사장님께 조용히 전달했어요 🙏');
+            if (ok) setReportPick(null);
           }}
         />
       )}
@@ -1245,45 +1261,119 @@ function CartSheet({
 const qtyBtn: React.CSSProperties = { width: 30, height: 30, borderRadius: 9, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.07)', color: INK, fontWeight: 800, cursor: 'pointer', lineHeight: 1 };
 
 // ═══ 선물 시트 ═══
+// ═══ 익명 선물 — 1) 보낼 메뉴(실메뉴·가격) 선택 → 2) 받을 좌석 선택.
+// 선택한 잔이 내 좌석 계산서에 담기고, 전표엔 "선물 → Seat N"이 찍힌다.
 function GiftSheet({
-  item,
+  categories,
   seats,
   sessionBySeat,
   busy,
   onClose,
   onSend,
 }: {
-  item: MenuItem;
+  categories: MenuCategory[];
   seats: Seat[];
   sessionBySeat: Map<string, PublicSession>;
   busy: boolean;
   onClose: () => void;
-  onSend: (seatLabel: string) => void;
+  onSend: (seatLabel: string, itemId: string) => void;
 }) {
+  const [chosen, setChosen] = useState<MenuItem | null>(null);
   const [target, setTarget] = useState('');
+  const giftable = categories.flatMap((c) => c.items.filter((i) => i.price > 0 && !i.sold_out));
   return (
-    <Sheet title="누구에게 보낼까요?" onClose={onClose}>
-      <p style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.6, marginBottom: 14 }}>
-        익명으로 전달돼요. 부담 주는 행동은 정중히 사양합니다 🙏
-        <br />
-        보낼 메뉴는 직원이 자리로 와서 함께 정해드려요 (계산은 내 좌석에).
-      </p>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {seats.map((s) => {
-          const sess = sessionBySeat.get(s.id);
-          return (
-            <button
-              key={s.id}
-              onClick={() => setTarget(s.label)}
-              style={{ padding: '10px 14px', borderRadius: 11, fontSize: 13.5, fontWeight: 800, border: '1.5px solid', borderColor: target === s.label ? ACCENT_SOLID : 'rgba(255,255,255,0.16)', background: target === s.label ? ACCENT_SOLID : 'transparent', color: target === s.label ? '#fff' : INK, cursor: 'pointer' }}
-            >
-              Seat {s.label} {sess?.gender === 'm' ? '♂' : sess?.gender === 'f' ? '♀' : ''}
+    <Sheet title={chosen ? '누구에게 보낼까요?' : '어떤 잔을 보낼까요?'} onClose={onClose}>
+      {!chosen ? (
+        <>
+          <p style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.6, marginBottom: 12 }}>
+            보낸 잔은 내 좌석 계산서에 담겨요. 익명으로 전달됩니다.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: '46vh', overflowY: 'auto' }}>
+            {giftable.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setChosen(m)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', color: INK, fontSize: 14, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}
+              >
+                <span style={{ flex: 1, wordBreak: 'keep-all' }}>{m.name}</span>
+                <span style={{ color: MUTED, fontWeight: 800, flexShrink: 0 }}>₩{m.price.toLocaleString()}</span>
+              </button>
+            ))}
+            {giftable.length === 0 && <p style={{ color: MUTED, fontSize: 13 }}>지금 보낼 수 있는 메뉴가 없어요.</p>}
+          </div>
+        </>
+      ) : (
+        <>
+          <p style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.6, marginBottom: 8 }}>
+            익명으로 전달돼요. 부담 주는 행동은 정중히 사양합니다 🙏
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <span style={{ fontSize: 13.5, fontWeight: 800, color: ACCENT }}>
+              🥂 {chosen.name} · ₩{chosen.price.toLocaleString()}
+            </span>
+            <button onClick={() => setChosen(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: MUTED, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              다른 메뉴
             </button>
-          );
-        })}
-      </div>
-      <button onClick={() => target && onSend(target)} disabled={busy || !target} style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: target ? ACCENT_SOLID : 'rgba(255,255,255,0.12)', color: target ? '#fff' : 'rgba(255,255,255,0.45)', fontSize: 15, fontWeight: 800, border: 'none', cursor: target ? 'pointer' : 'default', opacity: busy ? 0.6 : 1 }}>
-        {busy ? '전송 중…' : `'${item.name}' 보내기`}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {seats.map((s) => {
+              const sess = sessionBySeat.get(s.id);
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setTarget(s.label)}
+                  style={{ padding: '10px 14px', borderRadius: 11, fontSize: 13.5, fontWeight: 800, border: '1.5px solid', borderColor: target === s.label ? ACCENT_SOLID : 'rgba(255,255,255,0.16)', background: target === s.label ? ACCENT_SOLID : 'transparent', color: target === s.label ? '#fff' : INK, cursor: 'pointer' }}
+                >
+                  Seat {s.label} {sess?.gender === 'm' ? '♂' : sess?.gender === 'f' ? '♀' : ''}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => target && onSend(target, chosen.id)}
+            disabled={busy || !target}
+            style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: target ? ACCENT_SOLID : 'rgba(255,255,255,0.12)', color: target ? '#fff' : 'rgba(255,255,255,0.45)', fontSize: 15, fontWeight: 800, border: 'none', cursor: target ? 'pointer' : 'default', opacity: busy ? 0.6 : 1 }}
+          >
+            {busy ? '전송 중…' : `'${chosen.name}' 보내기`}
+          </button>
+        </>
+      )}
+    </Sheet>
+  );
+}
+
+// ═══ 불편/진상 신고 — 내용을 적어야 사장님이 조치할 수 있다 (사장님만 열람)
+function ReportSheet({
+  item,
+  busy,
+  onClose,
+  onSend,
+}: {
+  item: MenuItem;
+  busy: boolean;
+  onClose: () => void;
+  onSend: (text: string) => void;
+}) {
+  const [text, setText] = useState('');
+  const ok = text.trim().length >= 2;
+  return (
+    <Sheet title={item.name} onClose={onClose}>
+      <p style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.6, marginBottom: 12 }}>
+        내용은 사장님만 볼 수 있어요. 조용히 도와드릴게요.
+      </p>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value.slice(0, 100))}
+        placeholder="상황을 적어주세요 (예: 옆 좌석이 계속 말을 걸어요)"
+        rows={3}
+        style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', fontSize: 14, color: INK, outline: 'none', resize: 'none', lineHeight: 1.5 }}
+      />
+      <button
+        onClick={() => ok && onSend(text.trim())}
+        disabled={busy || !ok}
+        style={{ width: '100%', height: 52, marginTop: 14, borderRadius: 13, background: ok ? '#fff' : 'rgba(255,255,255,0.12)', color: ok ? '#0c0c0e' : 'rgba(255,255,255,0.45)', fontSize: 15, fontWeight: 800, border: 'none', cursor: ok ? 'pointer' : 'default', opacity: busy ? 0.6 : 1 }}
+      >
+        {busy ? '전송 중…' : '사장님께만 보내기'}
       </button>
     </Sheet>
   );

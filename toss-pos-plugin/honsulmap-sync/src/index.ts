@@ -34,6 +34,58 @@ let demoDone = false;
 
 const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
 
+// ── 테이블 "열린 주문 1개" 대응 (v3.1) ──
+// 토스 테이블은 열린 주문이 이미 있으면 order.add(tableId)를 거부한다 (실측:
+// 연속 주문 시 첫 건만 added, 나머지 error→폴백). 두 번째부터는 addMenu로
+// 기존 주문에 메뉴를 추가한다 — 직원이 그 테이블에 추가 입력하는 것과 동일.
+const tableOrders = new Map<number, string>(); // tableId → 열린 포스 주문 id (캐시)
+
+// 영업일 시작(아침 8시 KST) — 열린 테이블 주문 검색 범위
+function businessDayStartIso(): string {
+  const kst = new Date(Date.now() + 9 * 3600_000);
+  const s = new Date(kst);
+  if (kst.getUTCHours() < 8) s.setUTCDate(s.getUTCDate() - 1);
+  s.setUTCHours(8, 0, 0, 0);
+  return new Date(s.getTime() - 9 * 3600_000).toISOString();
+}
+
+async function findOpenPosOrder(tableId: number): Promise<string | undefined> {
+  try {
+    const list =
+      (await sdk.order.getOrders({
+        start: businessDayStartIso(),
+        end: new Date(Date.now() + 60_000).toISOString(),
+        orderStates: ["OPENED"],
+        size: 100,
+      })) ?? [];
+    // 직원이 연 테이블 주문도 대상 — 그 테이블 계산서에 합치는 게 맞는 동작
+    const hit = list.find((o: any) => o?.tableId === tableId || o?.table?.id === tableId);
+    return hit?.id;
+  } catch (e) {
+    remoteLog("warn", `열린 테이블 주문 조회 실패 t${tableId}`, e);
+    return undefined;
+  }
+}
+
+async function createOrAppend(dto: any, tableId: number | undefined): Promise<string | undefined> {
+  if (tableId) {
+    const known = tableOrders.get(tableId) ?? (await findOpenPosOrder(tableId));
+    if (known) {
+      try {
+        await sdk.order.addMenu(known, dto);
+        tableOrders.set(tableId, known);
+        return known;
+      } catch (e) {
+        remoteLog("warn", `addMenu 실패 → 새 주문 생성으로 폴백 t${tableId}`, e);
+        tableOrders.delete(tableId); // 닫힌 주문이었을 수 있음 — 캐시 무효화
+      }
+    }
+  }
+  const created = await sdk.order.add(dto);
+  if (tableId && created?.id) tableOrders.set(tableId, created.id);
+  return created?.id;
+}
+
 // 원격 로그 (토스 검수 권고) — 실패 지점을 혼술맵 서버로 전송. 분당 20건 스로틀.
 let logCount = 0;
 let logWindow = 0;
@@ -151,11 +203,11 @@ async function handle(order: FeedOrder) {
       lineItems,
       ...(tableId ? { tableId } : {}),
     };
-    const created = await sdk.order.add(dto);
-    console.log("[hsm] 주문 생성 OK", order.id, "→ table", tableId ?? "(미지정)", "posOrder", created?.id);
-    await ack(order.id, "added", created?.id);
+    const posId = await createOrAppend(dto, tableId);
+    console.log("[hsm] 주문 반영 OK", order.id, "→ table", tableId ?? "(미지정)", "posOrder", posId);
+    await ack(order.id, "added", posId);
   } catch (e) {
-    remoteLog("error", `order.add 실패 → 폴백 ${order.id}`, e);
+    remoteLog("error", `주문 생성/추가 실패 → 폴백 ${order.id}`, e);
     await ack(order.id, "error");
   } finally {
     inflight.delete(order.id);
@@ -229,6 +281,14 @@ async function main() {
     }
   } catch {
     /* 이벤트 미지원이면 주기 갱신만 */
+  }
+  // 주문 완료 시 테이블→주문 캐시 정리 — 결제 후 새 손님은 새 주문(add)으로 열리게
+  try {
+    sdk.order.on?.("complete", (id: string) => {
+      for (const [t, oid] of tableOrders) if (oid === id) tableOrders.delete(t);
+    });
+  } catch {
+    /* 미지원 무시 */
   }
   setInterval(refreshTables, REFRESH_MS);
   setInterval(refreshCatalog, REFRESH_MS);
