@@ -205,6 +205,8 @@ export default function TableClient({
   const [cartOpen, setCartOpen] = useState(false);
   const [giftPick, setGiftPick] = useState<MenuItem | null>(null);
   const [reportPick, setReportPick] = useState<MenuItem | null>(null);
+  // 네이티브 confirm() 대체 — 랜딩 톤의 다크 확인 시트
+  const [confirmAsk, setConfirmAsk] = useState<{ title: string; desc?: string; yes: string; onYes: () => void } | null>(null);
   const [myOrders, setMyOrders] = useState<OrderRow[]>([]);
   const [seatTotal, setSeatTotal] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -389,9 +391,13 @@ export default function TableClient({
     }
     if (item.zero_action) {
       if (!session) return setCheckinOpen(true);
-      const label =
-        item.zero_action === 'call' ? '직원을 호출할까요?' : '직원에게 추천을 요청할까요?';
-      if (confirm(label)) submitOrder([{ id: item.id, qty: 1 }], '전송했어요!');
+      const isCall = item.zero_action === 'call';
+      setConfirmAsk({
+        title: isCall ? '직원을 호출할까요?' : '직원에게 추천받을까요?',
+        desc: isCall ? '직원이 좌석으로 갈게요.' : '취향을 여쭤보러 직원이 갈게요.',
+        yes: isCall ? '호출하기' : '요청하기',
+        onYes: () => void submitOrder([{ id: item.id, qty: 1 }], '전송했어요!'),
+      });
       return;
     }
     if (!cart.some((c) => c.item.id === item.id)) logMenuEvent(item, 'cart_add'); // 첫 담김만
@@ -410,9 +416,17 @@ export default function TableClient({
   const cartCount = cart.reduce((a, c) => a + c.qty, 0);
 
   // 좌석 이동 — 좌석맵에서 빈자리 탭. 성공 시 세션 좌석 갱신 + 보드에 이벤트 카드.
-  const moveSeat = async (seat: Seat) => {
+  const moveSeat = (seat: Seat) => {
     if (!session || busy) return;
-    if (!confirm(`Seat ${seat.label}(으)로 자리를 옮길까요?`)) return;
+    setConfirmAsk({
+      title: `Seat ${seat.label}(으)로 옮길까요?`,
+      desc: '주문 내역은 그대로 따라가요.',
+      yes: '자리 옮기기',
+      onYes: () => void doMoveSeat(seat),
+    });
+  };
+  const doMoveSeat = async (seat: Seat) => {
+    if (!session) return;
     setBusy(true);
     const res = await fetch(`/api/t/${spot.slug}/move`, {
       method: 'POST',
@@ -790,6 +804,30 @@ export default function TableClient({
             if (ok) setReportPick(null);
           }}
         />
+      )}
+      {confirmAsk && (
+        <Sheet title={confirmAsk.title} onClose={() => setConfirmAsk(null)}>
+          {confirmAsk.desc && (
+            <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.6, marginBottom: 16 }}>{confirmAsk.desc}</p>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setConfirmAsk(null)}
+              style={{ flex: 1, height: 50, borderRadius: 13, border: '1px solid rgba(255,255,255,0.16)', background: 'transparent', color: MUTED, fontSize: 14.5, fontWeight: 800, cursor: 'pointer' }}
+            >
+              취소
+            </button>
+            <button
+              onClick={() => {
+                confirmAsk.onYes();
+                setConfirmAsk(null);
+              }}
+              style={{ flex: 2, height: 50, borderRadius: 13, border: 'none', background: '#fff', color: '#0c0c0e', fontSize: 14.5, fontWeight: 800, cursor: 'pointer' }}
+            >
+              {confirmAsk.yes}
+            </button>
+          </div>
+        </Sheet>
       )}
 
       {toast && (
