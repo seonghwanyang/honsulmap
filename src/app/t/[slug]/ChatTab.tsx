@@ -125,6 +125,41 @@ export default function ChatTab({
     return () => clearInterval(t);
   }, [refresh]);
 
+  // Realtime poke — 로그인 유저는 새 메시지/삭제(UPDATE)가 오면 즉시 재조회
+  // (payload엔 닉네임·배지가 없어 목록 GET으로 보강). 비로그인은 4초 폴링 그대로.
+  useEffect(() => {
+    if (!uid) return;
+    const supabase = createBrowserSupabase();
+    const channel = supabase
+      .channel(`table-chat:${spotId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `spot_id=eq.${spotId}` },
+        () => void refresh(),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `spot_id=eq.${spotId}` },
+        () => void refresh(),
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [uid, spotId, refresh]);
+
+  // 내 메시지 삭제 — 낙관적 제거, 실패 시 재조회 복구 (사장 전체 삭제는 사장님 페이지에서)
+  const deleteMine = async (id: string) => {
+    if (!confirm('이 메시지를 삭제할까요?')) return;
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+    try {
+      const res = await fetch(`/api/chat/${spotId}/messages/${id}`, { method: 'DELETE' });
+      if (!res.ok) void refresh();
+    } catch {
+      void refresh();
+    }
+  };
+
   // 새 메시지 오면 맨 아래로.
   useEffect(() => {
     if (messages.length !== countRef.current) {
@@ -305,6 +340,14 @@ export default function ChatTab({
                     >
                       {m.body}
                     </div>
+                    {mine && (
+                      <button
+                        onClick={() => deleteMine(m.id)}
+                        style={{ display: 'block', marginLeft: 'auto', marginTop: 3, fontSize: 10, fontWeight: 700, color: FAINT, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                      >
+                        삭제
+                      </button>
+                    )}
                   </div>
                   <span style={{ fontSize: 10, color: FAINT, flexShrink: 0 }}>
                     {new Date(m.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
