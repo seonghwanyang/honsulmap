@@ -6,6 +6,7 @@
 export const TABLE_TESTER_EMAILS = [
   'yangseonghwan119@gmail.com',
   'gonetolove@nate.com',
+  'bjw123128@gmail.com', // 더끌림 수원인계점 사장님 (파일럿 1호점)
 ];
 
 export function isTableTester(email?: string | null): boolean {
