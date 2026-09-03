@@ -239,9 +239,17 @@ export default function MenuSection({
     markCat(cat.key);
   };
 
-  // 토스 포스 카탈로그 가져오기 — 포스 카테고리 구조 그대로 편집기에 추가
+  // 토스 포스 카탈로그 동기화 — 같은 이름 카테고리는 포스 기준(순서·가격·구성)으로
+  // 교체하고, 포스에 없는 카테고리(₩0 서비스 세트 등 혼술맵 전용)는 그대로 둔다.
+  // 교체 시 품절 표시는 품목 이름 기준으로 보존 (영업 중 켜둔 품절이 날아가면 사고).
   const importToss = async () => {
     if (tossBusy) return;
+    if (
+      !confirm(
+        '포스 메뉴로 동기화할까요?\n같은 이름의 카테고리는 포스의 순서·가격·구성으로 교체돼요 (품절 표시는 유지).\n포스에 없는 카테고리(₩0 서비스 등)는 그대로 둡니다.',
+      )
+    )
+      return;
     setTossBusy(true);
     const res = await fetch(`/api/partner/spots/${spotId}/toss-catalog`);
     setTossBusy(false);
@@ -249,20 +257,31 @@ export default function MenuSection({
     if (!res.ok) return alert(d.error || '토스 메뉴를 불러오지 못했어요.');
     const categories: { name: string; items: { name: string; price: number; description: string | null }[] }[] = d.categories ?? [];
     if (!categories.length) return alert('가져올 판매중 메뉴가 없어요.');
+
+    const next = [...cats];
+    const touched: string[] = [];
     for (const c of categories) {
-      addCat({
+      const existing = next.find((x) => x.name.trim() === c.name.trim());
+      const soldOut = new Map((existing?.items ?? []).map((it) => [it.name, it.sold_out]));
+      const items = c.items.map((m) => ({
         key: nk(),
-        name: c.name,
-        items: c.items.map((m) => ({
-          key: nk(),
-          name: m.name,
-          priceStr: String(m.price),
-          description: m.description ?? '',
-          sold_out: false,
-          zero_action: null,
-        })),
-      });
+        name: m.name,
+        priceStr: String(m.price),
+        description: m.description ?? '',
+        sold_out: soldOut.get(m.name) ?? false,
+        zero_action: null,
+      }));
+      if (existing) {
+        next[next.findIndex((x) => x.key === existing.key)] = { ...existing, items };
+        touched.push(existing.key);
+      } else {
+        const cat = { key: nk(), name: c.name, items };
+        next.push(cat);
+        touched.push(cat.key);
+      }
     }
+    setCats(next);
+    touched.forEach(markCat);
   };
 
   const importNaver = () => {
