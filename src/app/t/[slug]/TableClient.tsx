@@ -7,6 +7,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Marcellus } from 'next/font/google';
 import { DEFAULT_PURPOSES, DEFAULT_VIBES } from '@/lib/checkinDefaults';
+import { useUser } from '@/lib/useUser';
+import LoginModal from '@/components/LoginModal';
+import FavoriteButton from '@/components/FavoriteButton';
 import GamesTab from './GamesTab';
 import ChatTab from './ChatTab';
 
@@ -205,6 +208,8 @@ export default function TableClient({
   const [seatTotal, setSeatTotal] = useState(0);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
+  const { user } = useUser(); // 혼술맵 계정 (찜·로그인 버튼용 — 체크인과는 별개)
+  const [loginOpen, setLoginOpen] = useState(false);
 
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = useCallback((msg: string) => {
@@ -443,9 +448,10 @@ export default function TableClient({
       <div style={{ minHeight: '100dvh', background: 'radial-gradient(85% 50% at 0% 0%, rgba(255,236,210,0.13) 0%, rgba(255,236,210,0.04) 36%, rgba(255,236,210,0) 62%), radial-gradient(120% 85% at 50% 0%, #1b1b1f 0%, #111114 48%, #0a0a0c 100%)', display: 'flex', flexDirection: 'column', padding: '0 26px' }}>
         <style>{STYLES}</style>
         <div className="hsmt-fade-up hsmt-d1" style={{ paddingTop: 'max(30px, env(safe-area-inset-top))', textAlign: 'center' }}>
-          <span className={marcellus.className} style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', letterSpacing: '4px' }}>
+          {/* 브랜드 → 혼술맵 피드 (테이블 손님이 혼술맵 본체를 만나는 문) */}
+          <a href="/feed" className={marcellus.className} style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', letterSpacing: '4px', textDecoration: 'none' }}>
             HONSULMAP TABLE
-          </span>
+          </a>
         </div>
 
         <div style={{ flex: 1, display: 'grid', placeItems: 'center', textAlign: 'center', padding: '30px 0' }}>
@@ -567,7 +573,10 @@ export default function TableClient({
               />
             )}
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: FAINT, letterSpacing: '0.3px' }}>혼술맵 테이블</div>
+              {/* 브랜드 → 혼술맵 피드 */}
+              <a href="/feed" style={{ fontSize: 11, fontWeight: 700, color: FAINT, letterSpacing: '0.3px', textDecoration: 'none', display: 'inline-block' }}>
+                혼술맵 테이블 ↗
+              </a>
               <h1 style={{ fontSize: 18, fontWeight: 800, color: INK, letterSpacing: '-0.4px', marginTop: 1 }}>{spot.name}</h1>
             </div>
           </div>
@@ -582,9 +591,23 @@ export default function TableClient({
             </button>
           )}
         </div>
-        <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.07)', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.68)' }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: LIVE_DOT[liveStatus] ?? '#34d399' }} />
-          {LIVE_LABEL[liveStatus] ?? liveStatus}
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.07)', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.68)' }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: LIVE_DOT[liveStatus] ?? '#34d399' }} />
+            {LIVE_LABEL[liveStatus] ?? liveStatus}
+          </div>
+          {/* 가게 찜 + 혼술맵 로그인 — 테이블 손님을 혼술맵 계정으로 잇는 접점 */}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FavoriteButton spotId={spot.id} variant="icon" onNeedLogin={() => setLoginOpen(true)} />
+            {!user && (
+              <button
+                onClick={() => setLoginOpen(true)}
+                style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.06)', color: MUTED, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+              >
+                로그인
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -716,6 +739,11 @@ export default function TableClient({
           }}
         />
       )}
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        reason="혼술맵 계정으로 찜·채팅을 이용할 수 있어요"
+      />
       {profileView && <ProfileSheet seat={profileView.seat} s={profileView.s} onClose={() => setProfileView(null)} />}
       {cartOpen && (
         <CartSheet

@@ -45,9 +45,10 @@ function isActivePath(pathname: string, href: string) {
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link
-      href="/partner"
+      href="/"
       style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none' }}
-      aria-label="혼술맵 사장님 센터"
+      aria-label="혼술맵 홈으로"
+      title="혼술맵 홈으로"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

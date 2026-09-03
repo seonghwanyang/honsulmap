@@ -1067,9 +1067,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       if (panelSpotIdRef.current !== targetSpotId) return; // user moved on
       setVisitCount(payload.count);
       setJustVisited(true);
+      // 처리 완료 체감 — 성공을 명시적으로 알려준다 ("확인중"만 보다 끝나는 느낌 방지)
+      setGpsToast(`방문 기록 완료 🍻 이 가게 다녀간 ${payload.count}명에 추가됐어요`);
+      setTimeout(() => setGpsToast(null), 3500);
       track('visit', { spot_id: targetSpotId });
     } catch (err) {
       console.error('visit error:', err);
+      setGpsToast('일시적인 오류로 기록하지 못했어요 · 다시 눌러주세요');
+      setTimeout(() => setGpsToast(null), 3500);
     } finally {
       if (panelSpotIdRef.current === targetSpotId) {
         setVisitSubmitting(false);
