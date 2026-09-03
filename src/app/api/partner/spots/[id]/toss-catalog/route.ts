@@ -53,7 +53,7 @@ export async function GET(
   if (!raw) return NextResponse.json({ error: '토스에서 메뉴를 불러오지 못했어요.' }, { status: 502 });
 
   const sellable = raw.filter((it) => it.enabled && it.state === 'ON_SALE' && (it.price?.priceValue ?? 0) > 0);
-  const catMap = new Map<string, { name: string; order: number; items: { name: string; price: number; description: string | null }[] }>();
+  const catMap = new Map<string, { name: string; order: number; items: { name: string; price: number; description: string | null; order: number }[] }>();
   for (const it of sellable) {
     const key = it.category?.id ?? '?';
     if (!catMap.has(key)) {
@@ -63,11 +63,15 @@ export async function GET(
       name: it.title.slice(0, 60),
       price: it.price?.priceValue ?? 0,
       description: it.description?.slice(0, 200) || null,
+      order: it.order ?? 999, // 포스 표시 순번 — API 도착 순서는 뒤섞여 있어 이걸로 정렬해야 함
     });
   }
   const categories = [...catMap.values()]
     .sort((a, b) => a.order - b.order)
-    .map(({ name, items }) => ({ name, items }));
+    .map(({ name, items }) => ({
+      name,
+      items: [...items].sort((a, b) => a.order - b.order).map(({ order: _o, ...rest }) => rest),
+    }));
 
   return NextResponse.json({ connected: true, categories });
 }

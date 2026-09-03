@@ -128,6 +128,57 @@ export default function MenuSection({
     if (st.moved) setGlobalDirty(true); // 순서 변경은 [메뉴 전체 저장]으로 확정
   };
 
+  // ── 품목 드래그 정렬 — 같은 카테고리 안에서 위아래로. 카테고리와 동일 패턴.
+  // 품목 순서는 [카테고리 저장]만으로도 확정된다 (카테고리 통째 교체 저장이라).
+  const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const itemDragRef = useRef<{ catKey: string; itemKey: string; moved: boolean } | null>(null);
+  const [dragItemKey, setDragItemKey] = useState<string | null>(null);
+
+  const onItemDragStart = (e: React.PointerEvent, catKey: string, itemKey: string) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    itemDragRef.current = { catKey, itemKey, moved: false };
+    setDragItemKey(itemKey);
+  };
+  const onItemDragMove = (e: React.PointerEvent) => {
+    const st = itemDragRef.current;
+    if (!st) return;
+    const y = e.clientY;
+    if (y < 90) window.scrollBy(0, -14);
+    else if (y > window.innerHeight - 90) window.scrollBy(0, 14);
+    setCats((prev) =>
+      prev.map((c) => {
+        if (c.key !== st.catKey) return c;
+        const from = c.items.findIndex((it) => it.key === st.itemKey);
+        if (from < 0) return c;
+        const trySwap = (dir: -1 | 1) => {
+          const neighbor = c.items[from + dir];
+          if (!neighbor) return null;
+          const el = itemRefs.current.get(neighbor.key);
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          const mid = r.top + r.height / 2;
+          if ((dir === -1 && y < mid) || (dir === 1 && y > mid)) {
+            st.moved = true;
+            const items = [...c.items];
+            items.splice(from, 1);
+            items.splice(from + dir, 0, c.items[from]);
+            return { ...c, items };
+          }
+          return null;
+        };
+        return trySwap(-1) ?? trySwap(1) ?? c;
+      }),
+    );
+  };
+  const onItemDragEnd = () => {
+    const st = itemDragRef.current;
+    if (!st) return;
+    itemDragRef.current = null;
+    setDragItemKey(null);
+    if (st.moved) markCat(st.catKey);
+  };
+
   const anyDirty = dirtyCats.size > 0 || globalDirty;
   useEffect(() => {
     onDirtyChange?.(anyDirty);
@@ -395,8 +446,26 @@ export default function MenuSection({
             <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {c.items.map((it) => (
-                <div key={it.key} style={{ border: '1px solid #f0f1f3', borderRadius: 12, padding: 12 }}>
+                <div
+                  key={it.key}
+                  ref={(el) => {
+                    if (el) itemRefs.current.set(it.key, el);
+                    else itemRefs.current.delete(it.key);
+                  }}
+                  style={{ border: '1px solid #f0f1f3', borderRadius: 12, padding: 12, ...(dragItemKey === it.key ? { outline: '2px solid #111827', boxShadow: '0 8px 20px rgba(0,0,0,0.14)', opacity: 0.95, background: '#fff' } : {}) }}
+                >
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {/* ≡ 품목 드래그 핸들 — 같은 카테고리 안에서 순서 변경 */}
+                    <span
+                      onPointerDown={(e) => onItemDragStart(e, c.key, it.key)}
+                      onPointerMove={onItemDragMove}
+                      onPointerUp={onItemDragEnd}
+                      onPointerCancel={onItemDragEnd}
+                      title="끌어서 순서 변경"
+                      style={{ width: 28, height: 40, display: 'grid', placeItems: 'center', color: '#c4c9d0', fontSize: 15, fontWeight: 800, cursor: dragItemKey === it.key ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none' }}
+                    >
+                      ≡
+                    </span>
                     <input
                       value={it.name}
                       onChange={(e) => mutItem(c.key, it.key, (x) => ({ ...x, name: e.target.value.slice(0, 60) }))}
