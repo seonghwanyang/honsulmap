@@ -481,7 +481,7 @@ function OrdersBoard() {
               <div key={z.id}>
                 <div style={{ fontSize: 11.5, fontWeight: 800, color: '#374151', marginBottom: 6 }}>{z.name}</div>
                 <div style={{ overflowX: 'auto' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${z.grid_cols}, minmax(24px, 30px))`, gap: 4 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${z.grid_cols}, minmax(38px, 48px))`, gap: 6 }}>
                     {Array.from({ length: z.grid_rows * z.grid_cols }, (_, i) => {
                       const row = Math.floor(i / z.grid_cols);
                       const col = i % z.grid_cols;
@@ -497,10 +497,10 @@ function OrdersBoard() {
                           title={on ? `Seat ${seat.label} 세션 종료` : undefined}
                           style={{
                             aspectRatio: '1',
-                            borderRadius: 6,
+                            borderRadius: 9,
                             display: 'grid',
                             placeItems: 'center',
-                            fontSize: 9.5,
+                            fontSize: 13,
                             fontWeight: 800,
                             padding: 0,
                             background: on ? '#111827' : '#fff',
