@@ -167,7 +167,7 @@ export default function MyPage() {
   const defaultAvatar = user ? chatAvatar(user.id) : { emoji: '🐶', color: '#f3f4f6' };
 
   return (
-    <div style={{ maxWidth: 560, margin: '0 auto', padding: '12px 16px 80px' }}>
+    <div style={{ maxWidth: 560, margin: '0 auto', padding: '12px 16px 80px', paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}>
       {/* Top bar */}
       <div className="flex items-center gap-2" style={{ height: 48 }}>
         <Link href="/" aria-label="지도로" style={{ color: '#6b7280', display: 'inline-flex', padding: 4 }}>
