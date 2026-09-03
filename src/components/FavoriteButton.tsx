@@ -119,6 +119,9 @@ export default function FavoriteButton({
     };
   }, [nudgePos]);
 
+  // 낙관적 토글 — 하트는 즉시 바뀌고, 서버 실패 시 되돌린다.
+  // 주의: supabase-js는 실패를 throw하지 않고 {error}로 반환한다 — 예전 코드는
+  // 이걸 무시해서 "눌렀는데 저장 안 됨"이 조용히 지나갔다. 실패는 원격 로그로 수집.
   const toggle = async () => {
     if (!user) {
       onNeedLogin();
@@ -127,26 +130,39 @@ export default function FavoriteButton({
     if (busy) return;
     setBusy(true);
     setNudgePos(null);
+    const next = !fav;
+    setFav(next);
     const sb = createBrowserSupabase();
-    try {
-      if (fav) {
-        await sb.from('favorites').delete().eq('user_id', user.id).eq('spot_id', spotId);
-        setFav(false);
-      } else {
-        await sb.from('favorites').insert({ user_id: user.id, spot_id: spotId });
-        setFav(true);
-        track('favorite_added', { spot_id: spotId });
-        try {
-          localStorage.setItem(FAV_USED_KEY, '1');
-        } catch {
-          /* ignore */
-        }
+    const { error } = next
+      ? await sb.from('favorites').insert({ user_id: user.id, spot_id: spotId })
+      : await sb.from('favorites').delete().eq('user_id', user.id).eq('spot_id', spotId);
+    if (error && !(next && error.code === '23505')) {
+      // 23505(이미 찜됨)는 성공 취급. 그 외 실패 → 복구 + 증거 수집
+      setFav(!next);
+      try {
+        void fetch('/api/client-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            level: 'warn',
+            msg: 'favorite toggle failed',
+            detail: `${error.code ?? ''} ${error.message}`.slice(0, 300),
+            url: window.location.href,
+          }),
+          keepalive: true,
+        });
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* best-effort */
-    } finally {
-      setBusy(false);
+    } else if (next) {
+      track('favorite_added', { spot_id: spotId });
+      try {
+        localStorage.setItem(FAV_USED_KEY, '1');
+      } catch {
+        /* ignore */
+      }
     }
+    setBusy(false);
   };
 
   const nudge =

@@ -119,6 +119,18 @@ export default function ChatRoom({
           if (!knownName) void refresh();
         },
       )
+      // 소프트삭제(is_deleted) 실시간 반영 — 누가 지우면 모두의 화면에서 즉시 제거
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `spot_id=eq.${spotId}` },
+        (payload) => {
+          const row = payload.new as { id: string; is_deleted?: boolean };
+          if (row.is_deleted) {
+            setMessages((prev) => prev.filter((m) => m.id !== row.id));
+            seenRef.current.delete(row.id);
+          }
+        },
+      )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
@@ -199,7 +211,7 @@ export default function ChatRoom({
     [deliver],
   );
 
-  // 삭제(사장님만) — 낙관적으로 화면에서 제거, 실패하면 재조회로 복구.
+  // 삭제(사장님=전체, 일반=자기 것) — 낙관적으로 화면에서 제거, 실패하면 재조회로 복구.
   const deleteMessage = useCallback(
     async (id: string) => {
       if (typeof window !== 'undefined' && !window.confirm('이 메시지를 삭제할까요?')) return;
@@ -355,8 +367,9 @@ export default function ChatRoom({
                         전송 실패 · 다시 시도
                       </button>
                     )}
-                    {/* 운영 액션 — 실제 저장된 메시지에만(전송중/실패/temp 제외) */}
-                    {!m.pending && !m.failed && !m.id.startsWith('temp-') && (mine ? canModerate : true) && (
+                    {/* 운영 액션 — 실제 저장된 메시지에만(전송중/실패/temp 제외).
+                        삭제: 사장님은 전체, 일반 유저는 자기 메시지만(서버 재검증). */}
+                    {!m.pending && !m.failed && !m.id.startsWith('temp-') && (
                       <div
                         style={{
                           display: 'flex',
@@ -375,11 +388,11 @@ export default function ChatRoom({
                             신고
                           </button>
                         )}
-                        {canModerate && (
+                        {(canModerate || mine) && (
                           <button
                             type="button"
                             onClick={() => deleteMessage(m.id)}
-                            style={{ fontSize: 10.5, color: '#dc2626', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                            style={{ fontSize: 10.5, color: mine && !canModerate ? '#9ca3af' : '#dc2626', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                           >
                             삭제
                           </button>
