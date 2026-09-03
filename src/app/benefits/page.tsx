@@ -96,7 +96,8 @@ export default function BenefitsPage() {
 
   return (
     <div style={{ background: '#fafafa', minHeight: '100dvh' }}>
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '12px 16px 80px' }}>
+      {/* 앱(엣지투엣지)에서 상단바가 노치/상태바에 가리지 않게 safe-area만큼 내림 */}
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: '12px 16px 80px', paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}>
         {/* Top bar */}
         <div className="flex items-center gap-2" style={{ height: 48 }}>
           <Link href="/" aria-label="지도로" style={{ color: '#6b7280', display: 'inline-flex', padding: 4 }}>
