@@ -148,9 +148,9 @@ export default function ChatTab({
     };
   }, [uid, spotId, refresh]);
 
-  // 내 메시지 삭제 — 낙관적 제거, 실패 시 재조회 복구 (사장 전체 삭제는 사장님 페이지에서)
+  // 내 메시지 삭제 — 2탭 확인(네이티브 confirm 대신), 낙관적 제거, 실패 시 재조회 복구
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const deleteMine = async (id: string) => {
-    if (!confirm('이 메시지를 삭제할까요?')) return;
     setMessages((prev) => prev.filter((m) => m.id !== id));
     try {
       const res = await fetch(`/api/chat/${spotId}/messages/${id}`, { method: 'DELETE' });
@@ -338,14 +338,33 @@ export default function ChatTab({
                     >
                       {m.body}
                     </div>
-                    {mine && (
-                      <button
-                        onClick={() => deleteMine(m.id)}
-                        style={{ display: 'block', marginLeft: 'auto', marginTop: 3, fontSize: 10, fontWeight: 700, color: FAINT, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                      >
-                        삭제
-                      </button>
-                    )}
+                    {mine &&
+                      (confirmDel === m.id ? (
+                        <span style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 3 }}>
+                          <button
+                            onClick={() => {
+                              setConfirmDel(null);
+                              void deleteMine(m.id);
+                            }}
+                            style={{ fontSize: 10.5, fontWeight: 800, color: '#f87171', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          >
+                            정말 삭제
+                          </button>
+                          <button
+                            onClick={() => setConfirmDel(null)}
+                            style={{ fontSize: 10.5, fontWeight: 700, color: FAINT, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          >
+                            취소
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDel(m.id)}
+                          style={{ display: 'block', marginLeft: 'auto', marginTop: 3, fontSize: 10, fontWeight: 700, color: FAINT, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                        >
+                          삭제
+                        </button>
+                      ))}
                   </div>
                   <span style={{ fontSize: 10, color: FAINT, flexShrink: 0 }}>
                     {new Date(m.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}

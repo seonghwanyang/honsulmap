@@ -76,8 +76,9 @@ function TablesHub() {
     }
   };
 
-  // 신청곡 스위치 — 기본 on(modes.songs !== false), 체크 즉시 저장
-  const [songsOn, setSongsOn] = useState<boolean | null>(null);
+  // 신청곡 스위치 — 기본 on(modes.songs !== false), 체크 즉시 저장.
+  // 낙관적 초기값 true: 로드 전 1~2초 꺼진 듯 보이다 스스로 켜지던 현상 방지.
+  const [songsOn, setSongsOn] = useState<boolean>(true);
   // 토스 포스 연동 — modes.toss_merchant_id 존재 = 연동됨
   const [tossMid, setTossMid] = useState<string | null>(null);
   const [tossName, setTossName] = useState<string | null>(null);
@@ -158,7 +159,7 @@ function TablesHub() {
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: songsOn ? '#111827' : '#6b7280' }}>
               🎵 신청곡
-              <ToggleSwitch on={!!songsOn} disabled={songsOn === null} onChange={toggleSongs} />
+              <ToggleSwitch on={songsOn} onChange={toggleSongs} />
             </label>
             <Link href={`/partner/spot/${id}/orders`} style={buttonStyle('primary')}>
               주문 보드 열기 →

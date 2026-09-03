@@ -211,10 +211,10 @@ export default function ChatRoom({
     [deliver],
   );
 
-  // 삭제(사장님=전체, 일반=자기 것) — 낙관적으로 화면에서 제거, 실패하면 재조회로 복구.
+  // 삭제(사장님=전체, 일반=자기 것) — 2탭 확인, 낙관적으로 화면에서 제거, 실패하면 재조회로 복구.
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const deleteMessage = useCallback(
     async (id: string) => {
-      if (typeof window !== 'undefined' && !window.confirm('이 메시지를 삭제할까요?')) return;
       setMessages((prev) => prev.filter((m) => m.id !== id));
       seenRef.current.delete(id);
       try {
@@ -388,15 +388,36 @@ export default function ChatRoom({
                             신고
                           </button>
                         )}
-                        {(canModerate || mine) && (
-                          <button
-                            type="button"
-                            onClick={() => deleteMessage(m.id)}
-                            style={{ fontSize: 10.5, color: mine && !canModerate ? '#9ca3af' : '#dc2626', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                          >
-                            삭제
-                          </button>
-                        )}
+                        {(canModerate || mine) &&
+                          (confirmDel === m.id ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfirmDel(null);
+                                  void deleteMessage(m.id);
+                                }}
+                                style={{ fontSize: 10.5, fontWeight: 800, color: '#dc2626', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                              >
+                                정말 삭제
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDel(null)}
+                                style={{ fontSize: 10.5, color: '#9ca3af', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                              >
+                                취소
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDel(m.id)}
+                              style={{ fontSize: 10.5, color: mine && !canModerate ? '#9ca3af' : '#dc2626', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                            >
+                              삭제
+                            </button>
+                          ))}
                       </div>
                     )}
                   </div>
