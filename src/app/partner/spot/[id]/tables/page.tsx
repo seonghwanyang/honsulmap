@@ -50,8 +50,25 @@ function TablesHub() {
   const { id } = useParams<{ id: string }>();
   const [open, setOpen] = useState<Record<SectionKey, boolean>>({ layout: true, menu: false, quests: false, checkin: false });
   const [dirtyMap, setDirtyMap] = useState<Record<SectionKey, boolean>>({ layout: false, menu: false, quests: false, checkin: false });
-  // 서비스 활성화 — 헤더 토글, 체크 즉시 저장. null = 로딩 전
-  const [enabled, setEnabled] = useState<boolean | null>(null);
+  // 서비스 활성화 — 헤더 토글, 체크 즉시 저장. null = 이 기기에서 처음 봄(로딩 잠금).
+  // 마지막 값을 기기에 기억해 로딩 중에도 이전 설정 그대로 보이게 한다 (토글 깜빡임 방지).
+  const [enabled, setEnabled] = useState<boolean | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const v = localStorage.getItem(`hsm_tsvc_${id}`);
+      return v === null ? null : v === '1';
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    if (enabled === null) return;
+    try {
+      localStorage.setItem(`hsm_tsvc_${id}`, enabled ? '1' : '0');
+    } catch {
+      /* 저장 실패 무시 */
+    }
+  }, [enabled, id]);
   const [spot, setSpot] = useState<{ name: string; slug: string } | null>(null);
 
   const setDirty = useCallback((key: SectionKey) => (d: boolean) => {
@@ -77,8 +94,22 @@ function TablesHub() {
   };
 
   // 신청곡 스위치 — 기본 on(modes.songs !== false), 체크 즉시 저장.
-  // 낙관적 초기값 true: 로드 전 1~2초 꺼진 듯 보이다 스스로 켜지던 현상 방지.
-  const [songsOn, setSongsOn] = useState<boolean>(true);
+  // 마지막 값을 기기에 기억해 로딩 중에도 이전 설정 그대로 표시 (처음 방문만 기본 ON).
+  const [songsOn, setSongsOn] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      return localStorage.getItem(`hsm_songs_${id}`) !== '0';
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(`hsm_songs_${id}`, songsOn ? '1' : '0');
+    } catch {
+      /* 저장 실패 무시 */
+    }
+  }, [songsOn, id]);
   // 토스 포스 연동 — modes.toss_merchant_id 존재 = 연동됨
   const [tossMid, setTossMid] = useState<string | null>(null);
   const [tossName, setTossName] = useState<string | null>(null);
