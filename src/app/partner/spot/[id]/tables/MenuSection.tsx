@@ -78,6 +78,56 @@ export default function MenuSection({
       return next;
     });
 
+  // ── 카테고리 드래그 정렬 — 헤더의 ≡ 핸들을 잡고 위아래로. 접힘/펼침 모두 동작.
+  // 포인터가 이웃 카드의 중간선을 넘으면 즉시 자리 교환(라이브 리오더).
+  // 순서는 [메뉴 전체 저장]으로 확정된다 (PUT이 배열 순서를 sort로 저장).
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const dragRef = useRef<{ key: string; moved: boolean } | null>(null);
+  const [dragKey, setDragKey] = useState<string | null>(null);
+
+  const onDragStart = (e: React.PointerEvent, key: string) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { key, moved: false };
+    setDragKey(key);
+  };
+  const onDragMove = (e: React.PointerEvent) => {
+    const st = dragRef.current;
+    if (!st) return;
+    const y = e.clientY;
+    // 화면 가장자리 근처면 페이지 자동 스크롤 (긴 목록 이동용)
+    if (y < 90) window.scrollBy(0, -14);
+    else if (y > window.innerHeight - 90) window.scrollBy(0, 14);
+    setCats((prev) => {
+      const from = prev.findIndex((c) => c.key === st.key);
+      if (from < 0) return prev;
+      const trySwap = (dir: -1 | 1) => {
+        const neighbor = prev[from + dir];
+        if (!neighbor) return null;
+        const el = cardRefs.current.get(neighbor.key);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        const mid = r.top + r.height / 2;
+        if ((dir === -1 && y < mid) || (dir === 1 && y > mid)) {
+          st.moved = true;
+          const next = [...prev];
+          next.splice(from, 1);
+          next.splice(from + dir, 0, prev[from]);
+          return next;
+        }
+        return null;
+      };
+      return trySwap(-1) ?? trySwap(1) ?? prev;
+    });
+  };
+  const onDragEnd = () => {
+    const st = dragRef.current;
+    if (!st) return;
+    dragRef.current = null;
+    setDragKey(null);
+    if (st.moved) setGlobalDirty(true); // 순서 변경은 [메뉴 전체 저장]으로 확정
+  };
+
   const anyDirty = dirtyCats.size > 0 || globalDirty;
   useEffect(() => {
     onDirtyChange?.(anyDirty);
@@ -280,12 +330,31 @@ export default function MenuSection({
         const cDirty = dirtyCats.has(c.key);
         const cCollapsed = collapsed.has(c.key);
         return (
-          <Card key={c.key} style={{ padding: 16 }}>
+          <div
+            key={c.key}
+            ref={(el) => {
+              if (el) cardRefs.current.set(c.key, el);
+              else cardRefs.current.delete(c.key);
+            }}
+          >
+          <Card style={{ padding: 16, ...(dragKey === c.key ? { outline: '2px solid #111827', boxShadow: '0 10px 28px rgba(0,0,0,0.16)', opacity: 0.95 } : {}) }}>
             {/* 헤더 행 — 빈 공간 어디를 눌러도 접고 펼침 (입력·버튼은 전파 차단) */}
             <div
               onClick={() => toggleCat(c.key)}
               style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: cCollapsed ? 0 : 12, flexWrap: 'wrap', cursor: 'pointer' }}
             >
+              {/* ≡ 드래그 핸들 — 잡고 위아래로 끌면 카테고리 순서 변경 */}
+              <span
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => onDragStart(e, c.key)}
+                onPointerMove={onDragMove}
+                onPointerUp={onDragEnd}
+                onPointerCancel={onDragEnd}
+                title="끌어서 순서 변경"
+                style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#9ca3af', fontSize: 16, fontWeight: 800, cursor: dragKey === c.key ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none' }}
+              >
+                ≡
+              </span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -384,6 +453,7 @@ export default function MenuSection({
             </>
             )}
           </Card>
+          </div>
         );
       })}
 
