@@ -135,6 +135,17 @@ export async function POST(
   const order = ins.data;
   if (ins.error || !order) return NextResponse.json({ error: ins.error?.message ?? '주문 저장에 실패했어요.' }, { status: 500 });
 
+  // 선물 항목(gift_target_seat)은 주방 전표·보드·포스 어디서든 보이게 요청 텍스트에 표기
+  const itemReq = (it: OrderItemInput): string | null => {
+    const base = typeof it.request === 'string' ? it.request.slice(0, 100).trim() : '';
+    const gift =
+      typeof it.gift_target_seat === 'string' && it.gift_target_seat.trim()
+        ? `선물 → Seat ${it.gift_target_seat.trim().slice(0, 10)}`
+        : '';
+    const joined = [gift, base].filter(Boolean).join(' · ');
+    return joined ? joined.slice(0, 100) : null;
+  };
+
   const { error: iErr } = await admin.from('table_order_items').insert(
     inputs.map((it) => {
       const m = byId.get(it.id)!;
@@ -143,10 +154,10 @@ export async function POST(
         item_name: m.name,
         price: m.price,
         qty: it.qty,
-        request: typeof it.request === 'string' ? it.request.slice(0, 100) || null : null,
+        request: itemReq(it),
         gift_target_seat:
-          m.zero_action === 'gift' && typeof it.gift_target_seat === 'string'
-            ? it.gift_target_seat.slice(0, 10)
+          typeof it.gift_target_seat === 'string' && it.gift_target_seat.trim()
+            ? it.gift_target_seat.trim().slice(0, 10)
             : null,
       };
     }),
@@ -172,7 +183,7 @@ export async function POST(
         seatLabel: seat?.label ?? '?',
         items: kitchenItems.map((it) => {
           const m = byId.get(it.id)!;
-          return { name: m.name, price: m.price, qty: it.qty, request: typeof it.request === 'string' ? it.request : null };
+          return { name: m.name, price: m.price, qty: it.qty, request: itemReq(it) };
         }),
       });
       await pushOrderToPos(mid, payload);
