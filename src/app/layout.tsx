@@ -10,6 +10,7 @@ import AnalyticsIdentity from '@/components/AnalyticsIdentity';
 import PushRegistration from '@/components/PushRegistration';
 import AdMobBanner from '@/components/AdMobBanner';
 import AndroidBackHandler from '@/components/AndroidBackHandler';
+import ClientErrorLogger from '@/components/ClientErrorLogger';
 import { jsonLdScript } from '@/lib/utils';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -176,6 +177,7 @@ export default function RootLayout({
         <PushRegistration />
         <AdMobBanner />
         <AndroidBackHandler />
+        <ClientErrorLogger />
         <ClarityScript />
         <AdSenseScript />
       </body>
