@@ -8,6 +8,7 @@
 //  · [메뉴 전체 저장]  — 현재 화면 전체 확정. 카테고리 삭제는 여기서만.
 
 import { useEffect, useRef, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import { Card, buttonStyle, PlusIcon, Spinner } from '../../../ui';
 
 type ZeroAction = 'call' | 'recommend' | 'report' | 'gift' | null;
@@ -18,6 +19,7 @@ interface EdItem {
   description: string;
   sold_out: boolean;
   zero_action: ZeroAction;
+  image_url?: string | null; // 손님 메뉴판 썸네일 (post-images 버킷)
 }
 interface EdCat {
   key: string;
@@ -192,7 +194,7 @@ export default function MenuSection({
         setNaverMenus(Array.isArray(d.naver_menus) ? d.naver_menus : []);
         setTossOn(!!d.toss_connected);
         const loaded: EdCat[] = (d.categories ?? []).map(
-          (c: { name: string; items: { name: string; price: number; description: string | null; sold_out: boolean; zero_action: ZeroAction }[] }) => ({
+          (c: { name: string; items: { name: string; price: number; description: string | null; sold_out: boolean; zero_action: ZeroAction; image_url?: string | null }[] }) => ({
             key: nk(),
             name: c.name,
             items: c.items.map((it) => ({
@@ -202,6 +204,7 @@ export default function MenuSection({
               description: it.description ?? '',
               sold_out: it.sold_out,
               zero_action: it.zero_action,
+              image_url: it.image_url ?? null,
             })),
           }),
         );
@@ -222,6 +225,20 @@ export default function MenuSection({
       ...c,
       items: c.items.flatMap((it) => (it.key === itemKey ? (fn(it) ? [fn(it)!] : []) : [it])),
     }));
+
+  // 메뉴 사진 업로드 — post-images 버킷 재사용 (커뮤니티 글 업로드와 동일 정책, 5MB 제한)
+  const uploadItemImage = async (catKey: string, itemKey: string, file: File) => {
+    if (!file.type.startsWith('image/')) return alert('이미지 파일만 올릴 수 있어요.');
+    if (file.size > 5 * 1024 * 1024) return alert('이미지는 5MB 이하로 올려주세요.');
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
+    const path = `menu/${spotId}/${itemKey}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from('post-images')
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (error) return alert(`업로드 실패: ${error.message}`);
+    const { data } = supabase.storage.from('post-images').getPublicUrl(path);
+    mutItem(catKey, itemKey, (x) => ({ ...x, image_url: data.publicUrl }));
+  };
 
   const delCat = (key: string, name: string) => {
     if (!confirm(`'${name}' 카테고리를 삭제할까요?\n삭제는 [메뉴 전체 저장]을 눌러야 최종 반영돼요.`)) return;
@@ -246,7 +263,7 @@ export default function MenuSection({
     if (tossBusy) return;
     if (
       !confirm(
-        '포스 메뉴로 동기화할까요?\n같은 이름의 카테고리는 포스의 순서·가격·구성으로 교체돼요 (품절 표시는 유지).\n포스에 없는 카테고리(₩0 서비스 등)는 그대로 둡니다.',
+        '포스 메뉴로 동기화할까요?\n같은 이름의 카테고리는 포스의 순서·가격·구성으로 교체돼요 (품절·사진·직접 쓴 설명은 유지).\n포스에 없는 카테고리(₩0 서비스 등)는 그대로 둡니다.',
       )
     )
       return;
@@ -262,15 +279,20 @@ export default function MenuSection({
     const touched: string[] = [];
     for (const c of categories) {
       const existing = next.find((x) => x.name.trim() === c.name.trim());
-      const soldOut = new Map((existing?.items ?? []).map((it) => [it.name, it.sold_out]));
-      const items = c.items.map((m) => ({
-        key: nk(),
-        name: m.name,
-        priceStr: String(m.price),
-        description: m.description ?? '',
-        sold_out: soldOut.get(m.name) ?? false,
-        zero_action: null,
-      }));
+      const prev = new Map((existing?.items ?? []).map((it) => [it.name, it]));
+      const items = c.items.map((m) => {
+        const p = prev.get(m.name);
+        return {
+          key: nk(),
+          name: m.name,
+          priceStr: String(m.price),
+          // 직접 써둔 설명(도수 등)·사진·품절은 동기화해도 유지 — 포스엔 없는 정보라
+          description: p?.description?.trim() ? p.description : (m.description ?? ''),
+          sold_out: p?.sold_out ?? false,
+          zero_action: null,
+          image_url: p?.image_url ?? null,
+        };
+      });
       if (existing) {
         next[next.findIndex((x) => x.key === existing.key)] = { ...existing, items };
         touched.push(existing.key);
@@ -315,6 +337,7 @@ export default function MenuSection({
         description: it.description || null,
         sold_out: it.sold_out,
         zero_action: it.zero_action,
+        image_url: it.image_url ?? null,
       })),
     }));
 
@@ -474,6 +497,25 @@ export default function MenuSection({
                   style={{ border: '1px solid #f0f1f3', borderRadius: 12, padding: 12, ...(dragItemKey === it.key ? { outline: '2px solid #111827', boxShadow: '0 8px 20px rgba(0,0,0,0.14)', opacity: 0.95, background: '#fff' } : {}) }}
                 >
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {/* 사진 — 탭하면 업로드/교체. 손님 메뉴판에 썸네일로 노출 */}
+                    <label title="메뉴 사진" style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 9, border: it.image_url ? '1px solid #e5e7eb' : '1px dashed #d1d5db', background: '#f9fafb', display: 'grid', placeItems: 'center', overflow: 'hidden', cursor: 'pointer' }}>
+                      {it.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={it.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <span style={{ fontSize: 15 }}>📷</span>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = '';
+                          if (f) void uploadItemImage(c.key, it.key, f);
+                        }}
+                      />
+                    </label>
                     {/* ≡ 품목 드래그 핸들 — 같은 카테고리 안에서 순서 변경 */}
                     <span
                       onPointerDown={(e) => onItemDragStart(e, c.key, it.key)}
@@ -514,6 +556,14 @@ export default function MenuSection({
                       <span style={{ fontSize: 11, fontWeight: 800, color: '#7c3aed', background: '#f5f3ff', borderRadius: 6, padding: '3px 8px' }}>
                         ₩0 · {ZERO_LABEL[it.zero_action]}
                       </span>
+                    )}
+                    {it.image_url && (
+                      <button
+                        onClick={() => mutItem(c.key, it.key, (x) => ({ ...x, image_url: null }))}
+                        style={{ fontSize: 11.5, fontWeight: 700, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        사진 제거
+                      </button>
                     )}
                     <button
                       onClick={() => mutItem(c.key, it.key, () => null)}

@@ -56,6 +56,7 @@ interface ItemInput {
   description?: string | null;
   sold_out?: boolean;
   zero_action?: 'call' | 'recommend' | 'report' | 'gift' | null;
+  image_url?: string | null;
 }
 interface CategoryInput {
   name: string;
@@ -101,6 +102,11 @@ export async function PUT(
     if (cErr || !cats || cats.length !== categories.length)
       return NextResponse.json({ error: cErr?.message ?? '카테고리 저장에 실패했어요.' }, { status: 500 });
 
+    // image_url은 사진이 하나라도 있을 때만 컬럼 포함 — 마이그레이션(2026-09-04) 전
+    // 가게의 무사진 저장이 "없는 컬럼" 에러로 죽지 않게.
+    const hasImage = categories.some((c) =>
+      c.items.some((it) => typeof it.image_url === 'string' && it.image_url),
+    );
     const rows = categories.flatMap((c, ci) =>
       c.items.map((it, ii) => ({
         category_id: cats[ci].id,
@@ -111,6 +117,14 @@ export async function PUT(
         sold_out: !!it.sold_out,
         zero_action: it.zero_action ?? null,
         sort: ii,
+        ...(hasImage
+          ? {
+              image_url:
+                typeof it.image_url === 'string' && it.image_url.startsWith('http')
+                  ? it.image_url.slice(0, 500)
+                  : null,
+            }
+          : {}),
       })),
     );
     if (rows.length) {

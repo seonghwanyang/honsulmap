@@ -50,7 +50,8 @@ export default async function TablePage({
       supabase.from('store_zones').select('id, name, grid_rows, grid_cols').eq('spot_id', spot.id).order('sort'),
       supabase.from('store_seats').select('id, zone_id, label, "row", col, seat_type').eq('spot_id', spot.id).eq('active', true),
       supabase.from('store_menu_categories').select('id, name').eq('spot_id', spot.id).order('sort'),
-      supabase.from('store_menu_items').select('id, category_id, name, price, description, sold_out, zero_action').eq('spot_id', spot.id).order('sort'),
+      // select * — image_url 마이그레이션 전후 안전 (없는 컬럼 지명 시 쿼리 전체가 죽는다)
+      supabase.from('store_menu_items').select('*').eq('spot_id', spot.id).order('sort'),
       // 세션은 RLS로 잠겨 있어 서버에서 공개 필드만 골라 내린다 (/state와 동일 규칙)
       admin
         .from('table_sessions')
