@@ -8,6 +8,7 @@ import AddToHomePrompt from '@/components/AddToHomePrompt';
 import AnalyticsIdentity from '@/components/AnalyticsIdentity';
 import PushRegistration from '@/components/PushRegistration';
 import AdMobBanner from '@/components/AdMobBanner';
+import AppTracking from '@/components/AppTracking';
 import AndroidBackHandler from '@/components/AndroidBackHandler';
 import ClientErrorLogger from '@/components/ClientErrorLogger';
 import { jsonLdScript } from '@/lib/utils';
@@ -174,6 +175,7 @@ export default function RootLayout({
         <AddToHomePrompt />
         <AnalyticsIdentity />
         <PushRegistration />
+        <AppTracking />
         <AdMobBanner />
         <AndroidBackHandler />
         <ClientErrorLogger />

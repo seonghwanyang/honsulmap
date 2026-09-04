@@ -7,6 +7,7 @@ import { generateNickname } from '@/lib/nickname';
 import NicknameInput from './NicknameInput';
 import LikeButton from './LikeButton';
 import ReportModal from './ReportModal';
+import { isBlockedNick } from '@/lib/blocklist';
 
 interface CommentSectionProps {
   postId?: string;
@@ -31,6 +32,12 @@ function CommentItem({ comment, allowReplies, onReplySubmit, onDelete, depth = 0
   const [showDeleteInput, setShowDeleteInput] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [reportOpen, setReportOpen] = useState(false);
+  // UGC 차단(App Store 1.2) — 차단한 작성자의 댓글은 내 화면에서 즉시 숨긴다.
+  // (localStorage 기반이라 마운트 후 반영 — SSR 하이드레이션 불일치 방지)
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    if (isBlockedNick(comment.nickname)) setHidden(true);
+  }, [comment.nickname]);
 
   async function handleReply() {
     if (!replyContent.trim() || replyPassword.length < 4 || submitting) return;
@@ -52,6 +59,8 @@ function CommentItem({ comment, allowReplies, onReplySubmit, onDelete, depth = 0
     setShowDeleteInput(false);
     setDeletePassword('');
   }
+
+  if (hidden) return null;
 
   return (
     <div style={{ marginLeft: depth > 0 ? '24px' : '0', borderLeft: depth > 0 ? '2px solid #2a2d33' : 'none', paddingLeft: depth > 0 ? '12px' : '0' }}>
@@ -102,6 +111,8 @@ function CommentItem({ comment, allowReplies, onReplySubmit, onDelete, depth = 0
           onClose={() => setReportOpen(false)}
           targetType="comment"
           targetId={comment.id}
+          authorNickname={comment.nickname}
+          onBlocked={() => setHidden(true)}
         />
 
         {showDeleteInput && (
