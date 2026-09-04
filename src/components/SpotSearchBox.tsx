@@ -167,6 +167,12 @@ export default function SpotSearchBox({ spots, onPick }: Props) {
       {open && query.trim() && (
         <div
           style={{
+            // 오버레이 드롭다운 — in-flow였던 버그로 흰 밴드가 늘며 아래 배너·지도를
+            // 밀어내던 것 수정 (absolute라 레이아웃에 영향 없음)
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
             marginTop: 6,
             background: '#ffffff',
             borderRadius: 12,
