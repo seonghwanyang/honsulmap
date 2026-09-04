@@ -143,8 +143,12 @@ function GameCard({ emoji, title, desc, onClick }: { emoji: string; title: strin
 function Frame({ title, onBack, children }: { title: string; onBack: () => void; children: React.ReactNode }) {
   return (
     <div>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 800, color: MUTED, cursor: 'pointer', padding: '0 0 12px' }}>
-        ← 게임 목록
+      {/* 목록 복귀 — 텍스트만 있으면 안 보여서 알약 버튼으로 (42px 터치 타깃) */}
+      <button
+        onClick={onBack}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', marginBottom: 14, borderRadius: 999, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.07)', fontSize: 13.5, fontWeight: 800, color: INK, cursor: 'pointer' }}
+      >
+        <span style={{ fontSize: 17, lineHeight: 1, marginTop: -1 }}>‹</span> 게임 목록
       </button>
       <h2 style={{ fontSize: 18, fontWeight: 800, color: INK, marginBottom: 14 }}>{title}</h2>
       {children}
