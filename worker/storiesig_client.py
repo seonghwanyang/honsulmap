@@ -133,13 +133,17 @@ def _parse_items(captured: list[str]) -> list[dict[str, Any]]:
     return []
 
 
-def make_session():
+def make_session(proxy: str | None = None):
     """재사용 가능한 스텔스 브라우저 세션. 워커가 spot 여러 개를 '브라우저 1개'로
-    처리하기 위함(부팅 1회 → 속도·RAM·IP 모두 개선). with 문으로 열고 닫는다."""
+    처리하기 위함(부팅 1회 → 속도·RAM·IP 모두 개선). with 문으로 열고 닫는다.
+
+    proxy: "http://user:pass@host:port" 형식. None이면 STORIESIG_PROXY 환경변수를
+    쓰고, 그것도 없으면 프록시 없이(로컬 IP) 동작 — 기존 동작 100% 보존."""
     from scrapling.fetchers import StealthySession
 
     timeout_ms = int(os.getenv("STORIESIG_TIMEOUT_MS", DEFAULT_TIMEOUT_MS))
-    return StealthySession(
+    proxy = proxy or os.getenv("STORIESIG_PROXY") or None
+    kwargs: dict[str, Any] = dict(
         headless=True,
         block_ads=True,
         disable_resources=False,
@@ -147,6 +151,9 @@ def make_session():
         timeout=timeout_ms,
         wait=2_000,
     )
+    if proxy:
+        kwargs["proxy"] = proxy
+    return StealthySession(**kwargs)
 
 
 def fetch_stories_items_session(session, handle: str) -> list[dict[str, Any]]:
