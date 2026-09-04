@@ -48,6 +48,7 @@ export default function LiarGame({ onBack, spotSlug }: { onBack: () => void; spo
   const [state, setState] = useState<RoomView | null>(null);
   const [nick, setNick] = useState('');
   const [codeInput, setCodeInput] = useState('');
+  const [exitArm, setExitArm] = useState(false); // 게임 중 나가기 2탭 확인
   const [guess, setGuess] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -182,7 +183,20 @@ export default function LiarGame({ onBack, spotSlug }: { onBack: () => void; spo
   const accusedNick = players.find((p) => p.id === room.accused)?.nick;
 
   return (
-    <Frame title="🕵️ 라이어 게임" onBack={() => { if (confirm('방에서 나갈까요?')) { leave(); onBack(); } }}>
+    <Frame
+      title="🕵️ 라이어 게임"
+      backLabel={exitArm ? '한 번 더 누르면 나가기' : '게임 목록'}
+      backDanger={exitArm}
+      onBack={() => {
+        if (!exitArm) {
+          setExitArm(true);
+          setTimeout(() => setExitArm(false), 2500);
+          return;
+        }
+        leave();
+        onBack();
+      }}
+    >
       {/* 방 정보 바 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
         <span style={{ fontSize: 12, fontWeight: 800, color: MUTED }}>방 코드</span>
@@ -357,11 +371,27 @@ function PlayerChips({ players, meId }: { players: PlayerView[]; meId?: string }
   );
 }
 
-function Frame({ title, onBack, children }: { title: string; onBack: () => void; children: React.ReactNode }) {
+function Frame({
+  title,
+  onBack,
+  children,
+  backLabel = '게임 목록',
+  backDanger = false,
+}: {
+  title: string;
+  onBack: () => void;
+  children: React.ReactNode;
+  backLabel?: string;
+  backDanger?: boolean;
+}) {
   return (
     <div>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 800, color: MUTED, cursor: 'pointer', padding: '0 0 12px' }}>
-        ← 게임 목록
+      {/* 목록 복귀 — 알약 버튼. 게임 중 나가기는 2탭 확인(backDanger 빨간 경고) */}
+      <button
+        onClick={onBack}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 42, padding: '0 18px', marginBottom: 14, borderRadius: 999, border: `1px solid ${backDanger ? 'rgba(248,113,113,0.55)' : LINE}`, background: backDanger ? 'rgba(248,113,113,0.12)' : 'rgba(255,255,255,0.07)', fontSize: 13.5, fontWeight: 800, color: backDanger ? '#f87171' : INK, cursor: 'pointer' }}
+      >
+        <span style={{ fontSize: 17, lineHeight: 1, marginTop: -1 }}>‹</span> {backLabel}
       </button>
       <h2 style={{ fontSize: 18, fontWeight: 800, color: INK, marginBottom: 14 }}>{title}</h2>
       {children}
