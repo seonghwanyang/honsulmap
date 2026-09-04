@@ -31,6 +31,10 @@ const inflight = new Set<string>();
 // 그 포스의 카탈로그 첫 상품 + 첫 테이블로 주문을 1회만 생성한다.
 let demoAttempts = 0;
 let demoDone = false;
+// 주문별 반영 재시도 횟수 — 결제 진행 중엔 테이블 주문이 잠겨 add/addMenu가 거부되는데,
+// 결제는 보통 1분 내 끝나므로 ack 없이 두면 다음 폴링(5초)마다 자연 재시도된다.
+// 12회(약 60초) 소진 시에만 폴백(ack error → Open API 현황행). 90초 스윕보다 먼저 끝나게.
+const addAttempts = new Map<string, number>();
 
 const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
 
@@ -204,10 +208,19 @@ async function handle(order: FeedOrder) {
       ...(tableId ? { tableId } : {}),
     };
     const posId = await createOrAppend(dto, tableId);
+    addAttempts.delete(order.id);
     console.log("[hsm] 주문 반영 OK", order.id, "→ table", tableId ?? "(미지정)", "posOrder", posId);
     await ack(order.id, "added", posId);
   } catch (e) {
-    remoteLog("error", `주문 생성/추가 실패 → 폴백 ${order.id}`, e);
+    const n = (addAttempts.get(order.id) ?? 0) + 1;
+    addAttempts.set(order.id, n);
+    if (n < 12) {
+      // 결제 중 잠금 등 일시 실패 가능성 — ack 없이 반환하면 다음 폴링에 재시도
+      if (n === 1) remoteLog("warn", `주문 반영 일시 실패 — 재시도 시작 ${order.id}`, e);
+      return;
+    }
+    addAttempts.delete(order.id);
+    remoteLog("error", `주문 반영 실패(재시도 소진) → 폴백 ${order.id}`, e);
     await ack(order.id, "error");
   } finally {
     inflight.delete(order.id);

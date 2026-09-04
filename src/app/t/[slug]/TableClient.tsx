@@ -1178,8 +1178,18 @@ function CheckinSheet({
         개인정보는 저장되지 않으며 영업 종료 후 자동 만료돼요.
       </p>
 
-      <label style={fieldLabel}>좌석 번호</label>
-      <input value={seatLabel} onChange={(e) => setSeatLabel(e.target.value)} placeholder="예: 7 (좌석 옆 번호)" inputMode="numeric" style={textInput} />
+      {seatParam ? (
+        // QR로 들어온 경우 좌석 확정 — 편집 칸 대신 고정 표시 (오입력·토큰 불일치 방지)
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)' }}>
+          <span style={{ fontSize: 15, fontWeight: 800, color: ACCENT }}>Seat {seatParam}</span>
+          <span style={{ fontSize: 11.5, color: FAINT, marginLeft: 'auto' }}>QR 좌석 자동 입력됨</span>
+        </div>
+      ) : (
+        <>
+          <label style={fieldLabel}>좌석 번호</label>
+          <input value={seatLabel} onChange={(e) => setSeatLabel(e.target.value)} placeholder="예: 7 (좌석 옆 번호)" inputMode="numeric" style={textInput} />
+        </>
+      )}
 
       {social && (
         <>
