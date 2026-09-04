@@ -38,6 +38,7 @@ export interface MenuItem {
   description: string | null;
   sold_out: boolean;
   zero_action: 'call' | 'recommend' | 'report' | 'gift' | null;
+  image_url?: string | null; // 메뉴 사진 (마이그레이션 2026-09-04 전엔 없음)
 }
 export interface MenuCategory {
   id: string;
@@ -984,19 +985,31 @@ function MenuList({
               disabled={it.sold_out}
               style={{ textAlign: 'left', background: CARD, border: `1px solid ${inCart ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.09)'}`, borderRadius: 14, padding: '14px 16px', cursor: it.sold_out ? 'default' : 'pointer', opacity: it.sold_out ? 0.5 : 1, position: 'relative' }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontSize: 14.5, fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>
-                  {it.zero_action && '💬 '}
-                  {it.name}
-                  {it.sold_out && <span style={{ fontSize: 11, color: '#f87171', marginLeft: 6 }}>품절</span>}
-                </span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: 'rgba(255,255,255,0.92)', flexShrink: 0 }}>
-                  {it.price === 0 ? '₩0' : `₩${it.price.toLocaleString()}`}
-                </span>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                {it.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={it.image_url}
+                    alt=""
+                    style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.1)' }}
+                  />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ fontSize: 14.5, fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>
+                      {it.zero_action && '💬 '}
+                      {it.name}
+                      {it.sold_out && <span style={{ fontSize: 11, color: '#f87171', marginLeft: 6 }}>품절</span>}
+                    </span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: 'rgba(255,255,255,0.92)', flexShrink: 0 }}>
+                      {it.price === 0 ? '₩0' : `₩${it.price.toLocaleString()}`}
+                    </span>
+                  </div>
+                  {it.description && (
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4, lineHeight: 1.5 }}>{it.description}</p>
+                  )}
+                </div>
               </div>
-              {it.description && (
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4, lineHeight: 1.5 }}>{it.description}</p>
-              )}
               {orderOn && inCart > 0 && (
                 <span key={inCart} className="hsmt-pop" style={{ position: 'absolute', top: -7, right: -5, minWidth: 22, height: 22, borderRadius: 999, background: ACCENT_SOLID, color: '#fff', fontSize: 11.5, fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 6px' }}>
                   {inCart}
