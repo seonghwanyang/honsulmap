@@ -127,6 +127,9 @@ const STATUS_LABEL: Record<string, string> = { new: '주문됨', accepted: '준�
 
 // 마이크로 애니메이션 — 라이브러리 없이 CSS 키프레임으로 (톤앤매너: 절제된 이징)
 const STYLES = `
+/* 가로 스크롤 영역 스크롤바 숨김 — 안드/윈도우에서 바가 아래 콘텐츠(첫 메뉴·좌석 줄)를 덮는 문제 */
+.hsmt-hscroll { scrollbar-width: none; -ms-overflow-style: none; }
+.hsmt-hscroll::-webkit-scrollbar { display: none; }
 @keyframes hsmtFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes hsmtFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes hsmtPop { 0% { transform: scale(0.5); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
@@ -870,7 +873,7 @@ function SeatMap({
                 {zSeats.filter((s) => s.seat_type === 'seat').length} 사용 중
               </span>
             </div>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="hsmt-hscroll" style={{ overflowX: 'auto' }}>
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${z.grid_cols}, minmax(34px, 1fr))`, gap: 5, minWidth: z.grid_cols * 39 }}>
                 {Array.from({ length: z.grid_rows * z.grid_cols }, (_, i) => {
                   const row = Math.floor(i / z.grid_cols);
@@ -957,7 +960,7 @@ function MenuList({
   const qtyOf = (id: string) => cart.find((c) => c.item.id === id)?.qty ?? 0;
   return (
     <div>
-      <div style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 10, WebkitOverflowScrolling: 'touch' }}>
+      <div className="hsmt-hscroll" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 10, WebkitOverflowScrolling: 'touch' }}>
         {categories.map((c) => {
           const active = current?.id === c.id;
           return (
