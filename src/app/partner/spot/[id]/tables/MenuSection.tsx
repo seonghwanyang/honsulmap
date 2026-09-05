@@ -20,6 +20,7 @@ interface EdItem {
   sold_out: boolean;
   zero_action: ZeroAction;
   image_url?: string | null; // 손님 메뉴판 썸네일 (post-images 버킷)
+  optionsStr?: string; // 무가격 변형 편집용 쉼표 문자열 (예: "니트, 온더락")
 }
 interface EdCat {
   key: string;
@@ -194,7 +195,7 @@ export default function MenuSection({
         setNaverMenus(Array.isArray(d.naver_menus) ? d.naver_menus : []);
         setTossOn(!!d.toss_connected);
         const loaded: EdCat[] = (d.categories ?? []).map(
-          (c: { name: string; items: { name: string; price: number; description: string | null; sold_out: boolean; zero_action: ZeroAction; image_url?: string | null }[] }) => ({
+          (c: { name: string; items: { name: string; price: number; description: string | null; sold_out: boolean; zero_action: ZeroAction; image_url?: string | null; options?: string[] | null }[] }) => ({
             key: nk(),
             name: c.name,
             items: c.items.map((it) => ({
@@ -205,6 +206,7 @@ export default function MenuSection({
               sold_out: it.sold_out,
               zero_action: it.zero_action,
               image_url: it.image_url ?? null,
+              optionsStr: (it.options ?? []).join(', '),
             })),
           }),
         );
@@ -286,11 +288,12 @@ export default function MenuSection({
           key: nk(),
           name: m.name,
           priceStr: String(m.price),
-          // 직접 써둔 설명(도수 등)·사진·품절은 동기화해도 유지 — 포스엔 없는 정보라
+          // 직접 써둔 설명(도수 등)·사진·옵션·품절은 동기화해도 유지 — 포스엔 없는 정보라
           description: p?.description?.trim() ? p.description : (m.description ?? ''),
           sold_out: p?.sold_out ?? false,
           zero_action: null,
           image_url: p?.image_url ?? null,
+          optionsStr: p?.optionsStr ?? '',
         };
       });
       if (existing) {
@@ -338,6 +341,11 @@ export default function MenuSection({
         sold_out: it.sold_out,
         zero_action: it.zero_action,
         image_url: it.image_url ?? null,
+        options: (it.optionsStr ?? '')
+          .split(',')
+          .map((o) => o.trim())
+          .filter(Boolean)
+          .slice(0, 8),
       })),
     }));
 
@@ -544,8 +552,14 @@ export default function MenuSection({
                   <input
                     value={it.description}
                     onChange={(e) => mutItem(c.key, it.key, (x) => ({ ...x, description: e.target.value.slice(0, 200) }))}
-                    placeholder="설명 (선택)"
+                    placeholder="설명 (선택) — 도수·맛 표기 추천 (예: 40% · 스모키)"
                     style={{ width: '100%', height: 36, padding: '0 12px', borderRadius: 9, border: '1px solid #f0f1f3', fontSize: 12.5, color: '#374151', outline: 'none', marginTop: 8 }}
+                  />
+                  <input
+                    value={it.optionsStr ?? ''}
+                    onChange={(e) => mutItem(c.key, it.key, (x) => ({ ...x, optionsStr: e.target.value.slice(0, 120) }))}
+                    placeholder="옵션 (쉼표 구분 — 예: 니트, 온더락) · 손님이 골라서 주문"
+                    style={{ width: '100%', height: 36, padding: '0 12px', borderRadius: 9, border: '1px solid #f0f1f3', fontSize: 12.5, color: '#7c3aed', outline: 'none', marginTop: 6 }}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 9, flexWrap: 'wrap' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: it.sold_out ? '#dc2626' : '#6b7280', cursor: 'pointer' }}>

@@ -57,6 +57,7 @@ interface ItemInput {
   sold_out?: boolean;
   zero_action?: 'call' | 'recommend' | 'report' | 'gift' | null;
   image_url?: string | null;
+  options?: string[] | null; // 무가격 변형 (니트/온더락 등, 최대 8개·각 12자)
 }
 interface CategoryInput {
   name: string;
@@ -102,11 +103,21 @@ export async function PUT(
     if (cErr || !cats || cats.length !== categories.length)
       return NextResponse.json({ error: cErr?.message ?? '카테고리 저장에 실패했어요.' }, { status: 500 });
 
-    // image_url은 사진이 하나라도 있을 때만 컬럼 포함 — 마이그레이션(2026-09-04) 전
-    // 가게의 무사진 저장이 "없는 컬럼" 에러로 죽지 않게.
+    // image_url/options는 값이 하나라도 있을 때만 컬럼 포함 — 각 마이그레이션 전
+    // 가게의 저장이 "없는 컬럼" 에러로 죽지 않게.
     const hasImage = categories.some((c) =>
       c.items.some((it) => typeof it.image_url === 'string' && it.image_url),
     );
+    const cleanOptions = (v: unknown): string[] | null => {
+      if (!Array.isArray(v)) return null;
+      const arr = v
+        .filter((o): o is string => typeof o === 'string')
+        .map((o) => o.trim().slice(0, 12))
+        .filter(Boolean)
+        .slice(0, 8);
+      return arr.length ? arr : null;
+    };
+    const hasOptions = categories.some((c) => c.items.some((it) => cleanOptions(it.options)));
     const rows = categories.flatMap((c, ci) =>
       c.items.map((it, ii) => ({
         category_id: cats[ci].id,
@@ -125,6 +136,7 @@ export async function PUT(
                   : null,
             }
           : {}),
+        ...(hasOptions ? { options: cleanOptions(it.options) } : {}),
       })),
     );
     if (rows.length) {
