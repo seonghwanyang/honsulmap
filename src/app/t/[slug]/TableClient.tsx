@@ -39,7 +39,13 @@ export interface MenuItem {
   sold_out: boolean;
   zero_action: 'call' | 'recommend' | 'report' | 'gift' | null;
   image_url?: string | null; // 메뉴 사진 (마이그레이션 2026-09-04 전엔 없음)
+  options?: string[] | null; // 무가격 변형 (니트/온더락 등) — 선택이 요청사항으로 전달됨
 }
+
+// 장바구니 줄 식별자 — 같은 메뉴라도 옵션(요청)이 다르면 별도 줄
+let lineSeq = 0;
+const newLineKey = () => `L${++lineSeq}`;
+
 export interface MenuCategory {
   id: string;
   name: string;
@@ -205,8 +211,9 @@ export default function TableClient({
   const [liveStatus, setLiveStatus] = useState(liveInit);
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [profileView, setProfileView] = useState<{ seat: Seat; s: PublicSession } | null>(null);
-  const [cart, setCart] = useState<{ item: MenuItem; qty: number; request: string }[]>([]);
+  const [cart, setCart] = useState<{ lineKey: string; item: MenuItem; qty: number; request: string }[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [optionPick, setOptionPick] = useState<MenuItem | null>(null); // 니트/온더락 등 옵션 선택 중
   const [giftPick, setGiftPick] = useState<MenuItem | null>(null);
   const [reportPick, setReportPick] = useState<MenuItem | null>(null);
   // 네이티브 confirm() 대체 — 랜딩 톤의 다크 확인 시트
@@ -404,15 +411,25 @@ export default function TableClient({
       });
       return;
     }
+    if (item.options?.length) {
+      // 니트/온더락 등 옵션 메뉴 — 선택 시트 먼저
+      setOptionPick(item);
+      return;
+    }
+    addToCart(item, '');
+  };
+
+  // 장바구니 담기 — 같은 메뉴+같은 옵션(요청)이면 수량 증가, 다르면 별도 줄
+  const addToCart = (item: MenuItem, request: string) => {
     if (!cart.some((c) => c.item.id === item.id)) logMenuEvent(item, 'cart_add'); // 첫 담김만
     setCart((prev) => {
-      const i = prev.findIndex((c) => c.item.id === item.id);
+      const i = prev.findIndex((c) => c.item.id === item.id && c.request === request);
       if (i >= 0) {
         const next = [...prev];
         next[i] = { ...next[i], qty: Math.min(20, next[i].qty + 1) };
         return next;
       }
-      return [...prev, { item, qty: 1, request: '' }];
+      return [...prev, { lineKey: newLineKey(), item, qty: 1, request }];
     });
   };
 
@@ -782,6 +799,17 @@ export default function TableClient({
           onRemoveItem={(item) => logMenuEvent(item, 'cart_remove')}
         />
       )}
+      {optionPick && (
+        <OptionSheet
+          item={optionPick}
+          onClose={() => setOptionPick(null)}
+          onAdd={(opt) => {
+            addToCart(optionPick, opt);
+            setOptionPick(null);
+            showToast(`${optionPick.name} · ${opt} 담았어요`);
+          }}
+        />
+      )}
       {giftPick && (
         <GiftSheet
           categories={categories}
@@ -958,7 +986,7 @@ function MenuList({
   const current = categories.find((c) => c.id === catId) ?? categories[0];
   if (!categories.length)
     return <p style={{ textAlign: 'center', color: FAINT, fontSize: 13, padding: '40px 0' }}>메뉴가 아직 등록되지 않았어요.</p>;
-  const qtyOf = (id: string) => cart.find((c) => c.item.id === id)?.qty ?? 0;
+  const qtyOf = (id: string) => cart.filter((c) => c.item.id === id).reduce((a, c) => a + c.qty, 0);
   return (
     <div>
       <div className="hsmt-hscroll" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 10, WebkitOverflowScrolling: 'touch' }}>
@@ -1007,6 +1035,15 @@ function MenuList({
                   </div>
                   {it.description && (
                     <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4, lineHeight: 1.5 }}>{it.description}</p>
+                  )}
+                  {!!it.options?.length && (
+                    <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
+                      {it.options.map((o) => (
+                        <span key={o} style={{ fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 999, padding: '2px 8px' }}>
+                          {o}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
@@ -1275,38 +1312,38 @@ function CartSheet({
   onSubmit,
   onRemoveItem,
 }: {
-  cart: { item: MenuItem; qty: number; request: string }[];
-  setCart: React.Dispatch<React.SetStateAction<{ item: MenuItem; qty: number; request: string }[]>>;
+  cart: { lineKey: string; item: MenuItem; qty: number; request: string }[];
+  setCart: React.Dispatch<React.SetStateAction<{ lineKey: string; item: MenuItem; qty: number; request: string }[]>>;
   total: number;
   busy: boolean;
   onClose: () => void;
   onSubmit: () => void;
   onRemoveItem?: (item: MenuItem) => void; // 행동 로그 (담았다 뺌)
 }) {
-  const setQty = (id: string, qty: number) => {
+  const setQty = (lineKey: string, qty: number) => {
     if (qty <= 0) {
-      const gone = cart.find((c) => c.item.id === id);
+      const gone = cart.find((c) => c.lineKey === lineKey);
       if (gone) onRemoveItem?.(gone.item);
     }
-    setCart((prev) => (qty <= 0 ? prev.filter((c) => c.item.id !== id) : prev.map((c) => (c.item.id === id ? { ...c, qty } : c))));
+    setCart((prev) => (qty <= 0 ? prev.filter((c) => c.lineKey !== lineKey) : prev.map((c) => (c.lineKey === lineKey ? { ...c, qty } : c))));
   };
   return (
     <Sheet title="주문 확인" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {cart.map((c) => (
-          <div key={c.item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12 }}>
+          <div key={c.lineKey} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 14, fontWeight: 800, color: INK }}>{c.item.name}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button onClick={() => setQty(c.item.id, c.qty - 1)} style={qtyBtn}>−</button>
+                <button onClick={() => setQty(c.lineKey, c.qty - 1)} style={qtyBtn}>−</button>
                 <span style={{ fontSize: 14, fontWeight: 800, color: INK, minWidth: 16, textAlign: 'center' }}>{c.qty}</span>
-                <button onClick={() => setQty(c.item.id, Math.min(20, c.qty + 1))} style={qtyBtn}>+</button>
+                <button onClick={() => setQty(c.lineKey, Math.min(20, c.qty + 1))} style={qtyBtn}>+</button>
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 8 }}>
               <input
                 value={c.request}
-                onChange={(e) => setCart((prev) => prev.map((x) => (x.item.id === c.item.id ? { ...x, request: e.target.value.slice(0, 100) } : x)))}
+                onChange={(e) => setCart((prev) => prev.map((x) => (x.lineKey === c.lineKey ? { ...x, request: e.target.value.slice(0, 100) } : x)))}
                 placeholder="요청사항 (예: 얼음 적게)"
                 style={{ ...textInput, height: 38, fontSize: 12.5, flex: 1 }}
               />
@@ -1402,6 +1439,42 @@ function GiftSheet({
           </button>
         </>
       )}
+    </Sheet>
+  );
+}
+
+// ═══ 옵션 선택 — 무가격 변형(니트/온더락 등). 선택은 요청사항으로 주방·포스 전표에 전달
+function OptionSheet({
+  item,
+  onClose,
+  onAdd,
+}: {
+  item: MenuItem;
+  onClose: () => void;
+  onAdd: (opt: string) => void;
+}) {
+  const [sel, setSel] = useState<string>(item.options?.[0] ?? '');
+  return (
+    <Sheet title={item.name} onClose={onClose}>
+      <p style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.6, marginBottom: 12 }}>어떻게 준비해드릴까요?</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {(item.options ?? []).map((o) => (
+          <button
+            key={o}
+            onClick={() => setSel(o)}
+            style={{ padding: '13px 20px', borderRadius: 12, fontSize: 14.5, fontWeight: 800, border: '1.5px solid', borderColor: sel === o ? '#fff' : 'rgba(255,255,255,0.16)', background: sel === o ? '#fff' : 'transparent', color: sel === o ? '#0c0c0e' : INK, cursor: 'pointer' }}
+          >
+            {o}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={() => sel && onAdd(sel)}
+        disabled={!sel}
+        style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: sel ? '#fff' : 'rgba(255,255,255,0.12)', color: sel ? '#0c0c0e' : 'rgba(255,255,255,0.45)', fontSize: 15, fontWeight: 800, border: 'none', cursor: sel ? 'pointer' : 'default' }}
+      >
+        ₩{item.price.toLocaleString()} · 담기
+      </button>
     </Sheet>
   );
 }
