@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { businessDayStart } from '@/lib/tableDay';
+import { businessDayStart, sessionExpiry } from '@/lib/tableDay';
 import { isTableTester } from '@/lib/tableTesters';
 import { sweepUnackedPluginOrders, tossFetchAll, tossMerchantId, tossPushMode } from '@/lib/tossplace';
 
@@ -125,6 +125,37 @@ export async function PATCH(
   if (!admin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
+
+  // 좌석 수동 세팅 — QR 안 찍은 워크인 손님을 보드에서 "사용 중"으로 표시.
+  // 직원 세션이라 프로필 없음(비공개), 만료는 손님 세션과 동일(아침 8시).
+  if (typeof body.open_seat_session === 'string' && body.open_seat_session) {
+    const seatId = body.open_seat_session;
+    const { data: seat } = await admin
+      .from('store_seats')
+      .select('id')
+      .eq('id', seatId)
+      .eq('spot_id', id)
+      .eq('active', true)
+      .maybeSingle();
+    if (!seat) return NextResponse.json({ error: '좌석을 찾을 수 없어요.' }, { status: 404 });
+    const { data: existing } = await admin
+      .from('table_sessions')
+      .select('id')
+      .eq('seat_id', seatId)
+      .eq('active', true)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+    if (existing) return NextResponse.json({ error: '이미 사용 중인 좌석이에요.' }, { status: 409 });
+    const { error } = await admin.from('table_sessions').insert({
+      spot_id: id,
+      seat_id: seatId,
+      phone4_hash: `staff:${crypto.randomUUID()}`, // 직원 세팅 표식 — 손님 기기와 충돌 없음
+      is_public: false,
+      expires_at: sessionExpiry(),
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
 
   // 좌석 강제 비우기 — 원격 장난 세션/유령 점유를 보드에서 원터치로 정리.
   if (typeof body.end_seat_session === 'string' && body.end_seat_session) {

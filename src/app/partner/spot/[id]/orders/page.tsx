@@ -281,6 +281,32 @@ function OrdersBoard() {
     reload();
   };
 
+  // 빈 좌석 수동 세팅 — QR 안 찍고 앉은 워크인 손님을 "사용 중"으로 표시
+  const openSeat = async (seat: BoardSeat) => {
+    if (
+      !confirm(
+        `Seat ${seat.label}을(를) 사용 중으로 세팅할까요?\n(QR 없이 앉은 손님 표시용 — 체크아웃은 좌석 다시 탭)`,
+      )
+    )
+      return;
+    setOccupied((prev) => new Set(prev).add(seat.id));
+    const res = await fetch(`/api/partner/spots/${id}/orders`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ open_seat_session: seat.id }),
+    });
+    if (!res.ok) {
+      setOccupied((prev) => {
+        const next = new Set(prev);
+        next.delete(seat.id);
+        return next;
+      });
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || '세팅에 실패했어요.');
+    }
+    reload();
+  };
+
   const setSongStatus = async (songId: string, status: Song['status']) => {
     setSongs((prev) => prev.map((s) => (s.id === songId ? { ...s, status } : s)));
     await fetch(`/api/partner/spots/${id}/songs`, {
@@ -474,7 +500,7 @@ function OrdersBoard() {
               {zones.reduce((acc, z) => acc + z.seats.filter((s) => s.seat_type === 'seat' && occupied.has(s.id)).length, 0)}/
               {zones.reduce((acc, z) => acc + z.seats.filter((s) => s.seat_type === 'seat').length, 0)} 사용 중
             </span>
-            <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>사용 중 좌석 탭 = 체크아웃 (누적 확인 후 좌석 비우기)</span>
+            <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>좌석 탭: 빈 좌석=세팅 · 사용 중=체크아웃</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {zones.map((z) => (
@@ -493,8 +519,8 @@ function OrdersBoard() {
                       return (
                         <button
                           key={i}
-                          onClick={() => on && kickSeat(seat)}
-                          title={on ? `Seat ${seat.label} 세션 종료` : undefined}
+                          onClick={() => (on ? kickSeat(seat) : openSeat(seat))}
+                          title={on ? `Seat ${seat.label} 체크아웃` : `Seat ${seat.label} 사용 중으로 세팅`}
                           style={{
                             aspectRatio: '1',
                             borderRadius: 9,
@@ -506,7 +532,7 @@ function OrdersBoard() {
                             background: on ? '#111827' : '#fff',
                             color: on ? '#fff' : '#9ca3af',
                             border: on ? '1.4px solid #111827' : seat.seat_type === 'buffer' ? '1.4px dashed #d1d5db' : '1.4px solid #d1d5db',
-                            cursor: on ? 'pointer' : 'default',
+                            cursor: 'pointer',
                           }}
                         >
                           {seat.label}
