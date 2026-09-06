@@ -23,7 +23,9 @@ interface Room {
   notice: string | null;
 }
 
-export default function ChatTab({ spotId }: { spotId: string }) {
+// onAuthGate: 비로그인 진입 시 부모가 정한 게이트(웹=앱 설치 유도, 앱=로그인)로 위임.
+// 미지정이면 자체 LoginModal 사용.
+export default function ChatTab({ spotId, onAuthGate }: { spotId: string; onAuthGate?: () => void }) {
   const [room, setRoom] = useState<Room | null | 'loading'>('loading');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [uid, setUid] = useState<string | null>(null);
@@ -134,7 +136,7 @@ export default function ChatTab({ spotId }: { spotId: string }) {
     setSending(false);
     const d = await res.json().catch(() => ({}));
     if (!res.ok) {
-      if (res.status === 401) setLoginOpen(true);
+      if (res.status === 401) (onAuthGate ?? (() => setLoginOpen(true)))();
       else setChatErr(d.error || '전송에 실패했어요.');
       return;
     }
@@ -265,10 +267,10 @@ export default function ChatTab({ spotId }: { spotId: string }) {
               </div>
             ) : (
               <button
-                onClick={() => setLoginOpen(true)}
+                onClick={onAuthGate ?? (() => setLoginOpen(true))}
                 style={{ width: '100%', height: 44, borderRadius: 999, background: '#fff', color: '#0c0c0e', fontSize: 13.5, fontWeight: 800, border: 'none', cursor: 'pointer', boxShadow: '0 6px 20px rgba(0,0,0,0.45)' }}
               >
-                혼술맵 로그인하고 대화 참여하기
+                혼술맵으로 대화 참여하기
               </button>
             )}
           </div>
