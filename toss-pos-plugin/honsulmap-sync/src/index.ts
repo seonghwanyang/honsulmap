@@ -34,7 +34,8 @@ let demoDone = false;
 // 주문별 반영 재시도 횟수 — 결제 진행 중엔 테이블 주문이 잠겨 add/addMenu가 거부되는데,
 // 결제는 보통 1분 내 끝나므로 ack 없이 두면 다음 폴링(5초)마다 자연 재시도된다.
 // 12회(약 60초) 소진 시에만 폴백(ack error → Open API 현황행). 90초 스윕보다 먼저 끝나게.
-const addAttempts = new Map<string, number>();
+// at = 마지막 시도 시각 — 서버가 피드에서 내린(취소 등) 주문 항목의 누수 청소용 (검수 권고 2)
+const addAttempts = new Map<string, { n: number; at: number }>();
 
 const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
 
@@ -53,41 +54,65 @@ function businessDayStartIso(): string {
   return new Date(s.getTime() - 9 * 3600_000).toISOString();
 }
 
-async function findOpenPosOrder(tableId: number): Promise<string | undefined> {
+async function fetchOpenOrders(): Promise<any[]> {
   try {
-    const list =
+    return (
       (await sdk.order.getOrders({
         start: businessDayStartIso(),
         end: new Date(Date.now() + 60_000).toISOString(),
         orderStates: ["OPENED"],
         size: 100,
-      })) ?? [];
-    // 직원이 연 테이블 주문도 대상 — 그 테이블 계산서에 합치는 게 맞는 동작
-    const hit = list.find((o: any) => o?.tableId === tableId || o?.table?.id === tableId);
-    return hit?.id;
+      })) ?? []
+    );
   } catch (e) {
-    remoteLog("warn", `열린 테이블 주문 조회 실패 t${tableId}`, e);
-    return undefined;
+    remoteLog("warn", "열린 주문 조회 실패", e);
+    return [];
   }
 }
 
+// 검수 권고(우선) 반영: 타임아웃/응답 유실 시 재시도가 같은 메뉴를 두 번 넣지 않게,
+// 실패하면 "실제로 반영됐는지"를 먼저 확인하고 성공 처리한다.
+//  - addMenu 실패 → 대상 주문의 라인 수가 (호출 전 + 추가분) 이상이면 반영된 것
+//  - add 실패     → 열린 주문 중 같은 orderKey가 있으면 생성된 것
 async function createOrAppend(dto: any, tableId: number | undefined): Promise<string | undefined> {
   if (tableId) {
-    const known = tableOrders.get(tableId) ?? (await findOpenPosOrder(tableId));
-    if (known) {
+    const open = await fetchOpenOrders();
+    const knownId = tableOrders.get(tableId);
+    // 직원이 연 테이블 주문도 대상 — 그 테이블 계산서에 합치는 게 맞는 동작
+    const target =
+      (knownId && open.find((o: any) => o?.id === knownId)) ||
+      open.find((o: any) => o?.tableId === tableId || o?.table?.id === tableId);
+    if (target) {
+      const before = target.lineItems?.length ?? 0;
       try {
-        await sdk.order.addMenu(known, dto);
-        tableOrders.set(tableId, known);
-        return known;
+        await sdk.order.addMenu(target.id, dto);
+        tableOrders.set(tableId, target.id);
+        return target.id;
       } catch (e) {
-        remoteLog("warn", `addMenu 실패 → 새 주문 생성으로 폴백 t${tableId}`, e);
+        const after = (await fetchOpenOrders()).find((o: any) => o?.id === target.id);
+        if (after && (after.lineItems?.length ?? 0) >= before + dto.lineItems.length) {
+          remoteLog("warn", `addMenu 응답 유실 — 반영 확인돼 성공 처리 t${tableId}`);
+          tableOrders.set(tableId, target.id);
+          return target.id;
+        }
+        remoteLog("warn", `addMenu 실패 → 새 주문 생성 시도 t${tableId}`, e);
         tableOrders.delete(tableId); // 닫힌 주문이었을 수 있음 — 캐시 무효화
       }
     }
   }
-  const created = await sdk.order.add(dto);
-  if (tableId && created?.id) tableOrders.set(tableId, created.id);
-  return created?.id;
+  try {
+    const created = await sdk.order.add(dto);
+    if (tableId && created?.id) tableOrders.set(tableId, created.id);
+    return created?.id;
+  } catch (e) {
+    const dup = (await fetchOpenOrders()).find((o: any) => o?.orderKey === dto.orderKey);
+    if (dup) {
+      remoteLog("warn", `order.add 응답 유실 — orderKey로 확인돼 성공 처리 ${dto.orderKey}`);
+      if (tableId && dup.id) tableOrders.set(tableId, dup.id);
+      return dup.id;
+    }
+    throw e; // 진짜 실패(결제 중 잠금 등) → handle()의 재시도/폴백 경로
+  }
 }
 
 // 원격 로그 (토스 검수 권고) — 실패 지점을 혼술맵 서버로 전송. 분당 20건 스로틀.
@@ -138,11 +163,18 @@ async function refreshCatalog() {
     const cats = (await sdk.catalog.getCatalogs()) ?? [];
     catalogList = cats;
     catalogIndex = new Map();
+    const titleCount = new Map<string, number>();
+    for (const c of cats) {
+      const t = String(c?.title ?? "").trim();
+      if (t) titleCount.set(t, (titleCount.get(t) ?? 0) + 1);
+    }
     for (const c of cats) {
       const title = String(c?.title ?? "").trim();
       if (!title) continue;
       catalogIndex.set(`${title}|${catalogPrice(c)}`, c);
-      if (!catalogIndex.has(title)) catalogIndex.set(title, c); // 가격 변경 대비 이름 폴백
+      // 이름 단독 폴백은 동명 상품이 1개일 때만 — 동명 다수면 오매칭 위험이라
+      // unmatched → 현황행 폴백이 안전 (검수 권고 5)
+      if (titleCount.get(title) === 1) catalogIndex.set(title, c);
     }
     console.log("[hsm] 카탈로그", cats.length, "개 인덱싱");
   } catch (e) {
@@ -212,8 +244,8 @@ async function handle(order: FeedOrder) {
     console.log("[hsm] 주문 반영 OK", order.id, "→ table", tableId ?? "(미지정)", "posOrder", posId);
     await ack(order.id, "added", posId);
   } catch (e) {
-    const n = (addAttempts.get(order.id) ?? 0) + 1;
-    addAttempts.set(order.id, n);
+    const n = (addAttempts.get(order.id)?.n ?? 0) + 1;
+    addAttempts.set(order.id, { n, at: Date.now() });
     if (n < 12) {
       // 결제 중 잠금 등 일시 실패 가능성 — ack 없이 반환하면 다음 폴링에 재시도
       if (n === 1) remoteLog("warn", `주문 반영 일시 실패 — 재시도 시작 ${order.id}`, e);
@@ -266,6 +298,9 @@ async function runDemoOnce() {
 
 async function tick() {
   if (!merchantId) return;
+  // 재시도 캐시 청소 — 피드에서 사라진 주문(취소 등)의 항목이 장기 상주 워커에 누적되지 않게
+  const cutoff = Date.now() - 10 * 60_000;
+  for (const [k, v] of addAttempts) if (v.at < cutoff) addAttempts.delete(k);
   try {
     const res = await sdk.http.get(`${FEED_URL}?mid=${merchantId}`, [["x-hsm-plugin-key", PLUGIN_KEY]]);
     if (res?.code !== 200) { remoteLog("warn", `피드 응답 이상 ${res?.code}`); return; }

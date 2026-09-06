@@ -11,6 +11,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // ESM에서는 export default로 내보내야 함
-export default test.createWebpackConfig(
+const config = test.createWebpackConfig(
     require(path.join(__dirname, "package.json"))
 );
+// 검수 권고(6): 기본 프로파일이 development(eval devtool, 350KB)라 프로덕션으로 강제
+config.mode = "production";
+config.devtool = false;
+export default config;
