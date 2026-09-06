@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Marcellus } from 'next/font/google';
 import { DEFAULT_PURPOSES, DEFAULT_VIBES } from '@/lib/checkinDefaults';
 import { useUser } from '@/lib/useUser';
+import { storeUrl } from '@/lib/appStore';
 import LoginModal from '@/components/LoginModal';
 import FavoriteButton from '@/components/FavoriteButton';
 import GamesTab from './GamesTab';
@@ -226,6 +227,16 @@ export default function TableClient({
   const [toast, setToast] = useState('');
   const { user } = useUser(); // 혼술맵 계정 (찜·로그인 버튼용 — 체크인과는 별개)
   const [loginOpen, setLoginOpen] = useState(false);
+  // 웹(QR 브라우저)에서 계정 기능(찜·채팅) 시도 → 로그인 대신 앱 설치 유도.
+  // 앱 웹뷰 안에서는 기존 로그인 모달 그대로.
+  const [inApp, setInApp] = useState(false);
+  const [appGateOpen, setAppGateOpen] = useState(false);
+  useEffect(() => {
+    import('@capacitor/core')
+      .then(({ Capacitor }) => setInApp(Capacitor.isNativePlatform()))
+      .catch(() => {});
+  }, []);
+  const openAuthGate = () => (inApp ? setLoginOpen(true) : setAppGateOpen(true));
 
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = useCallback((msg: string) => {
@@ -631,13 +642,13 @@ export default function TableClient({
           </div>
           {/* 가게 찜 + 혼술맵 로그인 — 테이블 손님을 혼술맵 계정으로 잇는 접점 */}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FavoriteButton spotId={spot.id} variant="icon" onNeedLogin={() => setLoginOpen(true)} />
+            <FavoriteButton spotId={spot.id} variant="icon" onNeedLogin={openAuthGate} />
             {!user && (
               <button
-                onClick={() => setLoginOpen(true)}
+                onClick={openAuthGate}
                 style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.06)', color: MUTED, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
               >
-                로그인
+                {inApp ? '로그인' : '📱 앱'}
               </button>
             )}
           </div>
@@ -728,7 +739,7 @@ export default function TableClient({
             onCheckin={() => setCheckinOpen(true)}
           />
         )}
-        {tab === 'chat' && <ChatTab spotId={spot.id} />}
+        {tab === 'chat' && <ChatTab spotId={spot.id} onAuthGate={openAuthGate} />}
         {tab === 'orders' && (
           <OrdersView orders={myOrders} seatTotal={seatTotal} hasSession={!!session} onCheckin={() => setCheckinOpen(true)} />
         )}
@@ -797,6 +808,26 @@ export default function TableClient({
         onClose={() => setLoginOpen(false)}
         reason="혼술맵 계정으로 찜·채팅을 이용할 수 있어요"
       />
+      {appGateOpen && (
+        <Sheet title="혼술맵 앱에서 계속하기" onClose={() => setAppGateOpen(false)}>
+          <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.7, marginBottom: 16 }}>
+            찜 · 옆자리 채팅 · 새 소식/혜택 알림은 혼술맵 앱에서 로그인하고 이용할 수 있어요.
+            <br />
+            설치는 1분이면 끝나요.
+          </p>
+          <a
+            href={storeUrl()}
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', height: 52, borderRadius: 13, background: '#fff', color: '#0c0c0e', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}
+          >
+            📱 혼술맵 앱 다운로드
+          </a>
+          <p style={{ fontSize: 11.5, color: FAINT, marginTop: 12, lineHeight: 1.6, textAlign: 'center' }}>
+            이미 설치했다면 앱을 열어 &lsquo;{spot.name}&rsquo;을 검색해 주세요.
+          </p>
+        </Sheet>
+      )}
       {profileView && <ProfileSheet seat={profileView.seat} s={profileView.s} onClose={() => setProfileView(null)} />}
       {cartOpen && (
         <CartSheet

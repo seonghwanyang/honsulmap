@@ -1,13 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { APP_STORE_URL, PLAY_STORE_URL } from '@/lib/appStore';
 
 // 앱 다운로드 칩 — 지도 헤더 우측(내 정보 옆)에 붙는 컴팩트 버튼.
 // 웹 방문자에게 스토어 앱 설치 유도: 안드로이드→Play Store, 그 외(iOS·PC)→App Store.
 // 숨김: ① 네이티브 앱 안(웹뷰, window.Capacitor) ② 홈화면 PWA(standalone).
-
-const APP_STORE_URL = 'https://apps.apple.com/kr/app/id6781643324';
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.honsulmap.app';
 
 export default function AppDownloadBanner() {
   const [store, setStore] = useState<'ios' | 'android' | null>(null);
