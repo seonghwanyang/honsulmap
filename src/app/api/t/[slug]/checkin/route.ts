@@ -23,7 +23,8 @@ function hashDevice(deviceId: string, spotId: string) {
 // 방문 기록 — 가게×기기해시×영업일 1행 (영구, 익명). 반환값 = 누적 방문 일수(단골 지표).
 // 혼술맵 로그인 상태로 체크인하면 user_id를 붙이고, 그 기기의 과거 익명 방문도 계정에
 // 소급 귀속 — 폰을 바꿔도 로그인하면 방문 수가 이어진다.
-// 마이그레이션(2026-08-31_data_capture.sql) 전이면 조용히 null.
+// 테이블: spot_checkin_visits (2026-09-07 — 구 spot_visits와 이름 충돌로 분리).
+// 마이그레이션 전이면 조용히 null.
 async function recordVisit(
   admin: ReturnType<typeof supabaseAdmin>,
   spotId: string,
@@ -32,19 +33,19 @@ async function recordVisit(
 ): Promise<number | null> {
   try {
     const { error: insErr } = await admin
-      .from('spot_visits')
+      .from('spot_checkin_visits')
       .insert({ spot_id: spotId, guest_key: guestKey, business_day_start: businessDayStart(), user_id: userId });
     if (insErr && insErr.code !== '23505') return null; // 같은 날 재체크인(중복)만 무시
     if (userId) {
       // 이 기기의 익명 방문 기록을 계정에 소급 연결 (오늘 중복 행 포함)
       await admin
-        .from('spot_visits')
+        .from('spot_checkin_visits')
         .update({ user_id: userId })
         .eq('spot_id', spotId)
         .eq('guest_key', guestKey)
         .is('user_id', null);
     }
-    let q = admin.from('spot_visits').select('id', { count: 'exact', head: true }).eq('spot_id', spotId);
+    let q = admin.from('spot_checkin_visits').select('id', { count: 'exact', head: true }).eq('spot_id', spotId);
     q = userId ? q.or(`guest_key.eq.${guestKey},user_id.eq.${userId}`) : q.eq('guest_key', guestKey);
     const { count } = await q;
     return count ?? null;
