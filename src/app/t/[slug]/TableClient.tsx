@@ -203,7 +203,8 @@ export default function TableClient({
   // 손님 여정 (우우 벤치마크): 랜딩(브랜드+라이브 상태+큰 버튼 3개) → 체크인 → 홈.
   // 세션이 이미 있으면(재방문) 랜딩 건너뛰고 바로 홈.
   const [view, setView] = useState<'landing' | 'main'>('landing');
-  const [tab, setTab] = useState<'map' | 'menu' | 'games' | 'chat' | 'orders'>('map');
+  const [tab, setTab] = useState<'menu' | 'games' | 'chat' | 'orders'>('menu');
+  const [seatOpen, setSeatOpen] = useState(false); // 메뉴 상단 좌석 현황 아코디언 (기본 접힘)
   const [quests, setQuests] = useState<Quest[]>([]);
   const [questsOpen, setQuestsOpen] = useState(false);
   const [session, setSession] = useState<MySession | null>(null);
@@ -436,40 +437,8 @@ export default function TableClient({
   const cartTotal = cart.reduce((a, c) => a + c.item.price * c.qty, 0);
   const cartCount = cart.reduce((a, c) => a + c.qty, 0);
 
-  // 좌석 이동 — 좌석맵에서 빈자리 탭. 성공 시 세션 좌석 갱신 + 보드에 이벤트 카드.
-  const moveSeat = (seat: Seat) => {
-    if (!session || busy) return;
-    setConfirmAsk({
-      title: `Seat ${seat.label}(으)로 옮길까요?`,
-      desc: '주문 내역은 그대로 따라가요.',
-      yes: '자리 옮기기',
-      onYes: () => void doMoveSeat(seat),
-    });
-  };
-  const doMoveSeat = async (seat: Seat) => {
-    if (!session) return;
-    setBusy(true);
-    const res = await fetch(`/api/t/${spot.slug}/move`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: session.id, seat_label: seat.label }),
-    });
-    setBusy(false);
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      if (res.status === 410) {
-        localStorage.removeItem(storageKey);
-        setSession(null);
-        setCheckinOpen(true);
-      }
-      showToast(d.error || '자리 이동에 실패했어요.');
-      return;
-    }
-    setSession({ ...session, seat_id: d.seat_id, seat_label: d.seat_label });
-    showToast(`Seat ${d.seat_label}로 자리를 옮겼어요 🪑`);
-    refreshState();
-    refreshOrders();
-  };
+  // 자리 이동은 "옮길 좌석의 QR 재스캔"으로 통일 (체크인 라우트가 자동 이동 처리).
+  // 빈자리 탭 이동 UI는 제거 — 오조작·원격 장난 여지를 없앤다.
 
   const placeCart = async () => {
     const ok = await submitOrder(
@@ -566,7 +535,7 @@ export default function TableClient({
               localStorage.setItem(storageKey, s.id);
               setCheckinOpen(false);
               setView('main');
-              setTab('map');
+              setTab('menu');
               refreshState();
               showToast(
                 s.moved_from
@@ -693,19 +662,36 @@ export default function TableClient({
 
       {/* ── 탭 콘텐츠 ── */}
       <div key={tab} className="hsmt-fade" style={{ padding: '16px 16px 0' }}>
-        {tab === 'map' && (
-          <SeatMap
-            zones={zones}
-            seats={seats}
-            sessionBySeat={sessionBySeat}
-            mySeatId={session?.seat_id ?? null}
-            onTapOccupied={(seat, s) => social && s.is_public && setProfileView({ seat, s })}
-            onTapEmpty={session ? moveSeat : undefined}
-          />
-        )}
         {tab === 'menu' && (
           // 장바구니 "주문하기" 플로팅 바(bottom 76 + 52px)가 마지막 메뉴를 가리지 않게 여유 패딩
           <div style={{ paddingBottom: cartCount > 0 ? 84 : 0 }}>
+            {/* 좌석 현황 — 메뉴 상단 아코디언 (기본 접힘). 자리 이동은 QR 재스캔으로만. */}
+            <div style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, borderRadius: 14, marginBottom: 12 }}>
+              <button
+                onClick={() => setSeatOpen((v) => !v)}
+                style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '13px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <span style={{ fontSize: 13.5, fontWeight: 800, color: INK }}>🪑 좌석 현황</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: FAINT }}>
+                  {sessionBySeat.size}/{seats.filter((s) => s.seat_type === 'seat').length} 사용 중
+                </span>
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: FAINT }}>{seatOpen ? '▲' : '▼'}</span>
+              </button>
+              {seatOpen && (
+                <div style={{ padding: '0 16px 14px' }}>
+                  <SeatMap
+                    zones={zones}
+                    seats={seats}
+                    sessionBySeat={sessionBySeat}
+                    mySeatId={session?.seat_id ?? null}
+                    onTapOccupied={(seat, s) => social && s.is_public && setProfileView({ seat, s })}
+                  />
+                  <p style={{ fontSize: 11, color: FAINT, marginTop: 8, lineHeight: 1.5 }}>
+                    자리를 옮기고 싶으면 옮길 좌석의 QR을 찍어주세요 — 주문 내역은 그대로 따라가요.
+                  </p>
+                </div>
+              )}
+            </div>
             <MenuList categories={categories} orderOn={orderOn} cart={cart} onTap={tapMenuItem} />
           </div>
         )}
@@ -747,8 +733,8 @@ export default function TableClient({
       )}
 
       {/* ── 하단 탭 ── */}
-      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', background: 'rgba(14,14,17,0.94)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${LINE}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        {([['map', '좌석'], ['menu', '메뉴'], ['games', '술게임'], ['chat', '채팅'], ['orders', '내 주문']] as const).map(([key, label]) => (
+      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: 'rgba(14,14,17,0.94)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${LINE}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {([['menu', '메뉴'], ['games', '술게임'], ['chat', '채팅'], ['orders', '내 주문']] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} style={{ height: 58, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: tab === key ? INK : FAINT }}>
             {label}
           </button>
@@ -770,7 +756,7 @@ export default function TableClient({
             localStorage.setItem(storageKey, s.id);
             setCheckinOpen(false);
             setView('main');
-            setTab('map');
+            setTab('menu');
             refreshState();
             showToast(
             s.moved_from
