@@ -12,6 +12,7 @@ import LoginModal from '@/components/LoginModal';
 import FavoriteButton from '@/components/FavoriteButton';
 import GamesTab from './GamesTab';
 import ChatTab from './ChatTab';
+import SongsTab from './SongsTab';
 
 // 라틴 디스플레이 서체 — HONSULMAP TABLE / SEAT 표기 전용 (칵테일 메뉴판 무드)
 const marcellus = Marcellus({ weight: '400', subsets: ['latin'] });
@@ -203,7 +204,7 @@ export default function TableClient({
   // 손님 여정 (우우 벤치마크): 랜딩(브랜드+라이브 상태+큰 버튼 3개) → 체크인 → 홈.
   // 세션이 이미 있으면(재방문) 랜딩 건너뛰고 바로 홈.
   const [view, setView] = useState<'landing' | 'main'>('landing');
-  const [tab, setTab] = useState<'menu' | 'games' | 'chat' | 'orders'>('menu');
+  const [tab, setTab] = useState<'menu' | 'games' | 'songs' | 'chat' | 'orders'>('menu');
   const [seatOpen, setSeatOpen] = useState(false); // 메뉴 상단 좌석 현황 아코디언 (기본 접힘)
   const [quests, setQuests] = useState<Quest[]>([]);
   const [questsOpen, setQuestsOpen] = useState(false);
@@ -234,19 +235,42 @@ export default function TableClient({
   }, []);
 
   // ── 세션 복구 ──
+  // 복구된 좌석과 QR의 좌석(seatParam)이 다르면 = 다른 자리에서 재스캔 → 자동 이동.
+  // (그 좌석이 비어 있을 때만 성공. 주문·프로필은 그대로 승계, 좌석 번호만 갱신)
   useEffect(() => {
     const sid = localStorage.getItem(storageKey);
     if (!sid) return;
     fetch(`/api/t/${spot.slug}/checkin?sid=${sid}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.session) {
+      .then(async (d) => {
+        if (!d?.session) {
+          localStorage.removeItem(storageKey);
+          return;
+        }
+        setView('main'); // 재방문 — 랜딩 생략하고 바로 홈
+        if (seatParam && seatParam !== d.session.seat_label) {
+          const res = await fetch(`/api/t/${spot.slug}/move`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: d.session.id, seat_label: seatParam }),
+          }).catch(() => null);
+          const mv = res && res.ok ? await res.json().catch(() => null) : null;
+          if (mv?.seat_label) {
+            setSession({ ...d.session, seat_id: mv.seat_id, seat_label: mv.seat_label });
+            showToast(`Seat ${d.session.seat_label} → ${mv.seat_label} 자리를 옮겼어요 🪑`);
+            return;
+          }
+          // 이동 실패(그 자리 사용 중 등) — 기존 좌석 유지 + 안내
           setSession(d.session);
-          setView('main'); // 재방문 — 랜딩 생략하고 바로 홈
-        } else localStorage.removeItem(storageKey);
+          const em = res ? await res.json().catch(() => ({})) : {};
+          if (res && res.status === 409) showToast('그 자리는 사용 중이라 옮기지 못했어요.');
+          else if (em?.error) showToast(em.error);
+          return;
+        }
+        setSession(d.session);
       })
       .catch(() => {});
-  }, [spot.slug, storageKey]);
+  }, [spot.slug, storageKey, seatParam, showToast]);
 
   // ── 상태 폴링 ──
   const refreshState = useCallback(() => {
@@ -696,15 +720,15 @@ export default function TableClient({
           </div>
         )}
         {tab === 'games' && <GamesTab onGoMenu={() => setTab('menu')} spotSlug={spot.slug} />}
-        {tab === 'chat' && (
-          <ChatTab
-            spotId={spot.id}
+        {tab === 'songs' && (
+          <SongsTab
             slug={spot.slug}
             hasSession={!!session}
             sessionId={session?.id ?? null}
             onCheckin={() => setCheckinOpen(true)}
           />
         )}
+        {tab === 'chat' && <ChatTab spotId={spot.id} />}
         {tab === 'orders' && (
           <OrdersView orders={myOrders} seatTotal={seatTotal} hasSession={!!session} onCheckin={() => setCheckinOpen(true)} />
         )}
@@ -733,9 +757,9 @@ export default function TableClient({
       )}
 
       {/* ── 하단 탭 ── */}
-      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: 'rgba(14,14,17,0.94)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${LINE}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        {([['menu', '메뉴'], ['games', '술게임'], ['chat', '채팅'], ['orders', '내 주문']] as const).map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{ height: 58, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: tab === key ? INK : FAINT }}>
+      <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', background: 'rgba(14,14,17,0.94)', backdropFilter: 'blur(8px)', borderTop: `1px solid ${LINE}`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {([['menu', '메뉴'], ['games', '술게임'], ['songs', '신청곡'], ['chat', '채팅'], ['orders', '내 주문']] as const).map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)} style={{ height: 58, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 800, color: tab === key ? INK : FAINT }}>
             {label}
           </button>
         ))}
