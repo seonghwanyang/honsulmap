@@ -95,68 +95,64 @@ function SpotCard({ m, tester }: { m: MemberSpot; tester: boolean }) {
         </div>
       </div>
 
+      {/* 액션 위계: 영업 중 매일 여는 "실시간 주문"이 주 CTA, 통계·세팅은 보조 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-        <Link
-          href={`/partner/spot/${spot.id}`}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: 44,
-            borderRadius: 11,
-            background: '#111827',
-            color: '#fff',
-            fontSize: 13.5,
-            fontWeight: 700,
-            letterSpacing: '-0.2px',
-            textDecoration: 'none',
-          }}
-        >
-          가게 관리하기
-        </Link>
-        {tester && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Link
-              href={`/partner/spot/${spot.id}/tables`}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: 42,
-                borderRadius: 11,
-                background: '#fff',
-                border: '1px solid #e5e7eb',
-                color: '#374151',
-                fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: '-0.2px',
-                textDecoration: 'none',
-              }}
-            >
-              테이블 설정
-            </Link>
+        {tester ? (
+          <>
             <Link
               href={`/partner/spot/${spot.id}/orders`}
               style={{
-                flex: 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                height: 42,
+                gap: 8,
+                height: 46,
                 borderRadius: 11,
-                background: '#fff',
-                border: '1px solid #e5e7eb',
-                color: '#374151',
-                fontSize: 13,
-                fontWeight: 700,
+                background: '#111827',
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: 800,
                 letterSpacing: '-0.2px',
                 textDecoration: 'none',
               }}
             >
-              주문 보드
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80' }} />
+              실시간 주문
             </Link>
-          </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Link
+                href={`/partner/spot/${spot.id}`}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: 42, borderRadius: 11, background: '#fff', border: '1px solid #e5e7eb', color: '#374151', fontSize: 13, fontWeight: 700, letterSpacing: '-0.2px', textDecoration: 'none' }}
+              >
+                📊 가게 통계
+              </Link>
+              <Link
+                href={`/partner/spot/${spot.id}/tables`}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: 42, borderRadius: 11, background: '#fff', border: '1px solid #e5e7eb', color: '#374151', fontSize: 13, fontWeight: 700, letterSpacing: '-0.2px', textDecoration: 'none' }}
+              >
+                ⚙️ 테이블 서비스 관리
+              </Link>
+            </div>
+          </>
+        ) : (
+          <Link
+            href={`/partner/spot/${spot.id}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 44,
+              borderRadius: 11,
+              background: '#111827',
+              color: '#fff',
+              fontSize: 13.5,
+              fontWeight: 700,
+              letterSpacing: '-0.2px',
+              textDecoration: 'none',
+            }}
+          >
+            📊 가게 통계 보기
+          </Link>
         )}
       </div>
     </Card>

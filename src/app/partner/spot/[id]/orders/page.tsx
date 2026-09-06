@@ -231,7 +231,7 @@ function OrdersBoard() {
       newOrders +
       songs.filter((s) => s.status === 'queued').length +
       claims.filter((c) => c.status === 'claimed').length;
-    document.title = n > 0 ? `(${n}) 주문 보드 | 혼술맵` : '주문 보드 | 혼술맵';
+    document.title = n > 0 ? `(${n}) 실시간 주문 | 혼술맵` : '실시간 주문 | 혼술맵';
   }, [orders, songs, claims]);
 
   const rewardClaim = async (claimId: string) => {
@@ -340,7 +340,7 @@ function OrdersBoard() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <PageHeader
-        title="주문 보드"
+        title="실시간 주문"
         subtitle="영업 중엔 이 화면을 켜두세요. 새 주문이 오면 소리로 알려드려요."
         action={
           <button onClick={closeDay} disabled={closing} style={buttonStyle('outline', { disabled: closing })}>
@@ -351,7 +351,7 @@ function OrdersBoard() {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <Link href={`/partner/spot/${id}/tables`} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
-          ← 테이블 설정 (배치도·메뉴·퀘스트)
+          ← 테이블 서비스 관리 (배치도·메뉴·퀘스트)
         </Link>
         {chatNew > 0 && spotSlug && (
           <Link

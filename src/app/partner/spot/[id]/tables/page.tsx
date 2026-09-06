@@ -180,8 +180,8 @@ function TablesHub() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PageHeader
-        title="테이블 설정"
-        subtitle="배치도·메뉴·퀘스트를 한 곳에서 세팅하세요. 영업 중엔 주문 보드를 켜두면 돼요."
+        title="테이블 서비스 관리"
+        subtitle="배치도·메뉴·퀘스트를 한 곳에서 세팅하세요. 영업 중엔 실시간 주문 화면을 켜두면 돼요."
         action={
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: enabled ? '#111827' : '#6b7280' }}>
@@ -193,7 +193,7 @@ function TablesHub() {
               <ToggleSwitch on={songsOn} onChange={toggleSongs} />
             </label>
             <Link href={`/partner/spot/${id}/orders`} style={buttonStyle('primary')}>
-              주문 보드 열기 →
+              실시간 주문 열기 →
             </Link>
           </div>
         }
@@ -224,7 +224,7 @@ function TablesHub() {
               <span style={{ fontSize: 12.5, fontWeight: 700, color: '#16a34a' }}>
                 ✓ {tossName ? `${tossName} · ` : ''}매장번호 {tossMid}
               </span>
-              <span style={{ fontSize: 11.5, color: '#9ca3af' }}>주문 보드에 포스 주문이 함께 떠요</span>
+              <span style={{ fontSize: 11.5, color: '#9ca3af' }}>실시간 주문 화면에 포스 주문이 함께 떠요</span>
               <button onClick={disconnectToss} disabled={tossBusy} style={{ marginLeft: 'auto', height: 32, padding: '0 12px', borderRadius: 9, background: '#fff', color: '#6b7280', fontSize: 12, fontWeight: 700, border: '1px solid #e5e7eb', cursor: 'pointer' }}>
                 해제
               </button>
