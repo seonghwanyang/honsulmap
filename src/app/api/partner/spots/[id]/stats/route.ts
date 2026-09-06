@@ -48,9 +48,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const nationalIds = nationalRows.map((r) => r.id);
   const regionIds = nationalRows.filter((r) => r.region === spot.region).map((r) => r.id);
 
+  // 전체 테이블을 당겨 메모리 조인 — .in(657개 uuid)는 URL 한도 초과로 조용히 실패해
+  // 전원 0점 동점(모두 1위) 랭킹이 나오던 버그. 카운트 테이블은 수천 행이라 전량이 더 싸다.
   const [{ data: vcRows }, { data: visRows }] = await Promise.all([
-    admin.from('spot_view_counts').select('spot_id, views').in('spot_id', nationalIds),
-    admin.from('spot_visit_counts').select('spot_id, visits').in('spot_id', nationalIds),
+    admin.from('spot_view_counts').select('spot_id, views'),
+    admin.from('spot_visit_counts').select('spot_id, visits'),
   ]);
   const viewsMap = new Map(
     ((vcRows ?? []) as { spot_id: string; views: number | null }[]).map((r) => [r.spot_id, r.views ?? 0]),
@@ -109,13 +111,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .gte('redeemed_at', d7),
   ]);
 
-  const cityLabel = spot.city === 'seoul' ? '서울' : '제주';
+  // city는 seoul/jeju 외 값(수원 등)도 있다 — 이분법이면 수원이 '제주'로 찍힌다
+  const cityLabel = spot.city === 'seoul' ? '서울' : spot.city === 'jeju' ? '제주' : '';
   const cat = getCategoryLabel(spot.category);
 
   return NextResponse.json({
     region: {
       name: getRegionLabel(spot.region),
-      label: `${cityLabel} ${getRegionLabel(spot.region)} ${cat}`,
+      label: [cityLabel, getRegionLabel(spot.region), cat].filter(Boolean).join(' '),
       size: regionIds.length,
       ranks: ranksFor(regionIds),
     },
