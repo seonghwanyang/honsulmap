@@ -3,7 +3,7 @@
 // 채팅 탭 — 기존 가게 채팅방(chat_rooms/chat_messages) 시스템을 테이블 페이지에서
 // 소비하는 다크 스킨. 읽기는 누구나(폴링), 쓰기는 혼술맵 로그인(기존 정책 그대로)
 // → 테이블 손님이 혼술맵 계정을 만나는 자연스러운 접점.
-// 상단에 신청곡 큐(체크인 세션 기반, /api/t/[slug]/songs) — 마이그레이션 전엔 자동 숨김.
+// (신청곡은 2026-09-06 SongsTab으로 분리)
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase/client';
@@ -18,45 +18,12 @@ const ACCENT = '#a78bfa';
 const ACCENT_SOLID = '#7c3aed';
 const CARD = 'rgba(255,255,255,0.05)';
 
-interface Song {
-  id: string;
-  seat_label: string;
-  title: string;
-  artist: string | null;
-  status: 'queued' | 'played' | 'skipped';
-  created_at: string;
-}
 interface Room {
   is_open: boolean;
   notice: string | null;
 }
 
-const inputStyle: React.CSSProperties = {
-  flex: 1,
-  minWidth: 0, // flex 안에서 내용폭만큼 밀고 나가 박스를 넘치는 것 방지
-  height: 44,
-  padding: '0 14px',
-  borderRadius: 12,
-  border: '1px solid rgba(255,255,255,0.14)',
-  background: 'rgba(255,255,255,0.06)',
-  fontSize: 14,
-  color: INK,
-  outline: 'none',
-};
-
-export default function ChatTab({
-  spotId,
-  slug,
-  hasSession,
-  sessionId,
-  onCheckin,
-}: {
-  spotId: string;
-  slug: string;
-  hasSession: boolean;
-  sessionId: string | null;
-  onCheckin: () => void;
-}) {
+export default function ChatTab({ spotId }: { spotId: string }) {
   const [room, setRoom] = useState<Room | null | 'loading'>('loading');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [uid, setUid] = useState<string | null>(null);
@@ -65,18 +32,10 @@ export default function ChatTab({
   const [chatErr, setChatErr] = useState('');
   const [loginOpen, setLoginOpen] = useState(false);
 
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [songsOn, setSongsOn] = useState(false); // 마이그레이션 전엔 숨김
-  const [songOpen, setSongOpen] = useState(false);
-  const [songTitle, setSongTitle] = useState('');
-  const [songArtist, setSongArtist] = useState('');
-  const [songBusy, setSongBusy] = useState(false);
-  const [songErr, setSongErr] = useState('');
-
   const endRef = useRef<HTMLDivElement | null>(null);
   const countRef = useRef(0);
   const seqRef = useRef(0); // 폴링 레이스 가드 — 전송 직전 출발한 옛 응답이 새 메시지를 덮지 않게
-  const tickRef = useRef(0); // 방 상태·신청곡은 3틱(12초)마다 — 메시지만 4초 유지
+  const tickRef = useRef(0); // 방 상태는 3틱(12초)마다 — 메시지만 4초 유지
 
   useEffect(() => {
     createBrowserSupabase()
@@ -90,14 +49,12 @@ export default function ChatTab({
     const full = tickRef.current % 3 === 0;
     tickRef.current++;
     try {
-      const [roomRes, msgRes, songRes] = await Promise.all([
+      const [roomRes, msgRes] = await Promise.all([
         full ? fetch(`/api/chat/${spotId}`, { cache: 'no-store' }) : Promise.resolve(null),
         fetch(`/api/chat/${spotId}/messages`, { cache: 'no-store' }),
-        full ? fetch(`/api/t/${encodeURIComponent(slug)}/songs`, { cache: 'no-store' }) : Promise.resolve(null),
       ]);
       const roomD = roomRes && roomRes.ok ? await roomRes.json() : null;
       const msgD = msgRes.ok ? await msgRes.json() : null;
-      const songD = songRes && songRes.ok ? await songRes.json() : null;
       if (seq !== seqRef.current) return; // 더 최신 폴링이 있음 — 이 응답 폐기
       if (roomD) setRoom(roomD.room ?? null);
       if (msgD) {
@@ -110,14 +67,10 @@ export default function ChatTab({
           return extras.length ? [...server, ...extras] : server;
         });
       }
-      if (songD) {
-        setSongsOn(!!songD.available);
-        setSongs(songD.songs ?? []);
-      }
     } catch {
       /* 폴링 실패는 다음 틱에 복구 */
     }
-  }, [spotId, slug]);
+  }, [spotId]);
 
   useEffect(() => {
     refresh();
@@ -190,95 +143,8 @@ export default function ChatTab({
     refresh();
   };
 
-  const requestSong = async () => {
-    const title = songTitle.trim();
-    if (!title || songBusy) return;
-    setSongBusy(true);
-    setSongErr('');
-    const res = await fetch(`/api/t/${encodeURIComponent(slug)}/songs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, title, artist: songArtist.trim() }),
-    });
-    setSongBusy(false);
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setSongErr(d.error || '신청에 실패했어요.');
-      return;
-    }
-    setSongTitle('');
-    setSongArtist('');
-    setSongs((prev) => [d.song, ...prev]);
-  };
-
-  const queued = songs.filter((s) => s.status === 'queued');
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 70 }}>
-      {/* ── 신청곡 ── */}
-      {songsOn && (
-        <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14 }}>
-          <button
-            onClick={() => setSongOpen(!songOpen)}
-            style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '13px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <span style={{ fontSize: 13.5, fontWeight: 800, color: INK }}>🎵 신청곡</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: queued.length ? ACCENT : FAINT }}>
-              {queued.length ? `${queued.length}곡 대기 중` : '오늘 첫 곡을 신청해보세요'}
-            </span>
-            <span style={{ marginLeft: 'auto', fontSize: 11, color: FAINT }}>{songOpen ? '▲' : '▼'}</span>
-          </button>
-          {songOpen && (
-            <div style={{ padding: '0 16px 14px' }}>
-              {hasSession ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                  <input
-                    value={songTitle}
-                    onChange={(e) => setSongTitle(e.target.value.slice(0, 60))}
-                    placeholder="곡명 (예: 바람기억)"
-                    style={{ ...inputStyle, height: 48, fontSize: 15, width: '100%' }}
-                  />
-                  <input
-                    value={songArtist}
-                    onChange={(e) => setSongArtist(e.target.value.slice(0, 40))}
-                    placeholder="가수 (선택)"
-                    style={{ ...inputStyle, height: 48, fontSize: 15, width: '100%' }}
-                  />
-                  <button
-                    onClick={requestSong}
-                    disabled={songBusy || !songTitle.trim()}
-                    style={{ width: '100%', height: 48, borderRadius: 12, background: songTitle.trim() ? '#fff' : 'rgba(255,255,255,0.12)', color: songTitle.trim() ? '#0c0c0e' : 'rgba(255,255,255,0.45)', fontSize: 14.5, fontWeight: 800, border: 'none', cursor: 'pointer', opacity: songBusy ? 0.6 : 1 }}
-                  >
-                    {songBusy ? '신청 중…' : '🎵 신청하기'}
-                  </button>
-                </div>
-              ) : (
-                <button onClick={onCheckin} style={{ width: '100%', height: 42, borderRadius: 11, background: '#fff', color: '#0c0c0e', fontSize: 13, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
-                  체크인하고 신청하기
-                </button>
-              )}
-              {songErr && <p style={{ color: '#f87171', fontSize: 12, fontWeight: 700, marginTop: 8 }}>{songErr}</p>}
-              {songs.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
-                  {songs.slice(0, 12).map((s) => (
-                    <div key={s.id} style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 13, opacity: s.status === 'queued' ? 1 : 0.45 }}>
-                      <span style={{ fontWeight: 800, color: INK, wordBreak: 'break-all' }}>
-                        {s.title}
-                        {s.artist && <span style={{ fontWeight: 600, color: MUTED }}> — {s.artist}</span>}
-                      </span>
-                      <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: 11, color: FAINT }}>Seat {s.seat_label}</span>
-                      <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 800, color: s.status === 'queued' ? ACCENT : s.status === 'played' ? '#4ade80' : FAINT }}>
-                        {s.status === 'queued' ? '대기' : s.status === 'played' ? '재생됨' : '패스'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* ── 채팅 ── */}
       {room === 'loading' ? (
         <p style={{ textAlign: 'center', color: FAINT, fontSize: 13, padding: '32px 0' }}>불러오는 중…</p>
