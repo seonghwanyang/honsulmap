@@ -330,10 +330,14 @@ async function main() {
   } catch {
     /* 이벤트 미지원이면 주기 갱신만 */
   }
-  // 주문 완료 시 테이블→주문 캐시 정리 — 결제 후 새 손님은 새 주문(add)으로 열리게
+  // 주문 완료 이벤트 = 결제 잠금 해제 신호.
+  // ① 테이블→주문 캐시 정리(새 손님은 새 주문으로) ② 대기 중(재시도) 주문을 즉시
+  // 재처리 — 5초 폴링을 기다리지 않고 결제 끝나자마자 테이블 합류. 이벤트 미지원
+  // 포스에선 기존 5초 폴링이 그대로 안전망 (inflight 가드로 이중 처리 없음).
   try {
     sdk.order.on?.("complete", (id: string) => {
       for (const [t, oid] of tableOrders) if (oid === id) tableOrders.delete(t);
+      setTimeout(() => void tick(), 400); // 포스 내부 상태 정리 직후 피드 재처리
     });
   } catch {
     /* 미지원 무시 */
