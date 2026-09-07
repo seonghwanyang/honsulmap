@@ -5,6 +5,7 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { sessionExpiry, businessDayStart } from '@/lib/tableDay';
 import { seatQrToken } from '@/lib/seatToken';
+import { claimPendingPosOrders } from '@/lib/tossplace';
 
 // 좌석 체크인 — 좌석 번호만 입력하면 시작. 사람 구분은 브라우저가 조용히
 // 발급한 디바이스 UUID(해시만 저장 — phone4_hash 컬럼 재사용)로 한다.
@@ -237,6 +238,8 @@ export async function POST(
       });
     }
 
+    // 이동해 간 좌석에 보류 중인 포스 주문이 있으면 이 세션으로 승계
+    await claimPendingPosOrders(admin, spot.id, seat.label, mine.id);
     const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);
     return NextResponse.json({
       session: {
@@ -269,6 +272,8 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // "포스로 먼저 주문 → 나중에 체크인" 승계 — 이 좌석에 보류 중인 포스 주문을 새 세션에 귀속
+  await claimPendingPosOrders(admin, spot.id, seat.label, created.id);
   const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);
   return NextResponse.json(
     { session: { ...created, seat_label: seat.label, visit_count: visitCount } },
