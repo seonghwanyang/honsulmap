@@ -1,6 +1,8 @@
 // 토스플레이스 Open API 서버 헬퍼 — 파트너 라우트 전용 (키는 서버 env에만).
 // 실패는 전부 null로 흡수한다: 토스 장애가 우리 보드/설정을 죽이면 안 됨.
 
+import { businessDayStart } from '@/lib/tableDay';
+
 const BASE = 'https://open-api.tossplace.com/api-public/openapi/v1';
 
 export async function tossFetch<T = unknown>(path: string, timeoutMs = 4000): Promise<T | null> {
@@ -125,6 +127,174 @@ export function buildOpenApiOrderPayload(args: {
 // — -mv는 자리이동 재생성분, 연쇄 이동으로 겹칠 수 있어 반복 제거.
 export function extractOrderUuid(key: string): string {
   return (key.split('_').pop() ?? key).replace(/(-(fb|retry|mv))+$/, '');
+}
+
+// ── 역방향 싱크 (포스 → 혼술맵, v5.2) ──
+// 플러그인이 보고한 포스 직접 주문(직원 입력, 우리 orderKey가 아닌 것)을 좌석의 활성
+// 세션에 붙이거나, 세션이 없으면 보류 이벤트로 남겼다가 그 좌석 체크인 때 귀속한다.
+// 생성 즉시 pos-import ack(행 uuid ↔ 포스 주문 id)를 남긴다 — ① 피드/스윕이 이 행을
+// 다시 포스로 밀지 않게(루프 방지) ② 결제/취소 웹훅이 기존 형제 완결 로직으로 닫게.
+export type PosOrderReport = {
+  id: string;
+  order_key?: string;
+  seat_label: string; // 포스 테이블명 숫자 ("01" 형태 가능 — 우리 라벨로 정규화해 사용)
+  total: number;
+  state?: string;
+  lines: { name: string; qty: number; price: number }[]; // price = 라인 합계
+};
+
+type AdminClient = ReturnType<typeof import('@/lib/supabase').supabaseAdmin>;
+
+const OUR_ORDER_KEY_RE = /^(Q\d+_|hsm-demo-)|-(fb|retry|mv)$/;
+const normSeat = (s: unknown) => {
+  const d = String(s ?? '').replace(/\D/g, '');
+  return d ? String(Number(d)) : '';
+};
+
+function posLineRows(orderId: string, po: PosOrderReport) {
+  return po.lines
+    .filter((l) => l && l.name)
+    .slice(0, 50)
+    .map((l) => ({
+      order_id: orderId,
+      item_name: `[포스] ${String(l.name).slice(0, 56)}`,
+      price: Math.max(0, Math.round((Number(l.price) || 0) / Math.max(1, Number(l.qty) || 1))),
+      qty: Math.max(1, Number(l.qty) || 1),
+    }));
+}
+
+async function materializePosOrder(
+  admin: AdminClient,
+  spotId: string,
+  mid: string,
+  sessionId: string,
+  seatLabel: string,
+  po: PosOrderReport,
+): Promise<void> {
+  const { data: row } = await admin
+    .from('table_orders')
+    .insert({ spot_id: spotId, session_id: sessionId, seat_label: seatLabel, total: Math.max(0, Number(po.total) || 0), status: 'accepted' })
+    .select('id')
+    .single();
+  if (!row) return;
+  const items = posLineRows(row.id, po);
+  if (items.length) await admin.from('table_order_items').insert(items);
+  await admin.from('tossplace_events').insert({
+    event_type: 'plugin.push.ack',
+    payload: { order_id: row.id, outcome: 'pos-import', toss_order_id: String(po.id), mid },
+    headers: {},
+  });
+}
+
+// 플러그인 보고 수신 — 이미 귀속된 주문이면 스냅샷 갱신(직원이 품목 추가한 경우),
+// 활성 세션 있으면 즉시 귀속, 없으면 보류(체크인 때 claim).
+export async function ingestPosOrderReports(
+  admin: AdminClient,
+  spotId: string,
+  mid: string,
+  reports: PosOrderReport[],
+): Promise<void> {
+  for (const po of (reports ?? []).slice(0, 30)) {
+    try {
+      const posId = String(po?.id ?? '');
+      const seatLabel = normSeat(po?.seat_label);
+      if (!posId || !seatLabel || !Array.isArray(po?.lines)) continue;
+      if (OUR_ORDER_KEY_RE.test(String(po.order_key ?? ''))) continue; // 우리 주문은 대상 아님
+      const { data: maps } = await admin
+        .from('tossplace_events')
+        .select('payload')
+        .eq('event_type', 'plugin.push.ack')
+        .eq('payload->>outcome', 'pos-import')
+        .eq('payload->>toss_order_id', posId)
+        .limit(1);
+      const rowId = (maps?.[0]?.payload as { order_id?: string } | undefined)?.order_id;
+      if (rowId) {
+        const { data: row } = await admin.from('table_orders').select('id, status').eq('id', rowId).maybeSingle();
+        if (!row || !['new', 'accepted'].includes(row.status)) continue; // 닫힌 주문 불변
+        await admin.from('table_orders').update({ total: Math.max(0, Number(po.total) || 0) }).eq('id', rowId);
+        await admin.from('table_order_items').delete().eq('order_id', rowId);
+        const items = posLineRows(rowId, po);
+        if (items.length) await admin.from('table_order_items').insert(items);
+        continue;
+      }
+      const { data: seat } = await admin
+        .from('store_seats')
+        .select('id')
+        .eq('spot_id', spotId)
+        .eq('label', seatLabel)
+        .maybeSingle();
+      const { data: sess } = seat
+        ? await admin
+            .from('table_sessions')
+            .select('id')
+            .eq('spot_id', spotId)
+            .eq('seat_id', seat.id)
+            .eq('active', true)
+            .maybeSingle()
+        : { data: null };
+      if (sess?.id) await materializePosOrder(admin, spotId, mid, sess.id, seatLabel, po);
+      else
+        await admin.from('tossplace_events').insert({
+          event_type: 'pos.order.pending',
+          payload: { mid, spot_id: spotId, seat_label: seatLabel, pos_order: po },
+          headers: {},
+        });
+    } catch (e) {
+      console.warn('[pos-import] ingest 실패:', (e as Error).message);
+    }
+  }
+}
+
+// 체크인/자리이동 때 호출 — 그 좌석에 보류 중인 포스 주문(영업일 내, 아직 열린 것)을
+// 이 세션으로 귀속한다. "포스로 먼저 찍고 나중에 체크인" 케이스의 승계 지점.
+export async function claimPendingPosOrders(
+  admin: AdminClient,
+  spotId: string,
+  seatLabel: string,
+  sessionId: string,
+): Promise<number> {
+  try {
+    const { data: evs } = await admin
+      .from('tossplace_events')
+      .select('payload, created_at')
+      .eq('event_type', 'pos.order.pending')
+      .eq('payload->>spot_id', spotId)
+      .eq('payload->>seat_label', seatLabel)
+      .gte('created_at', businessDayStart())
+      .order('created_at', { ascending: true });
+    if (!evs?.length) return 0;
+    const latest = new Map<string, { po: PosOrderReport; mid: string }>();
+    for (const e of evs) {
+      const p = e.payload as { mid?: string; pos_order?: PosOrderReport };
+      if (p?.pos_order?.id) latest.set(String(p.pos_order.id), { po: p.pos_order, mid: String(p.mid ?? '') });
+    }
+    let claimed = 0;
+    for (const [posId, { po, mid }] of latest) {
+      if (po.state && po.state !== 'OPENED') continue;
+      // 이미 귀속됐거나 우리가 만든 주문(added/moved ack)이면 스킵
+      const { data: prior } = await admin
+        .from('tossplace_events')
+        .select('id')
+        .eq('event_type', 'plugin.push.ack')
+        .eq('payload->>toss_order_id', posId)
+        .limit(1);
+      if (prior?.length) continue;
+      // 보류 이후 이미 결제/취소로 닫힌 주문이면 승계하지 않는다
+      const { data: closed } = await admin
+        .from('tossplace_events')
+        .select('id')
+        .in('event_type', ['order.order.completed.v1', 'order.order.cancelled.v1'])
+        .eq('payload->data->>orderId', posId)
+        .limit(1);
+      if (closed?.length) continue;
+      await materializePosOrder(admin, spotId, mid, sessionId, seatLabel, po);
+      claimed++;
+    }
+    return claimed;
+  } catch (e) {
+    console.warn('[pos-import] claim 실패:', (e as Error).message);
+    return 0;
+  }
 }
 
 // 플러그인 모드 안전망 — 포스 꺼짐/플러그인 사망으로 90초 넘게 미처리된 주문을

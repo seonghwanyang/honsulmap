@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { buildOpenApiOrderPayload, extractOrderUuid, pushOrderToPos } from '@/lib/tossplace';
+import { buildOpenApiOrderPayload, extractOrderUuid, ingestPosOrderReports, pushOrderToPos, type PosOrderReport } from '@/lib/tossplace';
 import { businessDayStart } from '@/lib/tableDay';
 
 // 포스 플러그인 전용 피드 — 플러그인이 5초마다 끌어가 테이블에 주문을 직접 생성한다.
@@ -184,6 +184,14 @@ export async function POST(request: NextRequest) {
       });
     return NextResponse.json({ ok: true });
   }
+  // 역방향 싱크(v5.2) — 플러그인이 보고한 포스 직접 주문(직원 입력, 변경 시에만 옴)
+  if (Array.isArray(body.pos_orders)) {
+    if (!/^\d{1,20}$/.test(mid)) return NextResponse.json({ error: 'bad mid' }, { status: 400 });
+    const posCtx = await spotForMerchant(mid);
+    if (posCtx) await ingestPosOrderReports(posCtx.admin, posCtx.spotId, mid, body.pos_orders as PosOrderReport[]);
+    return NextResponse.json({ ok: true }); // 미연동 매장(검수 데모)은 조용히 무시
+  }
+
   // 플러그인은 피드의 "Q순번_uuid" id를 그대로 돌려보낸다 — 원 UUID로 복원해 처리
   const orderId = typeof body.order_id === 'string' ? extractOrderUuid(body.order_id) : '';
   const outcome = ['added', 'unmatched', 'error', 'moved'].includes(body.outcome) ? (body.outcome as string) : 'error';

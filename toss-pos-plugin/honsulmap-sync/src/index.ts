@@ -360,6 +360,51 @@ async function handleMove(mv: FeedMove): Promise<number[]> {
   }
 }
 
+// ── 역방향 싱크 (v5.2) ── 직원이 포스에서 직접 넣은 테이블 주문(우리 orderKey가 아닌
+// 것)을 서버로 보고한다 — 그 좌석에 체크인한 손님의 주문내역·좌석 합계에 반영된다.
+// 지문(상태:라인수:합계)이 바뀔 때만 전송해 트래픽을 아끼고, 전송 실패 시 지문을 되돌려
+// 다음 틱에 자연 재전송. 닫힌 주문은 지문 캐시에서 청소한다.
+const posReported = new Map<string, string>();
+const OUR_KEY_RE = /^(Q\d+_|hsm-demo-)|-(fb|retry|mv)$/;
+
+async function reportPosOrders(open: any[]) {
+  const openIds = new Set(open.map((o: any) => String(o?.id)));
+  for (const k of posReported.keys()) if (!openIds.has(k)) posReported.delete(k);
+  const reports: any[] = [];
+  for (const o of open) {
+    const tid = o?.tableId ?? o?.table?.id;
+    if (!o?.id || !tid) continue;
+    if (OUR_KEY_RE.test(String(o?.orderKey ?? ""))) continue;
+    const table = tables.find((t) => t?.id === tid);
+    const seat = digits(table?.title);
+    if (!seat) continue;
+    const lines = (o.lineItems ?? []).map((li: any) => ({
+      name: String(li?.item?.title ?? ""),
+      qty: Number(li?.quantity?.value ?? 1),
+      price: Number(li?.chargePrice?.value ?? 0),
+    }));
+    const total = Number(o?.chargePrice?.chargePriceValue ?? lines.reduce((a: number, l: any) => a + l.price, 0));
+    const fp = `${o?.orderState}:${lines.length}:${total}`;
+    if (posReported.get(String(o.id)) === fp) continue;
+    posReported.set(String(o.id), fp);
+    reports.push({ id: String(o.id), order_key: o?.orderKey ?? "", seat_label: seat, total, state: o?.orderState, lines });
+  }
+  if (!reports.length) return;
+  try {
+    await sdk.http.post(
+      FEED_URL,
+      { mid: String(merchantId), pos_orders: reports },
+      [
+        ["Content-Type", "application/json"],
+        ["x-hsm-plugin-key", PLUGIN_KEY],
+      ],
+    );
+  } catch (e) {
+    for (const r of reports) posReported.delete(r.id); // 다음 변화 감지 때 재전송되게 롤백
+    remoteLog("warn", "포스 주문 보고 실패", e);
+  }
+}
+
 // 검수용 데모 주문 — 이 포스의 첫 상품·첫 테이블로 1회 생성 (외부 데이터 불필요)
 async function runDemoOnce() {
   if (demoDone || demoAttempts >= 3) return;
@@ -423,6 +468,8 @@ async function tick() {
       }
       await handle(o);
     }
+    // 역방향 싱크 — 직원이 포스에서 직접 넣은 주문을 서버로 보고 (변경 시에만 전송)
+    await reportPosOrders(await fetchOpenOrders());
   } catch (e) {
     remoteLog("error", "피드 조회 실패", e);
   }
