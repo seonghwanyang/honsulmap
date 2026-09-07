@@ -121,9 +121,10 @@ export function buildOpenApiOrderPayload(args: {
 
 // 피드가 주문 id를 "Q007_<uuid>" 형태로 내린다 (토스가 orderKey의 '_' 앞부분을
 // 포스 주문번호로 표시하는 것을 이용 — UUID가 그대로 주문번호로 찍히는 문제 해결).
-// ack·웹훅·스윕 어디서든 이 함수로 원 UUID를 복원한다. 폴백 접미사(-fb/-retry)도 제거.
+// ack·웹훅·스윕 어디서든 이 함수로 원 UUID를 복원한다. 접미사(-fb/-retry/-mv)도 제거
+// — -mv는 자리이동 재생성분, 연쇄 이동으로 겹칠 수 있어 반복 제거.
 export function extractOrderUuid(key: string): string {
-  return (key.split('_').pop() ?? key).replace(/-(fb|retry)$/, '');
+  return (key.split('_').pop() ?? key).replace(/(-(fb|retry|mv))+$/, '');
 }
 
 // 플러그인 모드 안전망 — 포스 꺼짐/플러그인 사망으로 90초 넘게 미처리된 주문을

@@ -100,6 +100,25 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // 자리이동 가드 — 이동은 "새 테이블 재생성 + 옛 주문 취소"로 구현되는데, 옛 주문의
+      // 취소 웹훅이 이동된 우리 주문을 진짜 취소로 오인하면 안 된다. 최신 ack(added/remap)의
+      // toss_order_id가 이 웹훅의 포스 주문과 다르면 이미 딴 주문으로 이관된 것 → 제외.
+      if (ids.size && tossId) {
+        const { data: guardAcks } = await admin
+          .from('tossplace_events')
+          .select('payload, created_at')
+          .eq('event_type', 'plugin.push.ack')
+          .in('payload->>order_id', [...ids]);
+        const latest = new Map<string, string>();
+        for (const a of (guardAcks ?? []).sort((x, y) =>
+          String(x.created_at).localeCompare(String(y.created_at)),
+        )) {
+          const p = a.payload as { order_id?: string; toss_order_id?: unknown };
+          if (p?.order_id && p.toss_order_id != null) latest.set(p.order_id, String(p.toss_order_id));
+        }
+        for (const [uuid, tid] of latest) if (tid !== tossId) ids.delete(uuid);
+      }
+
       if (ids.size) {
         const idList = [...ids];
         const newStatus = eventType === 'order.order.cancelled.v1' ? 'canceled' : 'done';

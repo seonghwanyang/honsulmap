@@ -18,6 +18,8 @@ const REFRESH_MS = 10 * 60 * 1000;
 
 type FeedItem = { name: string; price: number; qty: number; request?: string | null };
 type FeedOrder = { id: string; seat_label: string; total: number; items: FeedItem[] };
+// 자리이동 지시 — pos_order_ids(옮길 포스 주문들)를 to_seat 테이블로 재생성+원본 취소
+type FeedMove = { id: string; to_seat: string; pos_order_ids: string[] };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const sdk = posPluginSdk as any;
@@ -208,7 +210,7 @@ function toLineItem(fi: FeedItem) {
   };
 }
 
-async function ack(orderId: string, outcome: "added" | "unmatched" | "error", tossOrderId?: unknown) {
+async function ack(orderId: string, outcome: "added" | "unmatched" | "error" | "moved", tossOrderId?: unknown) {
   try {
     await sdk.http.post(
       FEED_URL,
@@ -266,6 +268,98 @@ async function handle(order: FeedOrder) {
   }
 }
 
+// ── 자리이동 (v5.1) ── 손님이 QR 재스캔으로 자리를 옮기면 서버가 이동 지시를 내린다.
+// 옛 테이블의 우리 주문(들)을 읽어 새 테이블에 재생성(열린 주문 있으면 합류)하고 원 주문을
+// 취소한다 — 직원이 포스에서 테이블 이동하는 것과 같은 결과. 결제 중 잠금 등 일시 실패는
+// ack 없이 두면 폴링·결제완료 이벤트로 자연 재시도. 반환값 = 이번 틱에 주문 투입을 보류할
+// 테이블들(이동 미완료 시 섞임 방지), 완료·포기 시 빈 배열.
+async function handleMove(mv: FeedMove): Promise<number[]> {
+  if (inflight.has(mv.id)) return [];
+  inflight.add(mv.id);
+  let blockedT: number[] = [];
+  try {
+    const toTableId = matchTableId(mv.to_seat);
+    if (!toTableId) {
+      remoteLog("warn", `자리이동 실패 — 좌석 ${mv.to_seat} 테이블 미매칭`);
+      await ack(mv.id, "error");
+      return [];
+    }
+    blockedT = [toTableId];
+    const open = await fetchOpenOrders();
+    const srcs = open.filter(
+      (o: any) => mv.pos_order_ids.includes(String(o?.id)) && (o?.tableId ?? o?.table?.id) !== toTableId,
+    );
+    if (!srcs.length) {
+      await ack(mv.id, "moved"); // 옮길 게 없음(이미 결제·취소·이동됨) — 완료 처리
+      return [];
+    }
+    blockedT = [toTableId, ...srcs.map((s: any) => s.tableId ?? s.table?.id).filter(Boolean)];
+    const srcIds = new Set(mv.pos_order_ids);
+    let target: any = open.find(
+      (o: any) => (o?.tableId === toTableId || o?.table?.id === toTableId) && !srcIds.has(String(o?.id)),
+    );
+    for (const src of srcs) {
+      const mvKey = `${src.orderKey}-mv`;
+      const lines = (src.lineItems ?? []).map((li: any) => ({
+        diningOption: li?.diningOption ?? "HERE",
+        item: { id: li?.item?.id, title: li?.item?.title, category: li?.item?.category, type: li?.item?.type ?? "ITEM" },
+        quantity: { value: li?.quantity?.value ?? 1 },
+        chargePrice: { value: li?.chargePrice?.value ?? 0 },
+        optionChoices: li?.optionChoices ?? [],
+        ...(li?.memo ? { memo: li.memo } : {}),
+      }));
+      // 재시도 중복 방지 — 이 원 주문의 재생성분이 이미 있으면 그걸 대상으로 삼고 재추가 생략
+      const dup = open.find((o: any) => o?.orderKey === mvKey);
+      if (dup) target = dup;
+      else if (target) {
+        const before = target.lineItems?.length ?? 0;
+        try {
+          await sdk.order.addMenu(target.id, { discounts: [], lineItems: lines });
+        } catch (e) {
+          const after = (await fetchOpenOrders()).find((o: any) => o?.id === target.id);
+          if (!after || (after.lineItems?.length ?? 0) < before + lines.length) throw e;
+          remoteLog("warn", `이동 addMenu 응답 유실 — 반영 확인돼 진행 t${toTableId}`);
+        }
+      } else {
+        target = await sdk.order.add({
+          orderKey: mvKey,
+          memo: src.memo ?? `혼술맵 QR · 좌석 ${mv.to_seat} (자리이동)`,
+          discounts: [],
+          lineItems: lines,
+          tableId: toTableId,
+        });
+      }
+      try {
+        await sdk.order.cancel(src.id);
+      } catch (e) {
+        // 취소만 실패(원 테이블 결제 시작 등) — 메뉴는 이미 새 테이블에 반영됨.
+        // 재시도하면 중복되므로 완료 처리하고 수동 취소를 로그로 요청.
+        remoteLog("error", `이동 후 원 주문 취소 실패 — 포스에서 수동 취소 필요 (${src.orderKey})`, e);
+      }
+      const st = src.tableId ?? src.table?.id;
+      if (st) tableOrders.delete(st);
+    }
+    if (target?.id) tableOrders.set(toTableId, String(target.id));
+    addAttempts.delete(mv.id);
+    remoteLog("info", `자리이동 완료 → 좌석 ${mv.to_seat} (포스 주문 ${srcs.length}건 합류)`);
+    await ack(mv.id, "moved", target?.id);
+    return [];
+  } catch (e) {
+    const n = (addAttempts.get(mv.id)?.n ?? 0) + 1;
+    addAttempts.set(mv.id, { n, at: Date.now() });
+    if (n < 12) {
+      if (n === 1) remoteLog("warn", `자리이동 일시 실패 — 재시도 시작 (좌석 ${mv.to_seat})`, e);
+      return blockedT; // 미완료 — 관련 테이블 주문 투입 보류
+    }
+    addAttempts.delete(mv.id);
+    remoteLog("error", `자리이동 실패(재시도 소진) — 직원 수동 이동 필요 (좌석 ${mv.to_seat})`, e);
+    await ack(mv.id, "error");
+    return [];
+  } finally {
+    inflight.delete(mv.id);
+  }
+}
+
 // 검수용 데모 주문 — 이 포스의 첫 상품·첫 테이블로 1회 생성 (외부 데이터 불필요)
 async function runDemoOnce() {
   if (demoDone || demoAttempts >= 3) return;
@@ -316,7 +410,19 @@ async function tick() {
       await runDemoOnce();
       return;
     }
-    for (const o of parsed.orders ?? []) await handle(o);
+    // 자리이동 먼저 — 이동이 끝나지 않은 테이블로는 이번 틱에 주문을 넣지 않는다
+    // (이전 손님 계산서에 새 주문이 섞이는 것 방지). 다음 틱(5초)에 자연 재개.
+    const blocked = new Set<number>();
+    for (const mv of (parsed.moves ?? []) as FeedMove[]) {
+      for (const t of await handleMove(mv)) blocked.add(t);
+    }
+    for (const o of parsed.orders ?? []) {
+      if (blocked.size) {
+        const tid = matchTableId(o.seat_label);
+        if (tid && blocked.has(tid)) continue;
+      }
+      await handle(o);
+    }
   } catch (e) {
     remoteLog("error", "피드 조회 실패", e);
   }
