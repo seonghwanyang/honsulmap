@@ -637,9 +637,19 @@ export default function TableClient({
             {!user && (
               <button
                 onClick={openAuthGate}
-                style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.06)', color: MUTED, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.06)', color: MUTED, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
               >
-                {inApp ? '로그인' : '📱 앱'}
+                {inApp ? (
+                  '로그인'
+                ) : (
+                  <>
+                    <svg width="11" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="5" y="2" width="14" height="20" rx="2.5" />
+                      <path d="M12 17.5h.01" />
+                    </svg>
+                    앱
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -812,7 +822,11 @@ export default function TableClient({
             rel="noreferrer"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', height: 52, borderRadius: 13, background: '#fff', color: '#0c0c0e', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}
           >
-            📱 혼술맵 앱 다운로드
+            <svg width="15" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="5" y="2" width="14" height="20" rx="2.5" />
+              <path d="M12 17.5h.01" />
+            </svg>
+            혼술맵 앱 다운로드
           </a>
           <p style={{ fontSize: 11.5, color: FAINT, marginTop: 12, lineHeight: 1.6, textAlign: 'center' }}>
             이미 설치했다면 앱을 열어 &lsquo;{spot.name}&rsquo;을 검색해 주세요.
