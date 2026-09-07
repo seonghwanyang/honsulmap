@@ -246,7 +246,8 @@ function OrdersBoard() {
 
   useEffect(() => {
     reload();
-    const iv = setInterval(reload, 5000);
+    // 5초→2초 — 신청곡·퀘스트·주문이 보드에 뜨기까지 체감 ~5초 걸리던 것 절반 이하로
+    const iv = setInterval(reload, 2000);
     return () => clearInterval(iv);
   }, [reload]);
 
