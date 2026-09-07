@@ -186,7 +186,11 @@ async function refreshCatalog() {
 function matchTableId(seatLabel: string): number | undefined {
   const want = digits(seatLabel);
   if (!want) return undefined;
-  const hit = tables.find((t) => digits(t?.title) === want);
+  // "01" vs "1" 0패딩 차이 흡수 — 숫자값으로 비교 (실측: 단자리 좌석이 미매칭돼 전표만 출력)
+  const hit = tables.find((t) => {
+    const d = digits(t?.title);
+    return d !== "" && Number(d) === Number(want);
+  });
   return hit?.id;
 }
 
@@ -232,6 +236,9 @@ async function handle(order: FeedOrder) {
       return;
     }
     const tableId = matchTableId(order.seat_label);
+    // 미매칭이면 테이블 없는 주문(전표만)이 되므로 실제 포스 테이블명을 남겨 원인 즉시 확인
+    if (!tableId)
+      remoteLog("warn", `테이블 매칭 실패 — 좌석 ${order.seat_label} / 포스 테이블: ${tables.map((t) => t?.title).join(",") || "(없음)"}`);
     const dto = {
       orderKey: order.id,
       memo: `혼술맵 QR · 좌석 ${order.seat_label}`,

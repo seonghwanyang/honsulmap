@@ -101,7 +101,9 @@ export async function GET(request: NextRequest) {
       // "Q순번_uuid" — 플러그인이 이 값을 orderKey로 그대로 쓰면 토스가 '_' 앞부분을
       // 주문번호로 표시한다 (v2 플러그인 무수정 적용). 서버 쪽은 extractOrderUuid로 복원.
       id: `Q${String(seqOf.get(o.id) ?? 0).padStart(3, '0')}_${o.id}`,
-      seat_label: o.seat_label,
+      // 포스 테이블명이 "01"처럼 0패딩이면 플러그인의 문자열 매칭("1"≠"01")이 어긋나
+      // 단자리 좌석이 테이블 미부착으로 들어감(실측: 좌석1·5·6 전표만, 21은 정상) — 패딩해 전달
+      seat_label: /^\d$/.test(o.seat_label) ? `0${o.seat_label}` : o.seat_label,
       created_at: o.created_at,
       total: o.total,
       items: o.items.map((it) => ({ name: it.item_name, price: it.price, qty: it.qty, request: it.request })),
