@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
   if (!ctx) return NextResponse.json({ orders: [], demo: true });
 
   const since = new Date(Date.now() - WINDOW_MIN * 60000).toISOString();
-  const [{ data: orders }, { data: acks }, { data: dayOrders }] = await Promise.all([
+  const [{ data: orders }, { data: acks }, { data: dayOrders }, { data: moveRows }] = await Promise.all([
     ctx.admin
       .from('table_orders')
       .select('id, seat_label, total, created_at, status, items:table_order_items(item_name, price, qty, request)')
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: true }),
     ctx.admin
       .from('tossplace_events')
-      .select('payload')
+      .select('payload, created_at')
       .eq('event_type', 'plugin.push.ack')
       .gte('created_at', new Date(Date.now() - 2 * WINDOW_MIN * 60000).toISOString()),
     // 오늘 영업분 순번 — 포스 주문번호 표기용 (Q001, Q002 …)
@@ -85,6 +85,14 @@ export async function GET(request: NextRequest) {
       .eq('spot_id', ctx.spotId)
       .gte('created_at', businessDayStart())
       .gt('total', 0)
+      .order('created_at', { ascending: true }),
+    // 자리이동 마커(₩0 주문, 아이템 "자리 이동: A → B") — 플러그인 이동 지시의 원천
+    ctx.admin
+      .from('table_orders')
+      .select('id, session_id, seat_label, items:table_order_items(item_name)')
+      .eq('spot_id', ctx.spotId)
+      .gte('created_at', since)
+      .eq('total', 0)
       .order('created_at', { ascending: true }),
   ]);
 
@@ -109,7 +117,46 @@ export async function GET(request: NextRequest) {
       items: o.items.map((it) => ({ name: it.item_name, price: it.price, qty: it.qty, request: it.request })),
     }));
 
-  return NextResponse.json({ orders: pending });
+  // 자리이동 지시 — 마커 세션이 보유한 살아있는 포스 주문들을 새 좌석 테이블로 옮기라고
+  // 내린다. 세션당 최신 마커만(연쇄 이동은 최종 목적지로 한 번에). 주문별 포스 주문 id는
+  // 최신 ack(added/remap)의 toss_order_id. 구형 플러그인은 moves 필드를 무시하므로 무해.
+  const latestToss = new Map<string, string>();
+  for (const a of [...(acks ?? [])].sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)))) {
+    const p = a.payload as { order_id?: string; toss_order_id?: unknown };
+    const uuid = p?.order_id ? extractOrderUuid(p.order_id) : '';
+    if (uuid && p?.toss_order_id != null) latestToss.set(uuid, String(p.toss_order_id));
+  }
+  const markers = (moveRows ?? []).filter(
+    (m) => !acked.has(m.id) && m.session_id && m.items.some((it) => it.item_name?.startsWith('자리 이동:')),
+  );
+  const latestMove = new Map<string, (typeof markers)[number]>();
+  for (const m of markers) latestMove.set(m.session_id as string, m); // 오름차순이라 마지막이 최신
+  let moves: { id: string; to_seat: string; pos_order_ids: string[] }[] = [];
+  if (latestMove.size) {
+    const { data: live } = await ctx.admin
+      .from('table_orders')
+      .select('id, session_id')
+      .eq('spot_id', ctx.spotId)
+      .in('session_id', [...latestMove.keys()])
+      .in('status', ['new', 'accepted'])
+      .gt('total', 0);
+    moves = [...latestMove.values()]
+      .map((m) => ({
+        id: m.id,
+        to_seat: m.seat_label,
+        pos_order_ids: [
+          ...new Set(
+            (live ?? [])
+              .filter((o) => o.session_id === m.session_id)
+              .map((o) => latestToss.get(o.id))
+              .filter((v): v is string => Boolean(v)),
+          ),
+        ],
+      }))
+      .filter((m) => m.pos_order_ids.length); // 옮길 포스 주문이 없으면 지시 불필요
+  }
+
+  return NextResponse.json({ orders: pending, moves });
 }
 
 export async function POST(request: NextRequest) {
@@ -139,7 +186,7 @@ export async function POST(request: NextRequest) {
   }
   // 플러그인은 피드의 "Q순번_uuid" id를 그대로 돌려보낸다 — 원 UUID로 복원해 처리
   const orderId = typeof body.order_id === 'string' ? extractOrderUuid(body.order_id) : '';
-  const outcome = ['added', 'unmatched', 'error'].includes(body.outcome) ? (body.outcome as string) : 'error';
+  const outcome = ['added', 'unmatched', 'error', 'moved'].includes(body.outcome) ? (body.outcome as string) : 'error';
   if (!/^\d{1,20}$/.test(mid) || !orderId) return NextResponse.json({ error: 'bad request' }, { status: 400 });
 
   const ctx = await spotForMerchant(mid);
@@ -150,6 +197,38 @@ export async function POST(request: NextRequest) {
     payload: { order_id: orderId, outcome, toss_order_id: body.toss_order_id ?? null, mid },
     headers: {},
   });
+
+  // 자리이동 완료 — 세션의 살아있는 주문들을 새 포스 주문 id로 재지정(remap ack).
+  // 옛 주문 취소 웹훅을 진짜 취소로 오인하지 않고, 새 주문 완료 시 형제 완결이 되게.
+  if (outcome === 'moved') {
+    const newTossId = body.toss_order_id != null ? String(body.toss_order_id) : '';
+    if (newTossId) {
+      const { data: marker } = await ctx.admin
+        .from('table_orders')
+        .select('session_id')
+        .eq('id', orderId)
+        .eq('spot_id', ctx.spotId)
+        .maybeSingle();
+      if (marker?.session_id) {
+        const { data: live } = await ctx.admin
+          .from('table_orders')
+          .select('id')
+          .eq('session_id', marker.session_id)
+          .in('status', ['new', 'accepted'])
+          .gt('total', 0);
+        if (live?.length) {
+          await ctx.admin.from('tossplace_events').insert(
+            live.map((o) => ({
+              event_type: 'plugin.push.ack',
+              payload: { order_id: o.id, outcome: 'remap', toss_order_id: newTossId, mid },
+              headers: {},
+            })),
+          );
+        }
+      }
+    }
+    return NextResponse.json({ ok: true });
+  }
 
   // 매칭 실패/에러 → Open API 폴백 (현황 탭행이지만 최소 한 번은 포스 도달 보장)
   if (outcome !== 'added') {
