@@ -63,7 +63,8 @@ function formatHours(openingHours: unknown): string | null {
 }
 
 function extractMenusFromApollo(json: Record<string, unknown>, placeId: string): MenuItem[] {
-  const items: MenuItem[] = [];
+  const entries: { item: MenuItem; idx: number; seq: number }[] = [];
+  let seq = 0;
   for (const [k, v] of Object.entries(json)) {
     if (!k.startsWith(`Menu:${placeId}`)) continue;
     const m = v as Record<string, unknown>;
@@ -74,9 +75,47 @@ function extractMenusFromApollo(json: Record<string, unknown>, placeId: string):
     const description = typeof m.description === 'string' && m.description ? m.description : null;
     const images = Array.isArray(m.images) ? (m.images as unknown[]) : [];
     const image = typeof images[0] === 'string' ? (images[0] as string) : null;
-    items.push({ name, price, description, image });
+    // 네이버가 주는 표시 순서 — index/priority가 있으면 그 순서로, 없으면 등장 순서
+    const idx = Number(m.index ?? m.priority ?? m.order);
+    entries.push({ item: { name, price, description, image }, idx: Number.isFinite(idx) ? idx : NaN, seq: seq++ });
   }
-  return items.slice(0, 30); // cap to keep row small
+  const hasIdx = entries.some((e) => !Number.isNaN(e.idx));
+  entries.sort((a, b) =>
+    hasIdx
+      ? ((Number.isNaN(a.idx) ? 1e9 : a.idx) - (Number.isNaN(b.idx) ? 1e9 : b.idx)) || a.seq - b.seq
+      : a.seq - b.seq,
+  );
+  return entries.map((e) => e.item).slice(0, 200);
+}
+
+// 전체 메뉴는 /menu/list 페이지에 있다 — 홈 탭 APOLLO엔 미리보기 몇 개만 실린다
+// (실측: 더끌림 홈=3개). partial=true면 "더보기" 흔적이 있어 전량이 아닐 수 있다는 뜻.
+async function fetchMenusFromMenuPage(
+  placeId: string,
+  pathPrefix: string,
+): Promise<{ menus: MenuItem[]; partial: boolean }> {
+  for (const sub of ['menu/list', 'menu']) {
+    try {
+      const res = await fetch(`https://m.place.naver.com/${pathPrefix}/${placeId}/${sub}`, { headers: HEADERS });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const m = html.match(/window\.__APOLLO_STATE__\s*=\s*(\{[\s\S]*?\});/);
+      if (!m) continue;
+      let json: Record<string, unknown>;
+      try {
+        json = JSON.parse(m[1]);
+      } catch {
+        continue;
+      }
+      const menus = extractMenusFromApollo(json, placeId);
+      if (!menus.length) continue;
+      const partial = /"hasNextPage"\s*:\s*true|"hasMore"\s*:\s*true/.test(m[1]);
+      return { menus, partial };
+    } catch {
+      /* 다음 후보 경로 시도 */
+    }
+  }
+  return { menus: [], partial: false };
 }
 
 async function fetchPhotosFromPhotoPage(
@@ -143,7 +182,16 @@ async function fetchPlace(placeId: string): Promise<PlaceData | null> {
     const review_count =
       typeof base.visitorReviewsTotal === 'number' ? base.visitorReviewsTotal : null;
 
-    const menus = extractMenusFromApollo(json, placeId);
+    // 홈 미리보기 + 전체 메뉴 페이지 합집합 (메뉴 페이지 순서 우선, 이름 중복 제거).
+    // 완주 확인: 홈/페이지별 개수와 더보기 흔적을 로그로 남겨 누락을 바로 알 수 있게.
+    const homeMenus = extractMenusFromApollo(json, placeId);
+    const { menus: pageMenus, partial } = await fetchMenusFromMenuPage(placeId, path);
+    const seen = new Set(pageMenus.map((x) => x.name));
+    const menus = [...pageMenus, ...homeMenus.filter((x) => !seen.has(x.name))];
+    console.log(`  [menu ${placeId}] home=${homeMenus.length} page=${pageMenus.length} → ${menus.length}개`);
+    if (partial) console.log(`  [menu ${placeId}] ⚠ 더보기 흔적 감지 — 일부 누락 가능`);
+    if (!pageMenus.length && homeMenus.length)
+      console.log(`  [menu ${placeId}] ⚠ 메뉴 페이지 파싱 실패 — 홈 미리보기만 수집됨`);
 
     // Try fetching the dedicated /photo page for the gallery.
     const photoPagePhotos = await fetchPhotosFromPhotoPage(placeId, path);
