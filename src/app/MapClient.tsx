@@ -519,6 +519,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const compassAtRef = useRef(0);
   const headingAppliedAtRef = useRef(0);
   const orientHandlerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
+  // 2단계 탭 상태 — 1탭: 위치만(점), 2탭: 방향 포인터 켬, 3탭: 전부 끔
+  const headingModeRef = useRef(false);
   const [tracking, setTracking] = useState(false);
 
   const [spots, setSpots] = useState<SpotWithStories[]>([]);
@@ -1638,11 +1640,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     // core inside 45px outer).
     const markerContent =
       '<div style="position:relative;width:25px;height:25px;">' +
-        // 방향 빔 — 나침반/진행방향으로 회전하는 부채꼴 (구글맵식). 회전·표시는
-        // applyHeading이 id로 찾아 제어. radial 마스크로 끝이 부드럽게 사라진다.
-        // 스펙은 scripts/_beam_preview.py로 실측 튜닝: 70° 부채, 안쪽 55%는 균일 0.45
-        // (각도 감쇠가 빠르면 빔이 실처럼 가늘어 보임), 반경 40%까지 유지 후 92%에서 소멸.
-        '<div id="hsm-heading-cone" style="position:absolute;inset:-50px;border-radius:50%;background:conic-gradient(from -35deg, rgba(234,87,62,0) 0deg, rgba(234,87,62,0.45) 16deg, rgba(234,87,62,0.45) 54deg, rgba(234,87,62,0) 70deg, rgba(234,87,62,0) 360deg);-webkit-mask-image:radial-gradient(circle, #000 40%, transparent 92%);mask-image:radial-gradient(circle, #000 40%, transparent 92%);opacity:0;transform:rotate(0deg);transition:transform 0.25s ease-out, opacity 0.4s;will-change:transform;z-index:1;"></div>' +
+        // 방향 포인터 — 구글 내비/네이버 나침반식 둥근 삼각형(팁 라운드, 밑변 살짝 오목).
+        // 링 위 2px에 떠서 컨테이너 회전으로 점 둘레를 돈다. applyHeading이 id로 제어,
+        // 2번째 탭(방향 모드)에서만 표시. 형태 미리보기: scripts/_beam_preview.py
+        '<div id="hsm-heading-cone" style="position:absolute;inset:-16px;opacity:0;transform:rotate(0deg);transition:transform 0.25s ease-out, opacity 0.4s;will-change:transform;z-index:1;">' +
+          '<svg width="18" height="14" viewBox="0 0 18 14" style="position:absolute;top:0;left:50%;margin-left:-9px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.28));">' +
+            '<path d="M9 1.6 C9.6 1.6 10.2 1.9 10.5 2.5 L16.1 11.1 C16.9 12.3 15.8 13.8 14.4 13.4 L9.7 12 A2.4 2.4 0 0 0 8.3 12 L3.6 13.4 C2.2 13.8 1.1 12.3 1.9 11.1 L7.5 2.5 C7.8 1.9 8.4 1.6 9 1.6 Z" fill="#ea573e" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>' +
+          '</svg>' +
+        '</div>' +
         '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
         '<div style="position:absolute;inset:-14px;border-radius:50%;background:rgba(234,87,62,0.28);animation:gps-pulse 2s ease-out infinite;"></div>' +
       '</div>';
@@ -1685,9 +1690,10 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     [applyGpsCoords],
   );
 
-  // 방향 빔 회전 — 나침반은 60Hz까지 쏘므로 100ms 스로틀. 340°→10° 경계에서
+  // 방향 포인터 회전 — 나침반은 60Hz까지 쏘므로 100ms 스로틀. 340°→10° 경계에서
   // 한 바퀴 역회전하지 않게 최단 차이를 누적한 "연속 각도"로 transform한다.
   const applyHeading = useCallback((deg: number) => {
+    if (!headingModeRef.current) return; // 방향 모드(2번째 탭) 전엔 숨김 유지
     const now = Date.now();
     if (now - headingAppliedAtRef.current < 100) return;
     headingAppliedAtRef.current = now;
@@ -1704,6 +1710,27 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     el.style.transform = `rotate(${next}deg)`;
   }, []);
 
+  // 2번째 탭 = 방향 모드 — 나침반 구독을 여기서 시작. iOS는 webkitCompassHeading
+  // (북=0 시계방향), Android는 absolute alpha(반시계)라 360-alpha. 기준이 임의인
+  // 비절대 alpha는 무시 (엉뚱한 방향을 확신 있게 가리키는 게 없는 것보다 나쁨).
+  const enableHeadingMode = useCallback(() => {
+    headingModeRef.current = true;
+    if (orientHandlerRef.current) return;
+    const onOrient = (e: DeviceOrientationEvent) => {
+      const wch = (e as unknown as { webkitCompassHeading?: number }).webkitCompassHeading;
+      let h: number | null = null;
+      if (typeof wch === 'number' && !Number.isNaN(wch)) h = wch;
+      else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
+      if (h != null) {
+        compassAtRef.current = Date.now();
+        applyHeading(h);
+      }
+    };
+    window.addEventListener('deviceorientationabsolute', onOrient as EventListener, true);
+    window.addEventListener('deviceorientation', onOrient as EventListener, true);
+    orientHandlerRef.current = onOrient;
+  }, [applyHeading]);
+
   const stopTracking = useCallback(() => {
     if (
       watchIdRef.current != null &&
@@ -1718,7 +1745,8 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       window.removeEventListener('deviceorientation', orientHandlerRef.current as EventListener, true);
       orientHandlerRef.current = null;
     }
-    // 추적 꺼진 뒤 빔이 낡은 방향을 가리키지 않게 페이드아웃 (점은 유지)
+    // 추적 꺼진 뒤 포인터가 낡은 방향을 가리키지 않게 페이드아웃 (점은 유지)
+    headingModeRef.current = false;
     const cone = document.getElementById('hsm-heading-cone');
     if (cone) cone.style.opacity = '0';
     setTracking(false);
@@ -1732,24 +1760,6 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     if (watchIdRef.current != null) return; // already tracking
     followRef.current = true;
     setTracking(true);
-    // 나침반 구독 — iOS는 webkitCompassHeading(북=0 시계방향), Android는
-    // absolute alpha(반시계)라 360-alpha. 기준이 임의인 비절대 alpha는 무시
-    // (엉뚱한 방향을 확신 있게 가리키는 게 없는 것보다 나쁨).
-    if (!orientHandlerRef.current) {
-      const onOrient = (e: DeviceOrientationEvent) => {
-        const wch = (e as unknown as { webkitCompassHeading?: number }).webkitCompassHeading;
-        let h: number | null = null;
-        if (typeof wch === 'number' && !Number.isNaN(wch)) h = wch;
-        else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
-        if (h != null) {
-          compassAtRef.current = Date.now();
-          applyHeading(h);
-        }
-      };
-      window.addEventListener('deviceorientationabsolute', onOrient as EventListener, true);
-      window.addEventListener('deviceorientation', onOrient as EventListener, true);
-      orientHandlerRef.current = onOrient;
-    }
     let first = true;
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
@@ -1795,11 +1805,25 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   }, [applyGpsCoords, updateUserMarker, stopTracking, applyHeading]);
 
   const handleGps = useCallback(async () => {
-    // Toggle off: second tap stops live tracking (saves battery).
+    // 탭 사이클: 1탭 위치 찾기(점) → 2탭 방향 포인터 켬 → 3탭 전부 끔(배터리 절약)
     if (watchIdRef.current != null) {
-      stopTracking();
-      setGpsToast('위치 추적을 껐어요');
-      setTimeout(() => setGpsToast(null), 2000);
+      if (!headingModeRef.current) {
+        // iOS 13+ 나침반 권한 — 사용자 제스처(이 탭) 안에서만 요청 가능.
+        // 거부·미지원이어도 포인터는 걷는 중 GPS 진행방향으로 폴백.
+        try {
+          const doe = (window as unknown as { DeviceOrientationEvent?: { requestPermission?: () => Promise<string> } }).DeviceOrientationEvent;
+          if (doe?.requestPermission) await doe.requestPermission().catch(() => {});
+        } catch {
+          /* 무시 */
+        }
+        enableHeadingMode();
+        setGpsToast('방향 표시를 켰어요 — 폰을 돌려보세요');
+        setTimeout(() => setGpsToast(null), 2500);
+      } else {
+        stopTracking();
+        setGpsToast('위치 추적을 껐어요');
+        setTimeout(() => setGpsToast(null), 2000);
+      }
       return;
     }
 
@@ -1828,21 +1852,12 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       // and let getCurrentPosition itself prompt + report.
     }
 
-    // iOS 13+ 나침반 권한 — 사용자 제스처(이 버튼 탭) 안에서만 요청 가능.
-    // 거부·미지원이어도 위치 추적은 그대로 진행 (방향 빔만 GPS 진행방향 폴백).
-    try {
-      const doe = (window as unknown as { DeviceOrientationEvent?: { requestPermission?: () => Promise<string> } }).DeviceOrientationEvent;
-      if (doe?.requestPermission) await doe.requestPermission().catch(() => {});
-    } catch {
-      /* 무시 */
-    }
-
     // Progress toast — between permission grant and the first GPS fix
     // is a 2-3s silent gap on mobile. Without feedback users assume
     // nothing happened and tap again.
     setGpsToast('내 위치 찾는 중…');
     startTracking();
-  }, [startTracking, stopTracking]);
+  }, [startTracking, stopTracking, enableHeadingMode]);
 
   // Flush a queued GPS request once the Naver map finishes loading.
   useEffect(() => {
