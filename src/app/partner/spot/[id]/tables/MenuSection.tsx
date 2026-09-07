@@ -309,20 +309,38 @@ export default function MenuSection({
     touched.forEach(markCat);
   };
 
+  // 토스 가져오기와 같은 "싱크" — 누를 때마다 카테고리가 늘어나는 추가 방식이 아니라,
+  // "메뉴" 카테고리를 네이버의 순서·가격·구성으로 교체한다 (품절·사진·직접 쓴 설명·옵션 유지).
   const importNaver = () => {
     if (!naverMenus.length) return;
-    addCat({
-      key: nk(),
-      name: '메뉴',
-      items: naverMenus.map((m) => ({
+    if (
+      !confirm(
+        `네이버 메뉴 ${naverMenus.length}개로 동기화할까요?\n"메뉴" 카테고리를 네이버의 순서·가격·구성으로 교체해요 (품절·사진·직접 쓴 설명·옵션은 유지).\n다른 카테고리는 그대로 둡니다.`,
+      )
+    )
+      return;
+    const existing = cats.find((x) => x.name.trim() === '메뉴');
+    const prev = new Map((existing?.items ?? []).map((it) => [it.name, it]));
+    const items = naverMenus.map((m) => {
+      const name = m.name.slice(0, 60);
+      const p = prev.get(name);
+      return {
         key: nk(),
-        name: m.name.slice(0, 60),
+        name,
         priceStr: String(parseInt((m.price ?? '0').replace(/\D/g, ''), 10) || 0),
-        description: (m.description ?? '').slice(0, 200),
-        sold_out: false,
+        description: p?.description?.trim() ? p.description : (m.description ?? '').slice(0, 200),
+        sold_out: p?.sold_out ?? false,
         zero_action: null,
-      })),
+        image_url: p?.image_url ?? null,
+        optionsStr: p?.optionsStr ?? '',
+      };
     });
+    if (existing) {
+      setCats((prevCats) => prevCats.map((x) => (x.key === existing.key ? { ...x, items } : x)));
+      markCat(existing.key);
+    } else {
+      addCat({ key: nk(), name: '메뉴', items });
+    }
   };
 
   const addZeroPreset = () => {
