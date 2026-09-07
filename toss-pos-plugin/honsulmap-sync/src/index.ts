@@ -268,7 +268,7 @@ async function handle(order: FeedOrder) {
   }
 }
 
-// ── 자리이동 (v5.1) ── 손님이 QR 재스캔으로 자리를 옮기면 서버가 이동 지시를 내린다.
+// ── 자리이동 (v5.2) ── 손님이 QR 재스캔으로 자리를 옮기면 서버가 이동 지시를 내린다.
 // 옛 테이블의 우리 주문(들)을 읽어 새 테이블에 재생성(열린 주문 있으면 합류)하고 원 주문을
 // 취소한다 — 직원이 포스에서 테이블 이동하는 것과 같은 결과. 결제 중 잠금 등 일시 실패는
 // ack 없이 두면 폴링·결제완료 이벤트로 자연 재시도. 반환값 = 이번 틱에 주문 투입을 보류할
@@ -433,7 +433,7 @@ async function main() {
   merchantId = Number(merchant?.id ?? merchant?.merchantId);
   console.log("[hsm] 혼술맵 테이블 싱크 시작 — merchant", merchantId);
   // 버전을 로그에 남겨야 포스가 실제 어떤 버전을 로드했는지 서버에서 구분 가능
-  remoteLog("info", `플러그인 시작 v5.1 — merchant ${merchantId}`);
+  remoteLog("info", `플러그인 시작 v5.2 — merchant ${merchantId}`);
   await refreshTables();
   await refreshCatalog();
   // 테이블 변경(추가/이동/합석 등) 시 갱신 — on 미지원 환경 대비 try

@@ -157,20 +157,6 @@ const STYLES = `
 .hsmt-toast { animation: hsmtToast 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
 `;
 
-// 랜딩(다크) 전용 고스트 버튼
-const GHOST_BTN: React.CSSProperties = {
-  flex: 1,
-  height: 50,
-  borderRadius: 14,
-  background: 'transparent',
-  border: '1px solid rgba(255,255,255,0.18)',
-  color: 'rgba(255,255,255,0.85)',
-  fontSize: 14,
-  fontWeight: 700,
-  cursor: 'pointer',
-  letterSpacing: '-0.2px',
-};
-
 export default function TableClient({
   spot,
   modes,
@@ -548,16 +534,14 @@ export default function TableClient({
         </div>
 
         <div className="hsmt-fade-up hsmt-d4" style={{ paddingBottom: 'calc(30px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* 체크인 단일 동선 — 미체크인 상태로 메뉴·게임·채팅에 들어가는 우회로를 없애
+              원격 구경꾼 노출을 막고, 손님은 무조건 체크인부터 하게 한다 */}
           <button
             onClick={() => setCheckinOpen(true)}
             style={{ height: 56, borderRadius: 16, background: BTN, color: BTN_TEXT, fontSize: 15.5, fontWeight: 800, border: 'none', cursor: 'pointer', letterSpacing: '-0.2px' }}
           >
             좌석 체크인
           </button>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => { setView('main'); setTab('menu'); }} style={GHOST_BTN}>메뉴 보기</button>
-            <button onClick={() => { setView('main'); setTab('games'); }} style={GHOST_BTN}>술게임</button>
-          </div>
           <p style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 8 }}>
             주문은 후불 · 계산은 좌석 번호로 카운터에서
           </p>
