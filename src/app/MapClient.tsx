@@ -1640,7 +1640,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       '<div style="position:relative;width:25px;height:25px;">' +
         // 방향 빔 — 나침반/진행방향으로 회전하는 부채꼴 (구글맵식). 회전·표시는
         // applyHeading이 id로 찾아 제어. radial 마스크로 끝이 부드럽게 사라진다.
-        '<div id="hsm-heading-cone" style="position:absolute;inset:-34px;border-radius:50%;background:conic-gradient(from -30deg, rgba(234,87,62,0.42) 0deg, rgba(234,87,62,0.10) 42deg, rgba(234,87,62,0) 60deg, rgba(234,87,62,0) 360deg);-webkit-mask-image:radial-gradient(circle, #000 14%, transparent 70%);mask-image:radial-gradient(circle, #000 14%, transparent 70%);opacity:0;transform:rotate(0deg);transition:transform 0.25s ease-out, opacity 0.4s;will-change:transform;z-index:1;"></div>' +
+        // 스펙은 scripts/_beam_preview.py로 실측 튜닝: 70° 부채, 안쪽 55%는 균일 0.45
+        // (각도 감쇠가 빠르면 빔이 실처럼 가늘어 보임), 반경 40%까지 유지 후 92%에서 소멸.
+        '<div id="hsm-heading-cone" style="position:absolute;inset:-50px;border-radius:50%;background:conic-gradient(from -35deg, rgba(234,87,62,0) 0deg, rgba(234,87,62,0.45) 16deg, rgba(234,87,62,0.45) 54deg, rgba(234,87,62,0) 70deg, rgba(234,87,62,0) 360deg);-webkit-mask-image:radial-gradient(circle, #000 40%, transparent 92%);mask-image:radial-gradient(circle, #000 40%, transparent 92%);opacity:0;transform:rotate(0deg);transition:transform 0.25s ease-out, opacity 0.4s;will-change:transform;z-index:1;"></div>' +
         '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
         '<div style="position:absolute;inset:-14px;border-radius:50%;background:rgba(234,87,62,0.28);animation:gps-pulse 2s ease-out infinite;"></div>' +
       '</div>';
