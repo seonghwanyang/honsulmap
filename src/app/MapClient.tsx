@@ -514,6 +514,11 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
   const userLocationMarkerRef = useRef<NaverMarker | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const followRef = useRef(true);
+  // 방향 빔 상태 — 연속 각도(360° 경계에서 역회전 방지), 나침반 수신 시각(GPS 폴백 판단), 스로틀
+  const headingContRef = useRef<number | null>(null);
+  const compassAtRef = useRef(0);
+  const headingAppliedAtRef = useRef(0);
+  const orientHandlerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
   const [tracking, setTracking] = useState(false);
 
   const [spots, setSpots] = useState<SpotWithStories[]>([]);
@@ -1633,6 +1638,9 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     // core inside 45px outer).
     const markerContent =
       '<div style="position:relative;width:25px;height:25px;">' +
+        // 방향 빔 — 나침반/진행방향으로 회전하는 부채꼴 (구글맵식). 회전·표시는
+        // applyHeading이 id로 찾아 제어. radial 마스크로 끝이 부드럽게 사라진다.
+        '<div id="hsm-heading-cone" style="position:absolute;inset:-34px;border-radius:50%;background:conic-gradient(from -30deg, rgba(234,87,62,0.42) 0deg, rgba(234,87,62,0.10) 42deg, rgba(234,87,62,0) 60deg, rgba(234,87,62,0) 360deg);-webkit-mask-image:radial-gradient(circle, #000 14%, transparent 70%);mask-image:radial-gradient(circle, #000 14%, transparent 70%);opacity:0;transform:rotate(0deg);transition:transform 0.25s ease-out, opacity 0.4s;will-change:transform;z-index:1;"></div>' +
         '<div style="position:absolute;inset:0;border-radius:50%;background:#ea573e;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 1px 3px rgba(0,0,0,0.25);z-index:2;"></div>' +
         '<div style="position:absolute;inset:-14px;border-radius:50%;background:rgba(234,87,62,0.28);animation:gps-pulse 2s ease-out infinite;"></div>' +
       '</div>';
@@ -1675,6 +1683,25 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     [applyGpsCoords],
   );
 
+  // 방향 빔 회전 — 나침반은 60Hz까지 쏘므로 100ms 스로틀. 340°→10° 경계에서
+  // 한 바퀴 역회전하지 않게 최단 차이를 누적한 "연속 각도"로 transform한다.
+  const applyHeading = useCallback((deg: number) => {
+    const now = Date.now();
+    if (now - headingAppliedAtRef.current < 100) return;
+    headingAppliedAtRef.current = now;
+    const el = document.getElementById('hsm-heading-cone');
+    if (!el) return;
+    const prev = headingContRef.current;
+    let next = deg;
+    if (prev != null) {
+      const d = ((deg - (((prev % 360) + 360) % 360)) + 540) % 360 - 180;
+      next = prev + d;
+    }
+    headingContRef.current = next;
+    el.style.opacity = '1';
+    el.style.transform = `rotate(${next}deg)`;
+  }, []);
+
   const stopTracking = useCallback(() => {
     if (
       watchIdRef.current != null &&
@@ -1684,6 +1711,14 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       navigator.geolocation.clearWatch(watchIdRef.current);
     }
     watchIdRef.current = null;
+    if (orientHandlerRef.current) {
+      window.removeEventListener('deviceorientationabsolute', orientHandlerRef.current as EventListener, true);
+      window.removeEventListener('deviceorientation', orientHandlerRef.current as EventListener, true);
+      orientHandlerRef.current = null;
+    }
+    // 추적 꺼진 뒤 빔이 낡은 방향을 가리키지 않게 페이드아웃 (점은 유지)
+    const cone = document.getElementById('hsm-heading-cone');
+    if (cone) cone.style.opacity = '0';
     setTracking(false);
   }, []);
 
@@ -1695,6 +1730,24 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     if (watchIdRef.current != null) return; // already tracking
     followRef.current = true;
     setTracking(true);
+    // 나침반 구독 — iOS는 webkitCompassHeading(북=0 시계방향), Android는
+    // absolute alpha(반시계)라 360-alpha. 기준이 임의인 비절대 alpha는 무시
+    // (엉뚱한 방향을 확신 있게 가리키는 게 없는 것보다 나쁨).
+    if (!orientHandlerRef.current) {
+      const onOrient = (e: DeviceOrientationEvent) => {
+        const wch = (e as unknown as { webkitCompassHeading?: number }).webkitCompassHeading;
+        let h: number | null = null;
+        if (typeof wch === 'number' && !Number.isNaN(wch)) h = wch;
+        else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
+        if (h != null) {
+          compassAtRef.current = Date.now();
+          applyHeading(h);
+        }
+      };
+      window.addEventListener('deviceorientationabsolute', onOrient as EventListener, true);
+      window.addEventListener('deviceorientation', onOrient as EventListener, true);
+      orientHandlerRef.current = onOrient;
+    }
     let first = true;
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
@@ -1705,6 +1758,17 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
           if (!applyGpsCoords(lat, lng)) pendingGpsRef.current = { lat, lng };
         } else {
           updateUserMarker(lat, lng, followRef.current);
+        }
+        // 나침반이 3초 이상 조용하면(미지원·권한거부) GPS 진행방향으로 폴백 —
+        // 서 있을 땐 heading이 무의미해서 걷는 중(속도>0.5m/s)에만 회전.
+        const { heading, speed } = pos.coords;
+        if (
+          Date.now() - compassAtRef.current > 3000 &&
+          typeof heading === 'number' &&
+          !Number.isNaN(heading) &&
+          (speed ?? 0) > 0.5
+        ) {
+          applyHeading(heading);
         }
       },
       (err) => {
@@ -1726,7 +1790,7 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
       },
       { enableHighAccuracy: true, maximumAge: 3000, timeout: 20_000 },
     );
-  }, [applyGpsCoords, updateUserMarker, stopTracking]);
+  }, [applyGpsCoords, updateUserMarker, stopTracking, applyHeading]);
 
   const handleGps = useCallback(async () => {
     // Toggle off: second tap stops live tracking (saves battery).
@@ -1760,6 +1824,15 @@ function MapPageInner({ initialCity }: { initialCity: City }) {
     } catch {
       // Permissions API not supported (older Safari) — fall through
       // and let getCurrentPosition itself prompt + report.
+    }
+
+    // iOS 13+ 나침반 권한 — 사용자 제스처(이 버튼 탭) 안에서만 요청 가능.
+    // 거부·미지원이어도 위치 추적은 그대로 진행 (방향 빔만 GPS 진행방향 폴백).
+    try {
+      const doe = (window as unknown as { DeviceOrientationEvent?: { requestPermission?: () => Promise<string> } }).DeviceOrientationEvent;
+      if (doe?.requestPermission) await doe.requestPermission().catch(() => {});
+    } catch {
+      /* 무시 */
     }
 
     // Progress toast — between permission grant and the first GPS fix
