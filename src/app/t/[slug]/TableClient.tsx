@@ -447,6 +447,13 @@ export default function TableClient({
       });
       return;
     }
+    // 토글 — 담긴 메뉴를 다시 누르면 해제. 연타로 수량이 계속 늘던 문제 방지,
+    // 수량 조절은 장바구니 시트의 +/−로만.
+    if (cart.some((c) => c.item.id === item.id)) {
+      setCart((prev) => prev.filter((c) => c.item.id !== item.id));
+      logMenuEvent(item, 'cart_remove');
+      return;
+    }
     if (item.options?.length) {
       // 니트/온더락 등 옵션 메뉴 — 선택 시트 먼저
       setOptionPick(item);

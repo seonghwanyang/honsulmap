@@ -326,7 +326,8 @@ async function main() {
   const merchant = await sdk.merchant.getMerchant();
   merchantId = Number(merchant?.id ?? merchant?.merchantId);
   console.log("[hsm] 혼술맵 테이블 싱크 시작 — merchant", merchantId);
-  remoteLog("info", `플러그인 시작 — merchant ${merchantId}`);
+  // 버전을 로그에 남겨야 포스가 실제 어떤 버전을 로드했는지 서버에서 구분 가능
+  remoteLog("info", `플러그인 시작 v5.1 — merchant ${merchantId}`);
   await refreshTables();
   await refreshCatalog();
   // 테이블 변경(추가/이동/합석 등) 시 갱신 — on 미지원 환경 대비 try
