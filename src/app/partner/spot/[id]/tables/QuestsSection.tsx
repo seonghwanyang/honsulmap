@@ -23,6 +23,7 @@ const TEMPLATES: { title: string; reward: string; hidden?: boolean }[] = [
   { title: '시그니처 3잔 도장깨기', reward: '시그니처 1잔 무료' },
   { title: '위스키 3잔 이상 주문하기', reward: '하프샷 추가 증정', hidden: true },
   { title: '혼자 왔어요! 첫 방문 인증', reward: '첫 잔 서비스' },
+  { title: '네이버 영수증 리뷰 남기기', reward: '칵테일 1잔 서비스' },
   { title: 'MBTI 같은 사람 찾기', reward: '레몬드랍 슈터 제공' },
   { title: '칵테일 5종 도장깨기', reward: '칵테일 1잔 추가 증정' },
   { title: '오늘의 안주 주문하기', reward: '서비스 안주 추가' },
