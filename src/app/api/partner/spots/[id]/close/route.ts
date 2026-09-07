@@ -91,6 +91,14 @@ export async function POST(
     .select('id');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // 미완료 주문도 함께 마감 처리 — 세션만 닫히고 주문(new/accepted)이 보드에 남아
+  // "마감해도 이전 게 남는다"던 문제. done으로 마감(집계엔 유효 매출로 이미 반영됨).
+  await admin
+    .from('table_orders')
+    .update({ status: 'done' })
+    .eq('spot_id', id)
+    .in('status', ['new', 'accepted']);
+
   return NextResponse.json({
     ok: true,
     sessions_closed: closed?.length ?? 0,
