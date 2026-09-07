@@ -422,8 +422,7 @@ export default function MenuSection({
             {tossBusy ? '불러오는 중…' : '토스 포스 메뉴 가져오기'}
           </button>
         )}
-        {/* 토스 연동 가게는 토스가 메뉴 원천 — 네이버(대개 일부만 등록)로 덮을 이유가 없어 숨김 */}
-        {!tossOn && naverMenus.length > 0 && (
+        {naverMenus.length > 0 && (
           <button onClick={importNaver} style={{ ...buttonStyle('outline'), height: 38, padding: '0 14px', fontSize: 12.5 }}>
             네이버 메뉴 {naverMenus.length}개 싱크
           </button>
