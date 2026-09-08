@@ -192,10 +192,24 @@ export async function POST(
       const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);
       return NextResponse.json({ session: { ...pub, seat_label: seat.label, visit_count: visitCount } });
     } else {
-      return NextResponse.json(
-        { error: '이 좌석은 이미 사용 중이에요. 직원에게 문의해주세요.' },
-        { status: 409 },
-      );
+      // "체크인만 하고(주문 0건) 사라진" 유령 점유 — 30분 넘었고 새 기기가 이 좌석 QR을
+      // 실제로 찍었다면 물리적으로 재점유된 것. 이전 세션을 닫고 새 손님을 받는다.
+      // 주문이 하나라도 있으면(미결제 가능성) 돈 문제라 그대로 409 → 직원 확인.
+      const ageMin = (Date.now() - Date.parse(existing.checked_in_at)) / 60000;
+      const { data: anyOrder } = await admin
+        .from('table_orders')
+        .select('id')
+        .eq('session_id', existing.id)
+        .gt('total', 0)
+        .limit(1);
+      if (anyOrder?.length || ageMin < 30) {
+        return NextResponse.json(
+          { error: '이 좌석은 이미 사용 중이에요. 직원에게 문의해주세요.' },
+          { status: 409 },
+        );
+      }
+      await admin.from('table_sessions').update({ active: false }).eq('id', existing.id);
+      // 이후 흐름은 일반 체크인과 동일 — 새 세션 생성으로 계속
     }
   }
 

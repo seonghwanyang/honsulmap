@@ -125,6 +125,7 @@ function OrdersBoard() {
   const [zones, setZones] = useState<BoardZone[]>([]);
   const [spotSlug, setSpotSlug] = useState('');
   const [occupied, setOccupied] = useState<Set<string>>(new Set());
+  const [seatVisits, setSeatVisits] = useState<Record<string, number>>({}); // 좌석별 누적 방문 일수
   const [posOrders, setPosOrders] = useState<PosOrder[]>([]);
   const [chatNew, setChatNew] = useState(0); // 보드 켠 이후 새 채팅 수
   const chatBase = useRef<number | null>(null);
@@ -171,6 +172,7 @@ function OrdersBoard() {
     setClaims(claimList);
     setSongs(songList);
     setOccupied(new Set<string>(d.occupied_seat_ids ?? []));
+    setSeatVisits(d.seat_visits ?? {});
     if (Array.isArray(d.pos_orders)) setPosOrders(d.pos_orders); // null = 이번 틱 미조회, 기존 유지
     setLoading(false);
   }, [id]);
@@ -536,7 +538,14 @@ function OrdersBoard() {
                             cursor: 'pointer',
                           }}
                         >
-                          {seat.label}
+                          <span style={{ lineHeight: 1.15 }}>
+                            {seat.label}
+                            {on && (seatVisits[seat.id] ?? 0) >= 1 && (
+                              <span style={{ display: 'block', fontSize: 8.5, fontWeight: 700, opacity: 0.72 }}>
+                                {seatVisits[seat.id]}번째
+                              </span>
+                            )}
+                          </span>
                         </button>
                       );
                     })}
