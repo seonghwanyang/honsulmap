@@ -962,7 +962,13 @@ function SeatMap({
                   const style: React.CSSProperties = mine
                     ? { background: ACCENT_SOLID, color: '#fff', border: `1.6px solid ${ACCENT_SOLID}` }
                     : sess
-                      ? { background: '#fff', color: '#0c0c0e', border: '1.6px solid #fff' }
+                      ? // 성별 파스텔 — 채도 낮춘 블루/로즈 (쨍한 원색 금지, 다크 톤앤매너 유지).
+                        // 성별 미입력·비공개는 기존 흰색 그대로.
+                        sess.gender === 'm'
+                        ? { background: '#a7c5e8', color: '#0c1524', border: '1.6px solid #a7c5e8' }
+                        : sess.gender === 'f'
+                          ? { background: '#eab6cb', color: '#241018', border: '1.6px solid #eab6cb' }
+                          : { background: '#fff', color: '#0c0c0e', border: '1.6px solid #fff' }
                       : seat.seat_type === 'buffer'
                         ? { border: '1.6px dashed rgba(255,255,255,0.28)', color: FAINT, background: 'transparent' }
                         : { background: 'transparent', border: '1.6px solid rgba(255,255,255,0.26)', color: 'rgba(255,255,255,0.78)' };
@@ -994,7 +1000,8 @@ function SeatMap({
       })}
       <div style={{ display: 'flex', gap: 14, justifyContent: 'center', fontSize: 11, color: MUTED, fontWeight: 600, paddingBottom: 4 }}>
         <Legend swatch={{ border: '1.6px solid rgba(255,255,255,0.26)' }}>빈자리</Legend>
-        <Legend swatch={{ background: '#fff' }}>사용 중</Legend>
+        <Legend swatch={{ background: '#a7c5e8' }}>남</Legend>
+        <Legend swatch={{ background: '#eab6cb' }}>여</Legend>
         <Legend swatch={{ background: ACCENT_SOLID }}>내 자리</Legend>
         <Legend swatch={{ border: '1.6px dashed rgba(255,255,255,0.28)' }}>대기석</Legend>
       </div>
