@@ -291,6 +291,31 @@ export default function TableClient({
     };
   }, [refreshState]);
 
+  // 당겨서 새로고침 — iOS 사파리는 네이티브 PTR이 없어 직접 구현. 페이지 최상단에서
+  // 90px 이상 끌어내리면 전체 리로드. 시트가 열려 있으면(.hsmt-sheet) 오발동 방지로 무시.
+  useEffect(() => {
+    let startY = 0;
+    let pulling = false;
+    const onStart = (e: TouchEvent) => {
+      pulling = window.scrollY <= 0 && !document.querySelector('.hsmt-sheet');
+      startY = e.touches[0]?.clientY ?? 0;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!pulling) return;
+      const dy = (e.touches[0]?.clientY ?? 0) - startY;
+      if (dy > 90 && window.scrollY <= 0) {
+        pulling = false;
+        location.reload();
+      }
+    };
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', onStart);
+      document.removeEventListener('touchmove', onMove);
+    };
+  }, []);
+
   // ── 내 주문 ──
   const refreshOrders = useCallback(() => {
     if (!session) return;
