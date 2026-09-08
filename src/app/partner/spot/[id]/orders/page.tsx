@@ -73,34 +73,89 @@ const LIVE_OPTIONS: { value: string; label: string }[] = [
   { value: 'closed', label: '휴무' },
 ];
 
-// 도어차임 스타일 딩-동 (B5→E6) — 순수 WebAudio 합성이라 소리 파일 불필요.
-// soft=true는 미접수 리마인더용 (한 음, 더 작게).
-function beep(soft = false) {
+// ── 알림음 엔진 — 순수 WebAudio 합성 (소리 파일 불필요). 프리셋 6종 × 볼륨 배율.
+// 기존 단일 딩동(피크 0.16)이 매장 소음에 묻혀서, 피크를 0.5대로 올리고 볼륨 슬라이더로 조절.
+type SoundKey = 'dingdong' | 'chime' | 'triple' | 'bell' | 'knock' | 'alarm' | 'off';
+const SOUND_PRESETS: { key: SoundKey; label: string }[] = [
+  { key: 'dingdong', label: '딩동 (도어차임)' },
+  { key: 'chime', label: '띵 (맑은 한 음)' },
+  { key: 'triple', label: '따라란 (3음 상행)' },
+  { key: 'bell', label: '벨 (여운 긴 종)' },
+  { key: 'knock', label: '똑똑 (노크)' },
+  { key: 'alarm', label: '삐뽀 (긴급)' },
+  { key: 'off', label: '무음' },
+];
+
+function playSound(key: SoundKey, volume: number) {
+  if (key === 'off' || volume <= 0) return;
   try {
     const ctx = new AudioContext();
-    const note = (freq: number, t0: number, dur: number, peak: number) => {
+    const v = Math.min(1, Math.max(0, volume));
+    const note = (freq: number, t0: number, dur: number, peak: number, type: OscillatorType = 'sine') => {
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
-      osc.type = 'sine';
+      osc.type = type;
       osc.frequency.value = freq;
       osc.connect(g);
       g.connect(ctx.destination);
       const t = ctx.currentTime + t0;
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(peak, t + 0.02);
+      g.gain.linearRampToValueAtTime(peak * v, t + 0.02);
       g.gain.exponentialRampToValueAtTime(0.001, t + dur);
       osc.start(t);
       osc.stop(t + dur);
     };
-    if (soft) {
-      note(987.77, 0, 0.7, 0.09); // B5 한 음, 낮은 볼륨
-    } else {
-      note(987.77, 0, 0.9, 0.16); // B5 "딩"
-      note(1318.51, 0.13, 1.1, 0.15); // E6 "동"
+    switch (key) {
+      case 'dingdong':
+        note(987.77, 0, 0.9, 0.5);
+        note(1318.51, 0.13, 1.1, 0.48);
+        break;
+      case 'chime':
+        note(1318.51, 0, 0.9, 0.55);
+        note(2637.02, 0, 0.5, 0.12); // 옥타브 배음 — 관통력
+        break;
+      case 'triple':
+        note(987.77, 0, 0.35, 0.5);
+        note(1174.66, 0.12, 0.35, 0.5);
+        note(1567.98, 0.24, 0.6, 0.52);
+        break;
+      case 'bell':
+        note(880, 0, 1.6, 0.5);
+        note(1760, 0, 1.2, 0.22);
+        note(2640, 0, 0.7, 0.1);
+        break;
+      case 'knock':
+        note(220, 0, 0.12, 0.65, 'square');
+        note(220, 0.18, 0.12, 0.65, 'square');
+        break;
+      case 'alarm':
+        note(1046.5, 0, 0.25, 0.55, 'square');
+        note(783.99, 0.28, 0.25, 0.55, 'square');
+        note(1046.5, 0.56, 0.25, 0.55, 'square');
+        note(783.99, 0.84, 0.3, 0.55, 'square');
+        break;
     }
-    setTimeout(() => ctx.close(), 1600);
+    setTimeout(() => ctx.close(), 2400);
   } catch {
     /* 오디오 권한 없으면 무음 */
+  }
+}
+
+// 이벤트별 소리 설정 — 이 기기(보드 태블릿)에만 저장 (localStorage, 마이그레이션 불필요)
+type SoundSettings = {
+  volume: number; // 0~1
+  firstOrder: SoundKey;
+  addOrder: SoundKey;
+  song: SoundKey;
+  quest: SoundKey;
+  reminder: SoundKey;
+};
+const DEFAULT_SOUNDS: SoundSettings = { volume: 0.8, firstOrder: 'dingdong', addOrder: 'chime', song: 'triple', quest: 'bell', reminder: 'knock' };
+function loadSoundSettings(): SoundSettings {
+  try {
+    return { ...DEFAULT_SOUNDS, ...JSON.parse(localStorage.getItem('hsm-board-sounds') ?? '{}') };
+  } catch {
+    return DEFAULT_SOUNDS;
   }
 }
 
@@ -126,6 +181,26 @@ function OrdersBoard() {
   const [spotSlug, setSpotSlug] = useState('');
   const [occupied, setOccupied] = useState<Set<string>>(new Set());
   const [seatVisits, setSeatVisits] = useState<Record<string, number>>({}); // 좌석별 누적 방문 일수
+  // 알림음 설정 — 리로드 콜백에서 최신값을 읽도록 ref 미러링
+  const [snd, setSnd] = useState<SoundSettings>(DEFAULT_SOUNDS);
+  const [soundOpen, setSoundOpen] = useState(false);
+  const sndRef = useRef<SoundSettings>(DEFAULT_SOUNDS);
+  useEffect(() => {
+    setSnd(loadSoundSettings());
+  }, []);
+  useEffect(() => {
+    sndRef.current = snd;
+  }, [snd]);
+  const updateSnd = (patch: Partial<SoundSettings>) =>
+    setSnd((prev) => {
+      const next = { ...prev, ...patch };
+      try {
+        localStorage.setItem('hsm-board-sounds', JSON.stringify(next));
+      } catch {
+        /* 무시 */
+      }
+      return next;
+    });
   const [posOrders, setPosOrders] = useState<PosOrder[]>([]);
   const [chatNew, setChatNew] = useState(0); // 보드 켠 이후 새 채팅 수
   const chatBase = useRef<number | null>(null);
@@ -154,13 +229,17 @@ function OrdersBoard() {
     const list: Order[] = d.orders ?? [];
     const claimList: QuestClaim[] = q.claims ?? [];
     const songList: Song[] = s.songs ?? [];
-    // 첫 로드는 소리 없이, 이후 새 주문/새 달성/새 신청곡 등장 시 비프
+    // 첫 로드는 소리 없이, 이후 이벤트별 설정된 알림음 — 첫 주문(그 좌석 오늘 첫 건)과
+    // 추가 주문(같은 좌석 2번째~)을 다른 소리로 구분해 홀 상황이 귀로 들리게.
     if (knownIds.current) {
-      const fresh =
-        list.some((o) => !knownIds.current!.has(o.id)) ||
-        claimList.some((c) => !knownIds.current!.has(c.id)) ||
-        songList.some((sg) => !knownIds.current!.has(sg.id));
-      if (fresh) beep();
+      const s = sndRef.current;
+      const freshOrders = list.filter((o) => !knownIds.current!.has(o.id));
+      const isAdd = (o: Order) =>
+        list.some((p) => p.id !== o.id && p.seat_label === o.seat_label && p.created_at < o.created_at);
+      if (freshOrders.some((o) => !isAdd(o))) playSound(s.firstOrder, s.volume);
+      else if (freshOrders.length) playSound(s.addOrder, s.volume);
+      if (claimList.some((c) => !knownIds.current!.has(c.id))) playSound(s.quest, s.volume);
+      if (songList.some((sg) => !knownIds.current!.has(sg.id))) playSound(s.song, s.volume);
     }
     knownIds.current = new Set([
       ...list.map((o) => o.id),
@@ -191,7 +270,7 @@ function OrdersBoard() {
   // 미접수 리마인더 — "접수 대기"가 남아 있으면 30초마다 부드러운 한 음.
   useEffect(() => {
     const iv = setInterval(() => {
-      if (waitingRef.current > 0) beep(true);
+      if (waitingRef.current > 0) playSound(sndRef.current.reminder, sndRef.current.volume * 0.6);
     }, 30000);
     return () => clearInterval(iv);
   }, []);
@@ -493,6 +572,67 @@ function OrdersBoard() {
           </Card>
         </Section>
       )}
+
+      {/* 알림음 설정 — 이벤트별 소리 선택 + 볼륨 + 미리듣기. 이 기기(보드)에만 저장 */}
+      <Card style={{ padding: 16 }}>
+        <button
+          onClick={() => setSoundOpen(!soundOpen)}
+          style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: '#111827' }}>🔔 알림음 설정</span>
+          <span style={{ marginLeft: 'auto', color: '#9ca3af', fontSize: 12, fontWeight: 700 }}>{soundOpen ? '접기 ▲' : '펼치기 ▼'}</span>
+        </button>
+        {soundOpen && (
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 11 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: '#374151', width: 92, flexShrink: 0 }}>
+                볼륨 {Math.round(snd.volume * 100)}%
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(snd.volume * 100)}
+                onChange={(e) => updateSnd({ volume: Number(e.target.value) / 100 })}
+                style={{ flex: 1 }}
+              />
+            </div>
+            {(
+              [
+                ['firstOrder', '첫 주문 (좌석의 오늘 첫 건)'],
+                ['addOrder', '추가 주문 (같은 좌석 2번째~)'],
+                ['song', '신청곡'],
+                ['quest', '퀘스트 달성'],
+                ['reminder', '미접수 리마인더 (30초마다)'],
+              ] as [Exclude<keyof SoundSettings, 'volume'>, string][]
+            ).map(([k, label]) => (
+              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#374151', flex: '1 1 150px' }}>{label}</span>
+                <select
+                  value={snd[k]}
+                  onChange={(e) => updateSnd({ [k]: e.target.value as SoundKey })}
+                  style={{ height: 34, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12.5, padding: '0 8px', background: '#fff', color: '#111827' }}
+                >
+                  {SOUND_PRESETS.map((p) => (
+                    <option key={p.key} value={p.key}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => playSound(snd[k], snd.volume)}
+                  style={{ height: 34, padding: '0 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: 12.5, fontWeight: 700, color: '#374151', cursor: 'pointer' }}
+                >
+                  ▶ 듣기
+                </button>
+              </div>
+            ))}
+            <p style={{ fontSize: 11, color: '#9ca3af', margin: 0 }}>
+              이 기기(보드)에만 저장돼요. 소리가 안 나면 태블릿 미디어 볼륨·무음 스위치도 확인하세요.
+            </p>
+          </div>
+        )}
+      </Card>
 
       {/* 미니 좌석맵 — 지금 홀 상황 (읽기 전용, 5초 폴링 반영) */}
       {zones.length > 0 && (
