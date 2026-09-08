@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart } from '@/lib/tableDay';
+import { cancelStaleApiOrders } from '@/lib/tossplace';
 
 // 일일 자동 마감 크론 (매일 08:10 KST, vercel.json) — 사장님이 마감 버튼을 안 눌러도
 // "개인정보는 영업 종료 후 자동 만료" 약속을 집행한다:
@@ -74,5 +75,34 @@ export async function GET(request: NextRequest) {
     .select('id');
   if (wipeErr) return NextResponse.json({ error: wipeErr.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, spots: spotIds.length, sessions_wiped: wiped?.length ?? 0 });
+  // ── 4) 지난 영업분 미완료 주문 자동 마감 — 수동 마감 버튼과 동일 규칙.
+  // 보드 잔재 방지 (마감 버튼을 안 누른 가게도 아침이면 보드가 깨끗하게).
+  const { data: doneOrders } = await admin
+    .from('table_orders')
+    .update({ status: 'done' })
+    .lt('created_at', todayStart)
+    .gte('created_at', weekAgo)
+    .in('status', ['new', 'accepted'])
+    .select('id');
+
+  // ── 5) 포스 잔재 청소 — 우리 API 생성 현황행(좌석N)이 지난 영업분에 열린 채 남은 것
+  // 취소. 플러그인·포스 생성 계산서는 취소 채널이 없어(403) 매장에서 정리해야 한다.
+  const { data: cfgs } = await admin
+    .from('store_table_config')
+    .select('spot_id, modes')
+    .not('modes->>toss_merchant_id', 'is', null);
+  let posCancelled = 0;
+  for (const c of cfgs ?? []) {
+    const mid = String((c.modes as { toss_merchant_id?: string } | null)?.toss_merchant_id ?? '');
+    if (!/^\d{1,20}$/.test(mid)) continue;
+    posCancelled += await cancelStaleApiOrders(mid, todayStart);
+  }
+
+  return NextResponse.json({
+    ok: true,
+    spots: spotIds.length,
+    sessions_wiped: wiped?.length ?? 0,
+    orders_closed: doneOrders?.length ?? 0,
+    pos_stale_cancelled: posCancelled,
+  });
 }

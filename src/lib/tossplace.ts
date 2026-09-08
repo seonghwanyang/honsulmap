@@ -129,6 +129,33 @@ export function extractOrderUuid(key: string): string {
   return (key.split('_').pop() ?? key).replace(/(-(fb|retry|mv))+$/, '');
 }
 
+// 지난 영업분 포스 잔재 청소 — 우리가 Open API로 만든 현황행(주문번호 "좌석N")이
+// 열린 채 남으면 다음 영업일에 합류 오폭·현황 혼란의 화약고가 된다 (실측: 9/9 새벽
+// 좌석11 사고 조사에서 9/7 잔재 7건 발견). 취소 권한이 있는 건 이 부류뿐이라(채널
+// 제한 — 플러그인·포스 생성분은 403) 매일 마감 크론에서 이것만 자동 정리한다.
+export async function cancelStaleApiOrders(mid: string, beforeIso: string): Promise<number> {
+  try {
+    const from = new Date(Date.parse(beforeIso) - 48 * 3600_000).toISOString();
+    const to = new Date().toISOString();
+    const list = await tossFetch<{ id?: unknown; orderNumber?: unknown; openedAt?: string; createdAt?: string }[]>(
+      `/merchants/${mid}/order/orders?orderStates=OPENED&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&page=1&size=100`,
+      8000,
+    );
+    if (!Array.isArray(list)) return 0;
+    let n = 0;
+    for (const o of list) {
+      if (!o?.id || !/^좌석/.test(String(o.orderNumber ?? ''))) continue; // 우리 API 생성분만
+      const at = String(o.openedAt ?? o.createdAt ?? '');
+      if (!at || at >= beforeIso) continue; // 이번 영업분은 보존
+      const res = await tossPost(`/merchants/${mid}/order/orders/${o.id}/cancel`, { cancelReason: '영업일 마감 자동 정리' });
+      if (res?.status === 200) n++;
+    }
+    return n;
+  } catch {
+    return 0;
+  }
+}
+
 // ── 역방향 싱크 (포스 → 혼술맵, v5.2) ──
 // 플러그인이 보고한 포스 직접 주문(직원 입력, 우리 orderKey가 아닌 것)을 좌석의 활성
 // 세션에 붙이거나, 세션이 없으면 보류 이벤트로 남겼다가 그 좌석 체크인 때 귀속한다.
