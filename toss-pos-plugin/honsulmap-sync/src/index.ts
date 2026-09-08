@@ -90,7 +90,7 @@ async function createOrAppend(dto: any, tableId: number | undefined, joinableAft
     );
     if (onTable.length && !joinable.length && !staleLogged.has(String(onTable[0]?.id))) {
       staleLogged.add(String(onTable[0]?.id));
-      remoteLog("warn", `t${tableId}에 이전 영업분 열린 계산서 — 합류 안 함, 포스에서 정리 필요 (${onTable[0]?.orderKey ?? onTable[0]?.id})`);
+      remoteLog("warn", `t${tableId}에 이 손님 체크인 이전의 열린 계산서 — 합류 안 함, 포스에서 정리 필요 (${onTable[0]?.orderKey ?? onTable[0]?.id})`);
     }
     const target = (knownId && joinable.find((o: any) => o?.id === knownId)) || joinable[0];
     if (target) {
