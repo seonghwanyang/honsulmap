@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
   const [{ data: orders }, { data: acks }, { data: dayOrders }, { data: moveRows }] = await Promise.all([
     ctx.admin
       .from('table_orders')
-      .select('id, seat_label, total, created_at, status, items:table_order_items(item_name, price, qty, request)')
+      .select('id, seat_label, total, created_at, status, session:table_sessions(checked_in_at), items:table_order_items(item_name, price, qty, request)')
       .eq('spot_id', ctx.spotId)
       .gte('created_at', since)
       .in('status', ['new', 'accepted'])
@@ -114,6 +114,14 @@ export async function GET(request: NextRequest) {
       seat_label: /^\d$/.test(o.seat_label) ? `0${o.seat_label}` : o.seat_label,
       created_at: o.created_at,
       total: o.total,
+      // 합류 하한선 — 이 손님 체크인 30분 전 이후에 열린 계산서에만 addMenu 허용.
+      // 실측 사고(9/9 01:24 좌석11): 어제 미마감 계산서가 테이블에 남아 있으면 플러그인이
+      // 그리로 합류해 전표도 테이블 표시도 없이 증발한 것처럼 보임. 구형 플러그인은 무시.
+      joinable_after: (() => {
+        const s = o.session as { checked_in_at?: string } | { checked_in_at?: string }[] | null;
+        const at = Array.isArray(s) ? s[0]?.checked_in_at : s?.checked_in_at;
+        return at ? new Date(new Date(at).getTime() - 30 * 60000).toISOString() : undefined;
+      })(),
       items: o.items.map((it) => ({ name: it.item_name, price: it.price, qty: it.qty, request: it.request })),
     }));
 

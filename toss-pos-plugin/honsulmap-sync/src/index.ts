@@ -17,7 +17,7 @@ const POLL_MS = 5000;
 const REFRESH_MS = 10 * 60 * 1000;
 
 type FeedItem = { name: string; price: number; qty: number; request?: string | null };
-type FeedOrder = { id: string; seat_label: string; total: number; items: FeedItem[] };
+type FeedOrder = { id: string; seat_label: string; total: number; items: FeedItem[]; joinable_after?: string | null };
 // 자리이동 지시 — pos_order_ids(옮길 포스 주문들)를 to_seat 테이블로 재생성+원본 취소
 type FeedMove = { id: string; to_seat: string; pos_order_ids: string[] };
 
@@ -46,6 +46,7 @@ const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
 // 연속 주문 시 첫 건만 added, 나머지 error→폴백). 두 번째부터는 addMenu로
 // 기존 주문에 메뉴를 추가한다 — 직원이 그 테이블에 추가 입력하는 것과 동일.
 const tableOrders = new Map<number, string>(); // tableId → 열린 포스 주문 id (캐시)
+const staleLogged = new Set<string>(); // 이전 영업분 계산서 경고 — 재시도 스팸 방지 (주문 id별 1회)
 
 // 영업일 시작(아침 8시 KST) — 열린 테이블 주문 검색 범위
 function businessDayStartIso(): string {
@@ -76,14 +77,22 @@ async function fetchOpenOrders(): Promise<any[]> {
 // 실패하면 "실제로 반영됐는지"를 먼저 확인하고 성공 처리한다.
 //  - addMenu 실패 → 대상 주문의 라인 수가 (호출 전 + 추가분) 이상이면 반영된 것
 //  - add 실패     → 열린 주문 중 같은 orderKey가 있으면 생성된 것
-async function createOrAppend(dto: any, tableId: number | undefined): Promise<string | undefined> {
+async function createOrAppend(dto: any, tableId: number | undefined, joinableAfter?: string | null): Promise<string | undefined> {
   if (tableId) {
     const open = await fetchOpenOrders();
     const knownId = tableOrders.get(tableId);
-    // 직원이 연 테이블 주문도 대상 — 그 테이블 계산서에 합치는 게 맞는 동작
-    const target =
-      (knownId && open.find((o: any) => o?.id === knownId)) ||
-      open.find((o: any) => o?.tableId === tableId || o?.table?.id === tableId);
+    const onTable = open.filter((o: any) => o?.tableId === tableId || o?.table?.id === tableId);
+    // 직원이 연 테이블 주문도 합류 대상 — 단, 이전 영업분 미마감 계산서는 제외.
+    // 실측 사고(9/9 01:24 좌석11): 어제 계산서가 남아 있으면 거기 합류돼 전표·테이블
+    // 표시 없이 증발한 것처럼 보임 → 체크인(−30분) 이후 열린 계산서에만 합류한다.
+    const joinable = onTable.filter(
+      (o: any) => !joinableAfter || String(o?.openedAt ?? o?.createdAt ?? "") >= joinableAfter,
+    );
+    if (onTable.length && !joinable.length && !staleLogged.has(String(onTable[0]?.id))) {
+      staleLogged.add(String(onTable[0]?.id));
+      remoteLog("warn", `t${tableId}에 이전 영업분 열린 계산서 — 합류 안 함, 포스에서 정리 필요 (${onTable[0]?.orderKey ?? onTable[0]?.id})`);
+    }
+    const target = (knownId && joinable.find((o: any) => o?.id === knownId)) || joinable[0];
     if (target) {
       const before = target.lineItems?.length ?? 0;
       try {
@@ -248,7 +257,7 @@ async function handle(order: FeedOrder) {
       lineItems,
       ...(tableId ? { tableId } : {}),
     };
-    const posId = await createOrAppend(dto, tableId);
+    const posId = await createOrAppend(dto, tableId, order.joinable_after);
     addAttempts.delete(order.id);
     console.log("[hsm] 주문 반영 OK", order.id, "→ table", tableId ?? "(미지정)", "posOrder", posId);
     await ack(order.id, "added", posId);
