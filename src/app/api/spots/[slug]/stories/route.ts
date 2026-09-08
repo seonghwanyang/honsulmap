@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase } from '@/lib/supabase';
 
 const DEFAULT_LIMIT = 5;
@@ -30,7 +31,7 @@ export async function GET(
     .maybeSingle();
 
   if (spotError) {
-    return NextResponse.json({ error: spotError.message }, { status: 500 });
+    return serverError(spotError);
   }
   if (!spot) {
     return NextResponse.json({ error: '가게를 찾을 수 없습니다.' }, { status: 404 });
@@ -44,7 +45,7 @@ export async function GET(
     .range(offset, offset + limit - 1);
 
   if (storiesError) {
-    return NextResponse.json({ error: storiesError.message }, { status: 500 });
+    return serverError(storiesError);
   }
 
   return NextResponse.json(

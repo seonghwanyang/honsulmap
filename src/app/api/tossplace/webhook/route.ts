@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { reportError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { extractOrderUuid } from '@/lib/tossplace';
 
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
   const sig = verifySignature(rawBody, request.headers);
   if (!sig.ok) {
     console.warn('[tossplace] webhook rejected:', sig.mode);
+    // 서명 실패는 시크릿 불일치(설정 사고)거나 위조 시도 — 둘 다 알아야 한다
+    reportError(new Error('tossplace webhook rejected'), { level: 'warning', extra: { mode: sig.mode } });
     return NextResponse.json({ error: 'invalid signature' }, { status: 401 });
   }
 
@@ -65,9 +68,13 @@ export async function POST(request: NextRequest) {
     const { error } = await supabaseAdmin()
       .from('tossplace_events')
       .insert({ event_type: eventType, payload, headers: { ...headers, _sig_mode: sig.mode } });
-    if (error) console.error('[tossplace] store failed:', error.message, eventType);
+    if (error) {
+      console.error('[tossplace] store failed:', error.message, eventType);
+      reportError(error, { extra: { where: 'tossplace store', eventType } });
+    }
   } catch (e) {
     console.error('[tossplace] store threw:', (e as Error).message);
+    reportError(e, { extra: { where: 'tossplace store', eventType } });
   }
 
   // ── 좌석 자동 체크아웃 ──
@@ -153,6 +160,8 @@ export async function POST(request: NextRequest) {
     }
   } catch (e) {
     console.warn('[auto-checkout] 처리 실패:', (e as Error).message);
+    // 결제·취소 웹훅을 받았는데 우리 주문 상태를 못 맞춘 것 — 좌석이 안 비워지는 실측 사고의 원인 후보
+    reportError(e, { extra: { where: 'auto-checkout', eventType } });
   }
 
   return NextResponse.json({ ok: true });

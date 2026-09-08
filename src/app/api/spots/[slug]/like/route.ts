@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logUserSpotEvent } from '@/lib/userSpotEvent';
 
@@ -42,7 +43,7 @@ export async function POST(
       .from('likes')
       .insert([{ target_type: 'spot', target_id: spot.id, fingerprint }]);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return serverError(error);
     }
   }
 

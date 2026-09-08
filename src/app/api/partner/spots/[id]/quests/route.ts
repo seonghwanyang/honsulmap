@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart } from '@/lib/tableDay';
@@ -94,7 +95,7 @@ export async function PUT(
   // 전량 교체 — 달성 이력(quest_claims)은 CASCADE로 함께 정리되므로
   // 편집은 영업 전에 하는 것을 UI에서 안내한다.
   const { error: delErr } = await admin.from('store_quests').delete().eq('spot_id', id);
-  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+  if (delErr) return serverError(delErr);
 
   if (quests.length) {
     const { error } = await admin.from('store_quests').insert(
@@ -106,7 +107,7 @@ export async function PUT(
         active: q.active !== false,
       })),
     );
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
   }
   return NextResponse.json({ ok: true });
 }
@@ -133,6 +134,6 @@ export async function PATCH(
     return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   const { error } = await admin.from('quest_claims').update({ status: 'rewarded' }).eq('id', claimId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ ok: true });
 }

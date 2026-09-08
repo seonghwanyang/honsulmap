@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { businessDayStart } from '@/lib/tableDay';
@@ -121,7 +122,7 @@ export async function POST(
     })
     .select('id, seat_label, title, artist, status, created_at')
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   return NextResponse.json({ song }, { status: 201 });
 }

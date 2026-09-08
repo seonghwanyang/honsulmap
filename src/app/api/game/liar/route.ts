@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { LIAR_TOPICS } from '@/app/t/[slug]/gamesData';
 
@@ -21,8 +22,8 @@ function friendly(error: unknown) {
         ? String((error as { message: unknown }).message)
         : String(error);
   if (msg.includes('does not exist') || msg.includes('Could not find the table'))
-    return NextResponse.json({ error: '게임이 아직 준비 중이에요. 잠시 후 다시 시도해주세요.' }, { status: 503 });
-  return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(error, { status: 503, message: '게임이 아직 준비 중이에요. 잠시 후 다시 시도해주세요.' });
+  return serverError(error, { message: msg });
 }
 
 async function loadRoom(code: string) {
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
         await admin.from('game_rooms').update({ host_player: player.id }).eq('id', room.id);
         return NextResponse.json({ code, player_id: player.id }, { status: 201 });
       }
-      return NextResponse.json({ error: '방 코드를 만들지 못했어요. 다시 시도해주세요.' }, { status: 500 });
+      return serverError('방 코드를 만들지 못했어요. 다시 시도해주세요.');
     }
 
     // ── 이하 액션은 방이 필요 ──

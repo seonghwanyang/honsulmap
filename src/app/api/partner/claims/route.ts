@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { genClaimCode } from '@/lib/claimCode';
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
   const { error } = await admin
     .from('spot_claims')
     .insert({ spot_id, user_id: user.id, role, evidence: evidence || null, verification_code });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   return NextResponse.json({ ok: true, code: verification_code }, { status: 201 });
 }

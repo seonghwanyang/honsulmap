@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -23,7 +24,7 @@ export async function DELETE() {
 
   // 계정(auth) 삭제 — 핵심.
   const { error } = await admin.auth.admin.deleteUser(uid);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   await sb.auth.signOut().catch(() => {});
   return NextResponse.json({ ok: true });

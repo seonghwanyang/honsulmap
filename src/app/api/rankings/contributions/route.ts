@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase } from '@/lib/supabase';
 
 export async function GET() {
@@ -21,7 +22,7 @@ export async function GET() {
     .gte('created_at', thirtyDaysAgo);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error);
   }
 
   // Aggregate by nickname

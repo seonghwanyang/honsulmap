@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createServerSupabase } from '@/lib/supabase/server';
 
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
     );
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error);
   }
   return NextResponse.json({ ok: true });
 }

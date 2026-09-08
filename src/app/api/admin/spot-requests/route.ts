@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertAdmin } from '@/lib/adminAuth';
 
@@ -16,6 +17,6 @@ export async function GET(request: NextRequest) {
   if (status) query = query.eq('status', status);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json(data || []);
 }

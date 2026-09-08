@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isTableTester } from '@/lib/tableTesters';
@@ -133,7 +134,7 @@ export async function PATCH(
       { spot_id: id, ...patch, updated_at: new Date().toISOString() },
       { onConflict: 'spot_id' },
     );
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ ok: true });
 }
 
@@ -186,11 +187,11 @@ export async function PUT(
       { spot_id: id, ...(enabled !== undefined ? { enabled } : {}), updated_at: new Date().toISOString() },
       { onConflict: 'spot_id' },
     );
-  if (cfgErr) return NextResponse.json({ error: cfgErr.message }, { status: 500 });
+  if (cfgErr) return serverError(cfgErr);
 
   // 전량 교체 (zones CASCADE가 seats까지 정리)
   const { error: delErr } = await admin.from('store_zones').delete().eq('spot_id', id);
-  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+  if (delErr) return serverError(delErr);
 
   for (let i = 0; i < zones.length; i++) {
     const z = zones[i];
@@ -199,7 +200,7 @@ export async function PUT(
       .insert({ spot_id: id, name: z.name.trim(), grid_rows: z.grid_rows, grid_cols: z.grid_cols, sort: i })
       .select('id')
       .single();
-    if (zErr) return NextResponse.json({ error: zErr.message }, { status: 500 });
+    if (zErr) return serverError(zErr);
 
     if (z.seats.length) {
       const { error: sErr } = await admin.from('store_seats').insert(
@@ -212,7 +213,7 @@ export async function PUT(
           seat_type: s.seat_type,
         })),
       );
-      if (sErr) return NextResponse.json({ error: sErr.message }, { status: 500 });
+      if (sErr) return serverError(sErr);
     }
   }
 

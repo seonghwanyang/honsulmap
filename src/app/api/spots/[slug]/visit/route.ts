@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logUserSpotEvent } from '@/lib/userSpotEvent';
 
@@ -41,7 +42,7 @@ export async function POST(
     .insert({ spot_id: spot.id, fingerprint: fingerprint ?? null });
 
   if (insertError) {
-    return NextResponse.json({ ok: false }, { status: 500 });
+    return serverError(insertError, { body: { ok: false } });
   }
   await logUserSpotEvent('visit', spot.id);
 

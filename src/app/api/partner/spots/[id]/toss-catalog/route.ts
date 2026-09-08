@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isTableTester } from '@/lib/tableTesters';
@@ -50,7 +51,7 @@ export async function GET(
   if (!mid) return NextResponse.json({ connected: false, categories: [] });
 
   const raw = await tossFetchAll<TossCatalogItem>(`/merchants/${mid}/catalog/items`);
-  if (!raw) return NextResponse.json({ error: '토스에서 메뉴를 불러오지 못했어요.' }, { status: 502 });
+  if (!raw) return serverError('토스에서 메뉴를 불러오지 못했어요.', { status: 502 });
 
   const sellable = raw.filter((it) => it.enabled && it.state === 'ON_SALE' && (it.price?.priceValue ?? 0) > 0);
   const catMap = new Map<string, { name: string; order: number; items: { name: string; price: number; description: string | null; order: number }[] }>();

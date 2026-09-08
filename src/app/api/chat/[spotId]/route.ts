@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     )
     .select(ROOM_COLS)
     .single<Room>();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   return NextResponse.json({ room }, { status: 201 });
 }
@@ -113,7 +114,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .eq('spot_id', spotId)
     .select(ROOM_COLS)
     .maybeSingle<Room>();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   if (!room) return NextResponse.json({ error: '아직 개설되지 않은 방이에요.' }, { status: 404 });
 
   return NextResponse.json({ room });

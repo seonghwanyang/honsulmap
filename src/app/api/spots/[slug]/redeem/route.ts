@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { haversineMeters } from '@/lib/utils';
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         { status: 409 },
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error);
   }
 
   // 자동 체크인 — 체크인은 버튼이 아니라 부산물 (playbook §1.2).

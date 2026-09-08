@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase } from '@/lib/supabase';
 import type { Region, SpotCategory } from '@/lib/types';
 
@@ -27,10 +28,10 @@ export async function GET(request: NextRequest) {
   const [spotsRes, storiesRes] = await Promise.all([spotsQuery, storiesQuery]);
 
   if (spotsRes.error) {
-    return NextResponse.json({ error: spotsRes.error.message }, { status: 500 });
+    return serverError(spotsRes.error);
   }
   if (storiesRes.error) {
-    return NextResponse.json({ error: storiesRes.error.message }, { status: 500 });
+    return serverError(storiesRes.error);
   }
 
   const storiesBySpot = new Map<string, typeof storiesRes.data>();

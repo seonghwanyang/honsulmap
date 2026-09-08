@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase } from '@/lib/supabase';
 
 const PAGE_SIZE = 50;
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query.range(offset, offset + PAGE_SIZE - 1);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error);
   }
 
   return NextResponse.json(data || [], {

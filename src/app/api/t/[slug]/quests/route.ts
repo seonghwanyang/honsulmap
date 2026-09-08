@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 // 손님 퀘스트 — 활성 퀘스트 목록(+내 달성 상태) 조회, "달성했어요" 신고.
@@ -83,7 +84,7 @@ export async function POST(
   if (error) {
     if (error.code === '23505')
       return NextResponse.json({ error: '이미 달성 처리된 퀘스트예요.' }, { status: 409 });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error);
   }
   return NextResponse.json({ ok: true }, { status: 201 });
 }

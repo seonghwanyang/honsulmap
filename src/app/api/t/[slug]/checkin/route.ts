@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createHash } from 'crypto';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
@@ -234,7 +235,7 @@ export async function POST(
       .from('table_sessions')
       .update({ seat_id: seat.id })
       .eq('id', mine.id);
-    if (mvErr) return NextResponse.json({ error: mvErr.message }, { status: 500 });
+    if (mvErr) return serverError(mvErr);
 
     // 사장님 보드 알림 ₩0 카드 — 서빙 동선 안내 (move 라우트와 동일 포맷)
     const { data: evt } = await admin
@@ -284,7 +285,7 @@ export async function POST(
     .select(PROFILE_FIELDS)
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   // "포스로 먼저 주문 → 나중에 체크인" 승계 — 이 좌석에 보류 중인 포스 주문을 새 세션에 귀속
   await claimPendingPosOrders(admin, spot.id, seat.label, created.id);
   const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);

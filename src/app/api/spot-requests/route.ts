@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { VALID_REGIONS } from '@/lib/types';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
   ]);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error);
   }
 
   return NextResponse.json({ ok: true }, { status: 201 });
