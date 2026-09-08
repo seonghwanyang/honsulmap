@@ -114,13 +114,14 @@ export async function GET(request: NextRequest) {
       seat_label: /^\d$/.test(o.seat_label) ? `0${o.seat_label}` : o.seat_label,
       created_at: o.created_at,
       total: o.total,
-      // 합류 하한선 — 이 손님 체크인 30분 전 이후에 열린 계산서에만 addMenu 허용.
-      // 실측 사고(9/9 01:24 좌석11): 어제 미마감 계산서가 테이블에 남아 있으면 플러그인이
-      // 그리로 합류해 전표도 테이블 표시도 없이 증발한 것처럼 보임. 구형 플러그인은 무시.
+      // 합류 커트라인 — 이 손님 "체크인 이후"에 열린 계산서에만 addMenu 허용 (시계 오차
+      // 대비 2분만 완충). 30분 여유를 두면 직전 손님의 미결제 계산서(예: 1:00 개시)에
+      // 1:10 체크인한 새 손님이 합류하는 충돌이 생김 — 유저 지적으로 조임.
+      // 체크인 전 직원 선입력 케이스는 합류 대신 현황행 폴백으로 도달 (전표 보장).
       joinable_after: (() => {
         const s = o.session as { checked_in_at?: string } | { checked_in_at?: string }[] | null;
         const at = Array.isArray(s) ? s[0]?.checked_in_at : s?.checked_in_at;
-        return at ? new Date(new Date(at).getTime() - 30 * 60000).toISOString() : undefined;
+        return at ? new Date(new Date(at).getTime() - 2 * 60000).toISOString() : undefined;
       })(),
       items: o.items.map((it) => ({ name: it.item_name, price: it.price, qty: it.qty, request: it.request })),
     }));
