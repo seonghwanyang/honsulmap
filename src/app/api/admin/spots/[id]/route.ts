@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertAdmin } from '@/lib/adminAuth';
 import { VALID_REGIONS } from '@/lib/types';
@@ -70,7 +71,7 @@ export async function PATCH(
     if ((error as { code?: string }).code === '23505') {
       return NextResponse.json({ error: '이미 존재하는 slug입니다.' }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error);
   }
   return NextResponse.json(data);
 }
@@ -84,6 +85,6 @@ export async function DELETE(
 
   const { id } = await params;
   const { error } = await supabaseAdmin().from('spots').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ ok: true });
 }

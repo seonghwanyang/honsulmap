@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertAdmin } from '@/lib/adminAuth';
 
@@ -176,6 +177,6 @@ export async function GET(request: NextRequest) {
       groups,
     });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'query failed' }, { status: 500 });
+    return serverError(e, { fallback: 'query failed' });
   }
 }

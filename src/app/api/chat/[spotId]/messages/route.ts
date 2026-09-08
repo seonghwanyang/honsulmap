@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (before) q = q.lt('created_at', before);
 
   const { data: rows, error } = await q;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   const list = (rows ?? []) as Row[];
   const profiles = await loadProfiles(admin, [...new Set(list.map((r) => r.user_id))]);
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .insert({ spot_id: spotId, user_id: user.id, body: text })
     .select('id, spot_id, user_id, body, is_deleted, created_at')
     .single<Row>();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   const { data: prof } = await admin
     .from('user_profiles')

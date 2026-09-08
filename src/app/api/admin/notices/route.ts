@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertAdmin } from '@/lib/adminAuth';
 
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
     .from('partner_notices')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ notices: data ?? [] });
 }
 
@@ -32,6 +33,6 @@ export async function POST(request: NextRequest) {
     .insert({ title, body: content, type })
     .select('*')
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ notice: data }, { status: 201 });
 }

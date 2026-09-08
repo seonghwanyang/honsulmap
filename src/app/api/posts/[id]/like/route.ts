@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // Post like toggle. Authoritative: delete ALL rows for this fingerprint on
@@ -37,7 +38,7 @@ export async function POST(
       .from('likes')
       .insert([{ target_type: 'post', target_id: id, fingerprint }]);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return serverError(error);
     }
   }
 

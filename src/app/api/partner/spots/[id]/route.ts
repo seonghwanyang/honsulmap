@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -114,6 +115,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .eq('id', id)
     .select('memo, business_hours, phone, benefit_title, benefit_detail, benefit_active, benefit_expires_at, redeem_pin')
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json(data);
 }

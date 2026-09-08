@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logUserSpotEvent } from '@/lib/userSpotEvent';
 import type { MoodVoteType } from '@/lib/types';
@@ -59,7 +60,7 @@ export async function POST(
       .from('mood_votes')
       .insert([{ spot_id: spot.id, vote: myVote, fingerprint }]);
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return serverError(insertError);
     }
   }
 

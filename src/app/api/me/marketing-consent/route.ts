@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 
 // 마케팅 수신 동의 상태 조회/갱신. 본인 것만 (RLS self) — 신원은 세션 쿠키.
@@ -35,7 +36,7 @@ export async function PUT(request: Request) {
       { user_id: user.id, opted_in, source, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' },
     );
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   return NextResponse.json({ opted_in });
 }

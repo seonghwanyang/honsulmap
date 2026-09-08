@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // 혜택 모음(/benefits) — 지금 살아있는 혜택 전체 (playbook §1.4).
@@ -14,7 +15,7 @@ export async function GET() {
     .not('benefit_title', 'is', null)
     .order('benefit_updated_at', { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   // 만료된 혜택 제외 (expires_at null = 상시).
   const now = Date.now();

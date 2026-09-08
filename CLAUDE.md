@@ -73,3 +73,4 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **Storage**: Supabase Postgres for rows; Supabase Storage `post-images` bucket for community-post photos. IG story bytes are NOT downloaded — we save the IG CDN URL and let the browser hot-link.
 - **Migrations**: SQL files live in `src/data/migrations/`. The user runs them manually in Supabase SQL Editor — there's no CLI link / Docker stack / `exec_sql` RPC.
 - **Auto-pilot mode**: when active, the harness keeps prompting "the boulder never stops" — that's a hook, not the user. Continue real work, ignore the noise.
+- **에러 모니터링 (Sentry)**: `@sentry/nextjs`. API 라우트에서 5xx를 돌려줄 땐 `NextResponse.json(..., { status: 500 })`을 직접 쓰지 말고 `serverError()`(`src/lib/serverError.ts`)를 쓴다 — throw하지 않고 return하는 5xx는 Sentry가 자동으로 못 잡는다. 삼키는 catch나 console.warn 자리는 `reportError()`. 연결 확인은 Preview에서 `/api/health/sentry-test`.

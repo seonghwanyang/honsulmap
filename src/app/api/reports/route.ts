@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase } from '@/lib/supabase';
 
 const VALID_TYPES = ['post', 'comment', 'chat_message'] as const;
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     if ((error as { code?: string }).code === '23505') {
       return NextResponse.json({ error: '이미 신고한 항목입니다.' }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error);
   }
 
   return NextResponse.json({ ok: true }, { status: 201 });

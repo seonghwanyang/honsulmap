@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 
 // 채팅 등에서 쓰는 표시 프로필(닉네임/프사) 조회·갱신. 본인 것만 (RLS self).
@@ -57,7 +58,7 @@ export async function PUT(request: Request) {
       { user_id: user.id, nickname, avatar_url, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' },
     );
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   return NextResponse.json({ nickname, avatar_url });
 }

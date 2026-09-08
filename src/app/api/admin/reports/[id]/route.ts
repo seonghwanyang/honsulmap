@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertAdmin } from '@/lib/adminAuth';
 
@@ -39,11 +40,11 @@ export async function PATCH(
         .from('chat_messages')
         .update({ is_deleted: true })
         .eq('id', report.target_id);
-      if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+      if (delErr) return serverError(delErr);
     } else {
       const table = report.target_type === 'post' ? 'posts' : 'comments';
       const { error: delErr } = await db.from(table).delete().eq('id', report.target_id);
-      if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+      if (delErr) return serverError(delErr);
     }
   }
 
@@ -58,6 +59,6 @@ export async function PATCH(
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json(data);
 }

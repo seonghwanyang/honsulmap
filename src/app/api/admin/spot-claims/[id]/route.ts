@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertAdmin } from '@/lib/adminAuth';
 import { genClaimCode } from '@/lib/claimCode';
@@ -36,7 +37,7 @@ export async function PATCH(
       .eq('id', id)
       .select()
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     return NextResponse.json(data);
   }
 
@@ -60,7 +61,7 @@ export async function PATCH(
         { spot_id: claim.spot_id, user_id: claim.user_id, role: claim.role },
         { onConflict: 'spot_id,user_id' },
       );
-    if (memErr) return NextResponse.json({ error: memErr.message }, { status: 500 });
+    if (memErr) return serverError(memErr);
   } else if (status === 'rejected') {
     // Revoke: ensure the claimant holds no membership for this spot. Covers
     // both rejecting a pending claim (no-op) and revoking an approved owner.
@@ -69,7 +70,7 @@ export async function PATCH(
       .delete()
       .eq('spot_id', claim.spot_id)
       .eq('user_id', claim.user_id);
-    if (memErr) return NextResponse.json({ error: memErr.message }, { status: 500 });
+    if (memErr) return serverError(memErr);
   }
 
   const { data, error } = await admin
@@ -78,7 +79,7 @@ export async function PATCH(
     .eq('id', id)
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json(data);
 }
 
@@ -106,6 +107,6 @@ export async function DELETE(
       .eq('user_id', claim.user_id);
   }
   const { error } = await admin.from('spot_claims').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ ok: true });
 }

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
+import { reportError, serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart } from '@/lib/tableDay';
 import { cancelStaleApiOrders } from '@/lib/tossplace';
@@ -15,6 +17,18 @@ export async function GET(request: NextRequest) {
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`)
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
+  // Sentry Cron Monitor — 매일 23:10 UTC(08:10 KST)에 체크인이 없거나 throw로 끝나면 메일.
+  // Turbopack 빌드라 automaticVercelMonitors(webpack 전용)를 못 써서 여기서 직접 감싼다.
+  // 5xx를 return하는 경로는 serverError()가 따로 보고한다.
+  return Sentry.withMonitor('day-close', runDayClose, {
+    schedule: { type: 'crontab', value: '10 23 * * *' },
+    checkinMargin: 10,
+    maxRuntime: 10,
+    timezone: 'Etc/UTC',
+  });
+}
+
+async function runDayClose() {
   const admin = supabaseAdmin();
   const now = new Date().toISOString();
   const todayStart = businessDayStart(); // 오늘 08:00 KST — 어제 영업분의 끝
@@ -62,7 +76,10 @@ export async function GET(request: NextRequest) {
         { onConflict: 'spot_id,business_day_start', ignoreDuplicates: true }, // 마감 버튼 스냅샷 보존
       )
       .then(({ error }) => {
-        if (error && error.code !== '42P01') console.warn('[cron day-close] stats', spotId, error.message);
+        if (error && error.code !== '42P01') {
+          console.warn('[cron day-close] stats', spotId, error.message);
+          reportError(error, { level: 'warning', extra: { where: 'day-close stats', spotId } });
+        }
       });
   }
 
@@ -73,7 +90,7 @@ export async function GET(request: NextRequest) {
     .lt('expires_at', now)
     .gte('checked_in_at', weekAgo)
     .select('id');
-  if (wipeErr) return NextResponse.json({ error: wipeErr.message }, { status: 500 });
+  if (wipeErr) return serverError(wipeErr);
 
   // ── 4) 지난 영업분 미완료 주문 자동 마감 — 수동 마감 버튼과 동일 규칙.
   // 보드 잔재 방지 (마감 버튼을 안 누른 가게도 아침이면 보드가 깨끗하게).

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase } from '@/lib/supabase';
 
 // Lightweight endpoint for the map page. Returns spot rows + each spot's
@@ -32,13 +33,13 @@ export async function GET() {
 
   const [spotsRes, latestRes, freshRes] = await Promise.all([spotsQuery, latestQuery, freshThumbQuery]);
   if (spotsRes.error) {
-    return NextResponse.json({ error: spotsRes.error.message }, { status: 500 });
+    return serverError(spotsRes.error);
   }
   if (latestRes.error) {
-    return NextResponse.json({ error: latestRes.error.message }, { status: 500 });
+    return serverError(latestRes.error);
   }
   if (freshRes.error) {
-    return NextResponse.json({ error: freshRes.error.message }, { status: 500 });
+    return serverError(freshRes.error);
   }
 
   const latestBySpot = new Map<string, string>();

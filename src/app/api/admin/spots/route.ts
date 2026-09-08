@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertAdmin } from '@/lib/adminAuth';
 import { VALID_REGIONS } from '@/lib/types';
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     sb.from('spot_visit_counts').select('spot_id, visits'),
   ]);
   if (spotsRes.error)
-    return NextResponse.json({ error: spotsRes.error.message }, { status: 500 });
+    return serverError(spotsRes.error);
 
   // Counts come pre-aggregated from DB views (one row per spot), so reading
   // the whole view never hits PostgREST's Max Rows cap. Aggregate functions
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
     if ((error as { code?: string }).code === '23505') {
       return NextResponse.json({ error: '이미 존재하는 slug입니다.' }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error);
   }
   return NextResponse.json(data, { status: 201 });
 }

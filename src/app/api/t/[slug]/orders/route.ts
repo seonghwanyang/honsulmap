@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { buildOpenApiOrderPayload, pushOrderToPos, tossMerchantId, tossPushMode } from '@/lib/tossplace';
@@ -133,7 +134,7 @@ export async function POST(
     }
   }
   const order = ins.data;
-  if (ins.error || !order) return NextResponse.json({ error: ins.error?.message ?? '주문 저장에 실패했어요.' }, { status: 500 });
+  if (ins.error || !order) return serverError(ins.error, { fallback: '주문 저장에 실패했어요.' });
 
   // 선물 항목(gift_target_seat)은 주방 전표·보드·포스 어디서든 보이게 요청 텍스트에 표기
   const itemReq = (it: OrderItemInput): string | null => {
@@ -162,7 +163,7 @@ export async function POST(
       };
     }),
   );
-  if (iErr) return NextResponse.json({ error: iErr.message }, { status: 500 });
+  if (iErr) return serverError(iErr);
 
   // ── 토스 포스 주입 (연동 가게 + 주입 권한 승인 시 자동 활성) ──
   // 실주문(가격>0)만 포스로. ₩0 서비스 요청은 보드 전용. 실패해도 우리 주문은 유효

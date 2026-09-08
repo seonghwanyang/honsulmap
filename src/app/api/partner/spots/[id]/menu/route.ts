@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isTableTester } from '@/lib/tableTesters';
@@ -91,7 +92,7 @@ export async function PUT(
   }
 
   const { error: delErr } = await admin.from('store_menu_categories').delete().eq('spot_id', id);
-  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+  if (delErr) return serverError(delErr);
 
   // 벌크 저장 — 카테고리 일괄 insert 후 반환 id를 순서대로 매핑해 아이템도 일괄 insert.
   // (기존 카테고리별 순차 왕복은 메뉴가 크면 수 초씩 걸렸다)
@@ -101,7 +102,7 @@ export async function PUT(
       .insert(categories.map((c, ci) => ({ spot_id: id, name: c.name.trim(), sort: ci })))
       .select('id');
     if (cErr || !cats || cats.length !== categories.length)
-      return NextResponse.json({ error: cErr?.message ?? '카테고리 저장에 실패했어요.' }, { status: 500 });
+      return serverError(cErr, { fallback: '카테고리 저장에 실패했어요.' });
 
     // image_url/options는 값이 하나라도 있을 때만 컬럼 포함 — 각 마이그레이션 전
     // 가게의 저장이 "없는 컬럼" 에러로 죽지 않게.
@@ -141,7 +142,7 @@ export async function PUT(
     );
     if (rows.length) {
       const { error: iErr } = await admin.from('store_menu_items').insert(rows);
-      if (iErr) return NextResponse.json({ error: iErr.message }, { status: 500 });
+      if (iErr) return serverError(iErr);
     }
   }
 

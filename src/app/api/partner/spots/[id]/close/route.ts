@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { reportError, serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart } from '@/lib/tableDay';
@@ -72,7 +73,10 @@ export async function POST(
       { onConflict: 'spot_id,business_day_start' },
     )
     .then(({ error: sErr }) => {
-      if (sErr && sErr.code !== '42P01') console.warn('[day-stats]', sErr.message);
+      if (sErr && sErr.code !== '42P01') {
+        console.warn('[day-stats]', sErr.message);
+        reportError(sErr, { level: 'warning', extra: { where: 'close day-stats', spotId: id } });
+      }
     });
 
   // 오늘 체크인한 세션 전체의 민감 프로필 익명화 (체크아웃돼 비활성인 것 포함)
@@ -81,7 +85,7 @@ export async function POST(
     .update({ mbti: null, purpose: null, vibe: null, tmi: null, drink_pref: null })
     .eq('spot_id', id)
     .gte('checked_in_at', dayStart);
-  if (wipeErr) return NextResponse.json({ error: wipeErr.message }, { status: 500 });
+  if (wipeErr) return serverError(wipeErr);
 
   const { data: closed, error } = await admin
     .from('table_sessions')
@@ -89,7 +93,7 @@ export async function POST(
     .eq('spot_id', id)
     .eq('active', true)
     .select('id');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   // 미완료 주문도 함께 마감 처리 — 세션만 닫히고 주문(new/accepted)이 보드에 남아
   // "마감해도 이전 게 남는다"던 문제. done으로 마감(집계엔 유효 매출로 이미 반영됨).

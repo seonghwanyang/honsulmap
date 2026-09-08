@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase } from '@/lib/supabase';
 
 // Spots that posted a fresh IG story in the last 24h. Returns one row
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
   const { data: stories, error: storiesError } = await storiesQ;
 
   if (storiesError) {
-    return NextResponse.json({ error: storiesError.message }, { status: 500 });
+    return serverError(storiesError);
   }
 
   const seen = new Set<string>();
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     .in('id', orderedSpotIds);
 
   if (spotsError) {
-    return NextResponse.json({ error: spotsError.message }, { status: 500 });
+    return serverError(spotsError);
   }
 
   const spotById = new Map((spots || []).map((s) => [s.id, s]));

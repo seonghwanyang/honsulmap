@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // Comment like toggle. Same authoritative pattern as posts: delete-all on
@@ -36,7 +37,7 @@ export async function POST(
       .from('likes')
       .insert([{ target_type: 'comment', target_id: id, fingerprint }]);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return serverError(error);
     }
   }
 

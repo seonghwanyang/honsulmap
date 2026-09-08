@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart, sessionExpiry } from '@/lib/tableDay';
@@ -170,7 +171,7 @@ export async function PATCH(
       is_public: false,
       expires_at: sessionExpiry(),
     });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     return NextResponse.json({ ok: true });
   }
 
@@ -182,7 +183,7 @@ export async function PATCH(
       .eq('spot_id', id)
       .eq('seat_id', body.end_seat_session)
       .eq('active', true);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     return NextResponse.json({ ok: true });
   }
 
@@ -196,6 +197,6 @@ export async function PATCH(
     .update({ status })
     .eq('id', orderId)
     .eq('spot_id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ ok: true });
 }

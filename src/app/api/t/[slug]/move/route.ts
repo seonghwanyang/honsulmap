@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverError';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 
@@ -72,7 +73,7 @@ export async function POST(
     .from('table_sessions')
     .update({ seat_id: target.id })
     .eq('id', session.id);
-  if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+  if (upErr) return serverError(upErr);
 
   // 보드 알림용 ₩0 이벤트 주문 — 서비스 요청 섹션에 "자리 이동" 카드로 뜬다
   const { data: evt } = await admin
