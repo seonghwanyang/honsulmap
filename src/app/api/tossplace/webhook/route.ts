@@ -129,7 +129,10 @@ export async function POST(request: NextRequest) {
             .update({ status: newStatus })
             .in('id', idList)
             .in('status', ['new', 'accepted']);
-          if (newStatus === 'done') {
+          // 완료(결제)든 취소든 "계산서가 닫힌 것" — 그 세션에 살아있는 주문이 없으면 좌석을
+          // 비운다. 기존엔 done만 비워서 포스 "테이블 취소" 시 혼술맵 체크인이 남았음
+          // (실측: 9/9 03시 좌석1). 일부 주문만 취소된 경우는 remain 가드가 좌석을 지킨다.
+          {
             const sessions = [...new Set(ours.map((o) => o.session_id).filter(Boolean))] as string[];
             for (const sid of sessions) {
               const { data: remain } = await admin
