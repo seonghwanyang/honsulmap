@@ -50,10 +50,10 @@ export async function GET(
       .gte('created_at', businessDayStart())
       .order('created_at', { ascending: false })
       .limit(200),
-    // 미니 좌석맵용 점유 현황 — 활성 세션의 좌석 id
+    // 미니 좌석맵용 점유 현황 — 활성 세션의 좌석 id + 방문 횟수 산출용 게스트 키
     admin
       .from('table_sessions')
-      .select('seat_id')
+      .select('seat_id, phone4_hash')
       .eq('spot_id', id)
       .eq('active', true)
       .gt('expires_at', new Date().toISOString()),
@@ -105,10 +105,27 @@ export async function GET(
     seatTotals[o.seat_label] = (seatTotals[o.seat_label] ?? 0) + (o.total ?? 0);
   }
 
+  // 좌석별 누적 방문 일수 — 체크인 손님이 몇 번째 방문인지 미니 좌석맵에 표시 (단골 신호).
+  // 직원 수동 세팅 세션(staff:*)은 방문 기록이 없어 자연히 미표시.
+  const seatVisits: Record<string, number> = {};
+  const occRows = (occ ?? []) as { seat_id: string; phone4_hash?: string | null }[];
+  const guestKeys = [...new Set(occRows.map((s) => s.phone4_hash).filter(Boolean))] as string[];
+  if (guestKeys.length) {
+    const { data: visits } = await admin
+      .from('spot_checkin_visits')
+      .select('guest_key')
+      .eq('spot_id', id)
+      .in('guest_key', guestKeys);
+    const byKey = new Map<string, number>();
+    for (const v of visits ?? []) byKey.set(v.guest_key, (byKey.get(v.guest_key) ?? 0) + 1);
+    for (const s of occRows) if (s.phone4_hash && byKey.has(s.phone4_hash)) seatVisits[s.seat_id] = byKey.get(s.phone4_hash)!;
+  }
+
   return NextResponse.json({
     orders: list,
     seat_totals: seatTotals,
-    occupied_seat_ids: (occ ?? []).map((s) => s.seat_id),
+    occupied_seat_ids: occRows.map((s) => s.seat_id),
+    seat_visits: seatVisits,
     pos_orders: posOrders,
     toss_connected: !!mid,
   });
