@@ -138,7 +138,16 @@ export async function POST(
 
   const body = await request.json().catch(() => ({}));
   const seatLabel = typeof body.seat_label === 'string' ? body.seat_label.trim() : '';
-  const deviceId = typeof body.device_id === 'string' ? body.device_id.trim() : '';
+  // 기기 식별 이중화 — 사파리 ITP가 JS 저장소(localStorage)를 7일 미상호작용 시 지울 수
+  // 있어, 서버 발급 쿠키(1년)를 우선 사용. 쿠키가 살아 있으면 폰이 저장소를 비워도 같은
+  // 기기로 인식 → 재방문 카운트·QR 재스캔 자리이동이 안 끊긴다.
+  const cookieDid = request.cookies.get('hsm_did')?.value ?? '';
+  const bodyDid = typeof body.device_id === 'string' ? body.device_id.trim() : '';
+  const deviceId = cookieDid && cookieDid.length <= 80 ? cookieDid : bodyDid;
+  const attachDid = (res: NextResponse) => {
+    res.cookies.set('hsm_did', deviceId, { maxAge: 31536000, path: '/', sameSite: 'lax', secure: true, httpOnly: true });
+    return res;
+  };
   const social = (config.modes as { social?: boolean } | null)?.social !== false;
 
   if (!seatLabel) return NextResponse.json({ error: '좌석 번호를 입력해주세요.' }, { status: 400 });
@@ -191,7 +200,7 @@ export async function POST(
     } else if (existing.phone4_hash === phoneHash) {
       const { phone4_hash: _omit, ...pub } = existing;
       const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);
-      return NextResponse.json({ session: { ...pub, seat_label: seat.label, visit_count: visitCount } });
+      return attachDid(NextResponse.json({ session: { ...pub, seat_label: seat.label, visit_count: visitCount } }));
     } else {
       // "체크인만 하고(주문 0건) 사라진" 점유 — 새 기기가 이 좌석 QR을 실제로 찍었다면
       // 물리적으로 재점유된 것이니 즉시 교체 (잃을 게 없어 대기 조건 없음 — 유저 결정).
@@ -255,15 +264,17 @@ export async function POST(
     // 이동해 간 좌석에 보류 중인 포스 주문이 있으면 이 세션으로 승계
     await claimPendingPosOrders(admin, spot.id, seat.label, mine.id);
     const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);
-    return NextResponse.json({
-      session: {
-        ...mine,
-        seat_id: seat.id,
-        seat_label: seat.label,
-        visit_count: visitCount,
-        moved_from: oldSeat?.label ?? null,
-      },
-    });
+    return attachDid(
+      NextResponse.json({
+        session: {
+          ...mine,
+          seat_id: seat.id,
+          seat_label: seat.label,
+          visit_count: visitCount,
+          moved_from: oldSeat?.label ?? null,
+        },
+      }),
+    );
   }
 
   const { data: created, error } = await admin
@@ -289,8 +300,10 @@ export async function POST(
   // "포스로 먼저 주문 → 나중에 체크인" 승계 — 이 좌석에 보류 중인 포스 주문을 새 세션에 귀속
   await claimPendingPosOrders(admin, spot.id, seat.label, created.id);
   const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);
-  return NextResponse.json(
-    { session: { ...created, seat_label: seat.label, visit_count: visitCount } },
-    { status: 201 },
+  return attachDid(
+    NextResponse.json(
+      { session: { ...created, seat_label: seat.label, visit_count: visitCount } },
+      { status: 201 },
+    ),
   );
 }
