@@ -212,9 +212,32 @@ export async function POST(
         .gt('total', 0)
         .limit(1);
       if (anyOrder?.length) {
-        // 토큰 기반 자동 이어받기는 롤백 (유저 결정) — 좌석 토큰은 "그 자리에 있다"는
-        // 증명일 뿐 "같은 사람" 증명이 아니라, 다음 손님이 이전 손님 세션·계산서를
-        // 물려받는 구멍이 됨. 주문 있는 점유는 무조건 직원 확인.
+        // 주문 있는 점유 + 실물 QR 토큰 유효 = 그 자리에 앉은 사람. 단 토큰은 "자리 증명"
+        // 이지 "본인 증명"이 아니라 자동 승계는 금지 — "본인 주문인가요?" 확인(resume=true)을
+        // 거친 뒤에만 이어받는다 (시크릿 모드로 기억 끊긴 본인 복귀용). 이 질문은 충돌
+        // 케이스에만 뜨고 일반 손님은 볼 일 없음. 토큰 없으면(원격·구스티커) 무조건 409.
+        const expectedTok = seatQrToken(spot.id, seat.label);
+        const gotTok = typeof body.seat_token === 'string' ? body.seat_token : '';
+        if (expectedTok && gotTok === expectedTok) {
+          if (body.resume === true) {
+            await admin.from('table_sessions').update({ phone4_hash: phoneHash }).eq('id', existing.id);
+            // 방문 기록도 새 기기 키로 이관 (실패 무시 — 카운트만 살짝 갈라질 뿐)
+            await admin
+              .from('spot_checkin_visits')
+              .update({ guest_key: phoneHash })
+              .eq('spot_id', spot.id)
+              .eq('guest_key', existing.phone4_hash);
+            const { phone4_hash: _omit2, ...pub } = existing;
+            const visitCount = await recordVisit(admin, spot.id, phoneHash, authUserId);
+            return attachDid(
+              NextResponse.json({ session: { ...pub, seat_label: seat.label, visit_count: visitCount } }),
+            );
+          }
+          return NextResponse.json(
+            { error: '이 좌석은 이미 사용 중이에요.', can_resume: true },
+            { status: 409 },
+          );
+        }
         return NextResponse.json(
           { error: '이 좌석은 이미 사용 중이에요. 직원에게 문의해주세요.' },
           { status: 409 },
