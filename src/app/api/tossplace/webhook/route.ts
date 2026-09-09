@@ -107,6 +107,24 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // 자리이동 레이스 가드 — 이동은 "새 테이블 재생성 → 원 주문 취소" 순서라, 원 주문의
+      // 취소 웹훅이 remap ack보다 먼저 도착할 수 있다 (실측 9/10 00:58 좌석10: 1초 차로
+      // 세션이 오폭 체크아웃됨). 같은 UUID의 "-mv" 재생성 주문(created)이 직전에 있으면
+      // 이 취소는 이동 부산물 → 완결 대상에서 제외. 단, 취소된 키 자체가 -mv로 끝나면
+      // 재생성분의 진짜 취소이므로 가드를 건너뛴다.
+      if (ids.size && eventType === 'order.order.cancelled.v1' && !/-(mv)+$/.test(rawKey.split('_').pop() ?? '')) {
+        for (const uuid of [...ids]) {
+          const { data: mv } = await admin
+            .from('tossplace_events')
+            .select('id')
+            .eq('event_type', 'order.order.created.v1')
+            .gte('created_at', new Date(Date.now() - 10 * 60000).toISOString())
+            .like('payload->data->>orderKey', `%${uuid}-mv%`)
+            .limit(1);
+          if (mv?.length) ids.delete(uuid);
+        }
+      }
+
       // 자리이동 가드 — 이동은 "새 테이블 재생성 + 옛 주문 취소"로 구현되는데, 옛 주문의
       // 취소 웹훅이 이동된 우리 주문을 진짜 취소로 오인하면 안 된다. 최신 ack(added/remap)의
       // toss_order_id가 이 웹훅의 포스 주문과 다르면 이미 딴 주문으로 이관된 것 → 제외.
