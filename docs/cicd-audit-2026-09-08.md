@@ -14,6 +14,8 @@
 
 가장 아픈 증거는 지난주 커밋 `655f41b`다. 8/31 마이그레이션에서 테이블 이름 충돌로 체크인 방문 기록이 **전량 실패했는데 9/7까지 일주일간 아무도 몰랐다.** 마이그레이션 검증 부재 + 에러 수집 부재 + 알림 부재가 한 번에 드러난 사례다.
 
+> **09-10 갱신**: Sentry가 프로덕션에 가동됐다 (`c73f7dc`, main 머지 `389586b`). 점수표 9·10·11번이 바뀌었고, 상세는 10.13·10.18. 테스트·CI·마이그레이션 항목은 아직 그대로다.
+
 ---
 
 ## 1. 점수표
@@ -28,9 +30,9 @@
 | 6 | CI 워크플로 | 🔴 없음 | Actions에 수동 실행용 프로브 1개뿐 |
 | 7 | 웹 배포 자동화 | 🟢 동작 | Vercel Git 연동. main→Production, dev→Preview, 약 45초 |
 | 8 | 프리뷰/스테이징 환경 | 🟡 반쪽 | Preview가 프로덕션 DB + service role 키를 그대로 공유 |
-| 9 | 서버 에러 수집 | 🔴 없음 | `console.error`만 16곳. Vercel 로그로 흘러가고 짧게 보관된 뒤 사라짐 |
-| 10 | 클라이언트 에러 수집 | 🟡 수집만 | 자체 로거가 DB 테이블에 쌓지만 읽는 화면·알림이 없음 |
-| 11 | 장애/크론/스크래퍼 알림 | 🔴 없음 | 어느 컴포넌트도 실패를 사람에게 알리지 않음 |
+| 9 | 서버 에러 수집 | 🟢 Sentry (09-10) | throw는 자동, 5xx return 92곳은 `serverError()`로 보고. 소스맵은 토큰 등록 후 |
+| 10 | 클라이언트 에러 수집 | 🟢 Sentry (09-10) | 브라우저·앱 웹뷰 자동 수집. 터널 경유 수신 확인됨 |
+| 11 | 장애/크론/스크래퍼 알림 | 🟡 절반 | Sentry 새 이슈 메일 + `day-close` 크론 모니터 가동. 스크래퍼는 `/api/health/scraper` 배포됨, UptimeRobot 등록만 남음 |
 | 12 | 업타임 감시 | 🟡 있음, 점검 필요 | UptimeRobot 모니터가 예전에 등록돼 있음 (09-09 확인). 감시 URL이 `/api/health`인지, 알림 메일이 살아 있는지 점검 |
 | 13 | DB 마이그레이션 관리 | 🔴 수동 | SQL 59개를 SQL Editor에서 손으로 실행. 적용 이력 테이블 없음 |
 | 14 | 의존성 보안 | 🟡 방치 | `npm audit` 18건(critical 1·high 12). Next 16.2.9에 패치된 취약점 9건. Dependabot OFF |
@@ -291,7 +293,8 @@ PR 밖에서 클릭으로 할 것: Dependabot ON, main 보호 규칙, UptimeRobo
 
 **확인·확정된 것**
 
-- **Sentry 도입 확정** (09-09). 가입·프로젝트 생성·DSN 발급은 사용자, 코드는 Claude. 계획은 10.13.
+- **Sentry 도입 확정** (09-09) → **프로덕션 가동** (09-10, `389586b`). 남은 건 토큰·org·project를 Vercel env에 넣는 것. 10.13.
+- Preview는 Vercel 로그인 벽 뒤 (09-10 발견). dev 도메인을 Deployment Protection 예외에 넣어야 폰 확인이 된다. 10.18.
 - UptimeRobot은 예전에 등록돼 있었다 (09-09 정정. 08일엔 없다고 알았음). Phase 0에서 설정만 점검한다. 10.14.
 - Vercel은 Pro 플랜 (09-09). 런타임 로그 1일 보관. 그래도 알림 기능은 없어 Sentry는 여전히 필요하다.
 - Next 패치와 `npm audit fix`는 테스트를 기다리지 않고 먼저 한다 (09-09). dev Preview에서 지도·체크인·주문을 눌러본 뒤 머지.
@@ -581,6 +584,14 @@ dev DB를 별도 Supabase 프로젝트로 만들면 그 프로젝트의 Auth에�
 
 **남은 것 (사용자)**: Sentry 조직 설정에서 Auth Token 생성 → Vercel 환경변수 `SENTRY_AUTH_TOKEN`·`SENTRY_ORG`·`SENTRY_PROJECT`(Production·Preview). 이게 들어가야 스택이 원본 줄 번호로 보인다. 없어도 에러 수집·알림은 된다.
 
+**09-10 프로덕션 가동 확인**
+- 다른 세션이 dev를 main에 머지(`389586b`)해 Sentry 커밋 `c73f7dc`가 **이미 프로덕션에 올라갔다.** 로컬 빌드(73초)와 Vercel 빌드 모두 통과. 빌드 로그에 "No auth token" 경고만 있고 이는 토큰 등록 전이라 예상된 것.
+- `https://honsulmap.com/api/health/scraper` → 200, `age_sec: 1`. 스크래퍼가 1초 전에 수집한 상태. UptimeRobot에 이 주소를 넣으면 끝.
+- `https://honsulmap.com/api/health/sentry-test` → 404. 프로덕션에서는 의도대로 막힘.
+- 터널 `https://honsulmap.com/monitoring`으로 테스트 이벤트를 보내 Sentry 수신 확인 (event id `8741920c…`). Sentry Issues에 "honsulmap sentry connectivity test (tunnel)"이 보이면 그게 이 테스트다. 지워도 된다.
+- Auth Tokens 화면을 못 찾을 때: 주소창에 직접 `https://sentry.io/settings/<조직슬러그>/auth-tokens/` 또는 개인 토큰 `https://sentry.io/settings/account/api/auth-tokens/`. 둘 중 아무거나 되고, 권한은 `project:releases`·`project:write`·`org:read`.
+- 플랫폼은 Next.js가 맞다. 앱은 honsulmap.com을 웹뷰로 열기 때문에 같은 브라우저 SDK가 앱 안에서도 돈다. `@sentry/capacitor`는 자바·스위프트 네이티브 크래시용인데 네이티브 코드가 거의 없어 지금은 불필요.
+
 **기존 Sentry 계정이 있을 때** (09-09 질문)
 - 조직을 지우고 새로 만들 필요 없다. 같은 조직 안에 프로젝트만 하나 더 만들면 DSN·이슈·알림이 전부 프로젝트 단위로 분리된다.
 - 무료 할당량(에러 월 5천)은 **조직 단위로 합산**된다. 옛 앱이 지금도 어딘가에 배포돼 에러를 보내고 있으면 혼술맵 몫을 갉아먹는다. 조직 Stats 화면에서 최근 30일 이벤트가 0이면 그냥 두고, 아니면 그 프로젝트를 삭제한다. 안 쓰는 프로젝트는 지워도 되고 두어도 된다. 이벤트가 안 오면 비용도 할당량도 안 든다.
@@ -631,6 +642,15 @@ dev DB를 별도 Supabase 프로젝트로 만들면 그 프로젝트의 Auth에�
 - **dev 도메인 + 지금 Supabase 프로젝트 그대로** (당장 할 것): 카카오·구글 콘솔은 안 건드린다. 로그인 콜백 주소가 지금 프로젝트의 `*.supabase.co`라 이미 등록돼 있다. Supabase Redirect URLs에 dev 도메인만 추가.
 - **별도 Supabase 프로젝트** (테스트 DB 겸 Preview DB, 나중): 프로젝트 ref가 다르니 콜백 주소도 달라진다. 새 프로젝트 Auth에서 카카오·구글 제공자를 켜고 같은 클라이언트 ID·시크릿을 넣은 뒤, 새 콜백 `https://<새 ref>.supabase.co/auth/v1/callback`을 카카오 개발자 콘솔 Redirect URI와 구글 클라우드 콘솔에 한 번 추가한다. 10분, 1회.
 - **한 프로젝트 안에 테스트용 스키마를 따로 두는 방법**도 있지만 권하지 않는다. Auth는 공유돼 OAuth 등록은 안 해도 되나, 마이그레이션 59개·뷰·함수·RLS·Realtime 설정을 전부 스키마 두 벌로 관리해야 해서 사고 확률이 더 높다.
+
+### 10.18 Preview 배포는 Vercel 로그인 벽 뒤에 있다 (09-10 발견)
+dev 브랜치 Preview 주소(`honsulmap-git-dev-….vercel.app`)를 열면 사이트가 아니라 **Vercel 로그인 페이지**가 나온다. Pro 플랜의 Deployment Protection(Vercel Authentication)이 Preview에 기본으로 켜져 있어서다. 즉 폰으로 Preview를 보려면 그 폰 브라우저가 Vercel에 로그인돼 있어야 했고, 로그인 리다이렉트 문제와 겹쳐 "main에 올려서 확인"하는 습관이 생긴 두 번째 원인이다.
+
+해결 (둘 중 하나, 클릭만):
+- Vercel → 프로젝트 Settings → Deployment Protection → **Deployment Protection Exceptions**에 `dev.honsulmap.com` 추가 (Pro 기능, 도메인을 만든 뒤). 다른 Preview 주소는 계속 보호되고 dev 도메인만 열린다. **추천.**
+- 또는 Vercel Authentication 자체를 Preview에서 끄기. 모든 Preview 주소가 공개되므로 덜 권장.
+
+E2E나 외부 감시가 Preview를 쳐야 할 땐 같은 화면의 **Protection Bypass for Automation** 시크릿을 만들어 헤더 `x-vercel-protection-bypass`로 넘기면 된다. 지금은 없다.
 
 ### 10.17 스킬은 언제 실행되나
 - 세션이 시작될 때 Claude는 스킬의 **이름과 한 줄 설명만** 목록으로 받는다. 본문은 그때 읽지 않는다.
