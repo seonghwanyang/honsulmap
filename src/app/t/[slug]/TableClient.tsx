@@ -1260,8 +1260,10 @@ function CheckinSheet({
   const [isPublic, setIsPublic] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  // 체크인된 자리에 새 기기가 들어온 충돌 케이스에만 뜨는 승계 확인 (일반 손님은 볼 일 없음)
+  const [resumeAsk, setResumeAsk] = useState(false);
 
-  const submit = async () => {
+  const submit = async (resume?: boolean) => {
     setErr('');
     setBusy(true);
     const res = await fetch(`/api/t/${slug}/checkin`, {
@@ -1279,11 +1281,19 @@ function CheckinSheet({
         tmi: tmi || undefined,
         drink_pref: drinkPref || undefined,
         is_public: isPublic,
+        resume: resume === true || undefined,
       }),
     });
     setBusy(false);
     const d = await res.json().catch(() => ({}));
-    if (!res.ok) return setErr(d.error || '체크인에 실패했어요.');
+    if (!res.ok) {
+      // 시크릿(프라이빗) 모드 등으로 저장소가 초기화된 본인일 수 있음 — 승계 확인 박스로 전환
+      if (res.status === 409 && d.can_resume) {
+        setResumeAsk(true);
+        return;
+      }
+      return setErr(d.error || '체크인에 실패했어요.');
+    }
     onDone(d.session);
   };
 
@@ -1292,6 +1302,38 @@ function CheckinSheet({
       <p style={{ fontSize: 12, color: FAINT, lineHeight: 1.6, marginBottom: 4 }}>
         개인정보는 저장되지 않으며 영업 종료 후 자동 만료돼요.
       </p>
+
+      {resumeAsk && (
+        <div style={{ marginTop: 12, padding: '14px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.06)' }}>
+          <p style={{ fontSize: 13.5, fontWeight: 800, color: INK, margin: 0, lineHeight: 1.6 }}>
+            혹시 시크릿(프라이빗) 모드를 쓰고 계신가요?
+          </p>
+          <p style={{ fontSize: 12, color: FAINT, margin: '6px 0 12px', lineHeight: 1.6 }}>
+            이 자리에 이전 주문이 남아있어요. 본인 주문이면 그대로 이어받을 수 있어요.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button
+              onClick={() => {
+                setResumeAsk(false);
+                void submit(true);
+              }}
+              disabled={busy}
+              style={{ height: 46, borderRadius: 11, background: BTN, color: BTN_TEXT, fontSize: 13.5, fontWeight: 800, border: 'none', cursor: 'pointer' }}
+            >
+              네, 제 주문이에요
+            </button>
+            <button
+              onClick={() => {
+                setResumeAsk(false);
+                setErr('이전 손님 주문이 남아있어요 — 직원에게 문의해주세요.');
+              }}
+              style={{ height: 46, borderRadius: 11, background: 'transparent', color: 'rgba(255,255,255,0.75)', fontSize: 13.5, fontWeight: 700, border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' }}
+            >
+              아니요, 방금 앉았어요
+            </button>
+          </div>
+        </div>
+      )}
 
       {seatParam ? (
         // QR로 들어온 경우 좌석 확정 — 편집 칸 대신 고정 표시 (오입력·토큰 불일치 방지)
@@ -1348,7 +1390,7 @@ function CheckinSheet({
 
       {err && <p style={{ color: '#f87171', fontSize: 12.5, fontWeight: 700, marginTop: 12 }}>{err}</p>}
 
-      <button onClick={submit} disabled={busy} style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: BTN, color: BTN_TEXT, fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
+      <button onClick={() => void submit()} disabled={busy} style={{ width: '100%', height: 52, marginTop: 18, borderRadius: 13, background: BTN, color: BTN_TEXT, fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
         {busy ? '체크인 중…' : '저장하고 시작하기'}
       </button>
     </Sheet>
