@@ -12,6 +12,8 @@ Sentry.init({
 
   // 우리 코드가 아닌 곳에서 나는 잡음. 광고·분석 스크립트, 브라우저 확장, 배포 직후 옛 청크 로드 실패 등.
   ignoreErrors: [
+    // 페이지 이동으로 진행 중 fetch가 취소될 때 iOS 웹뷰가 던지는 것 — 실제 오류 아님 (09-10 첫 알림)
+    /AbortError: The operation was aborted/,
     'ResizeObserver loop limit exceeded',
     'ResizeObserver loop completed with undelivered notifications.',
     /Loading chunk \d+ failed/,

@@ -15,7 +15,8 @@ function report(level: 'error' | 'warn', msg: string, detail?: unknown) {
   if (sent >= MAX_PER_SESSION) return;
   sent++;
   try {
-    void fetch('/api/client-log', {
+    // 페이지 이동 중 취소되면(AbortError) 거절되는 프로미스 — try/catch로는 못 잡으니 catch를 단다
+    fetch('/api/client-log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -28,7 +29,7 @@ function report(level: 'error' | 'warn', msg: string, detail?: unknown) {
         url: window.location.href,
       }),
       keepalive: true,
-    });
+    }).catch(() => {});
   } catch {
     /* 로깅 실패는 무시 */
   }

@@ -153,6 +153,7 @@
 - `supabase/migrations/`에는 2026-05-04 파일 1개만 있어 두 경로가 어긋나 있다.
 - 코드 쪽은 "마이그레이션 전 안전"을 위해 컬럼 존재 여부에 따라 분기하는 패턴을 반복하고 있다(`b907a65`, `1b30a70`). 이는 스키마 상태를 코드가 모른다는 뜻이며, 분기가 쌓일수록 테스트 매트릭스가 커진다.
 - `655f41b`(2026-09-07): 8/31 `data_capture` 마이그레이션이 `spot_visits`를 `IF NOT EXISTS`로 만들려다 기존 테이블과 이름이 충돌해 **조용히 스킵**됐고, 체크인 방문 기록이 일주일간 전량 실패. 마이그레이션 결과 검증(예: 적용 후 컬럼 존재 assert)이 있었다면 당일 잡혔다.
+- **09-10 추가 발견 (10.19)**: 같은 파일의 나머지 절반도 적용되지 않았다. 스킵된 `spot_visits` 바로 다음 줄의 `create index … (guest_key)`가 에러로 멈춰 그 뒤의 `spot_day_stats`·`menu_events`가 생성되지 않았고, 열흘간 마감 스냅샷과 메뉴 담기 기록이 조용히 실패했다. Sentry 크론 경고로 발견. 재실행 파일 `2026-09-11_data_capture_remainder.sql`은 검증 블록을 넣어 조용히 넘어가지 않는다.
 
 ### 3.7 의존성 보안 (🟡)
 
@@ -651,6 +652,16 @@ dev 브랜치 Preview 주소(`honsulmap-git-dev-….vercel.app`)를 열면 사�
 - 또는 Vercel Authentication 자체를 Preview에서 끄기. 모든 Preview 주소가 공개되므로 덜 권장.
 
 E2E나 외부 감시가 Preview를 쳐야 할 땐 같은 화면의 **Protection Bypass for Automation** 시크릿을 만들어 헤더 `x-vercel-protection-bypass`로 넘기면 된다. 지금은 없다.
+
+### 10.19 Sentry 첫 12시간의 알림 3건 (09-10) — 진단과 조치
+
+| 알림 | 진단 | 조치 |
+|---|---|---|
+| `AbortError: The operation was aborted.` iOS 앱 웹뷰, 홈 | 페이지 이동 중 진행 중이던 fetch가 취소될 때 iOS가 던지는 것. 실제 오류 아님 | Sentry 클라이언트 `ignoreErrors`에 추가. `ClientErrorLogger`의 fire-and-forget fetch에 `.catch` |
+| `SyntaxError: Unexpected token 'else'` Android 앱 웹뷰(Chrome 117), 인라인 스크립트 | 우리 번들이 아니라 문서 인라인 위치(`app:///:1`)에서 난 문법 오류. 옛 WebView에 무언가 주입된 스크립트일 가능성이 큼. 1건 | 조치 없음. 여러 기기에서 재발하면 조사 |
+| `Cron failure: day-close` — timeout check-in | 로그 확인 결과 크론은 08:10에 실행됐고 수동 재실행은 **2초**에 끝난다. 즉 느려서가 아니라, 서버리스가 응답 직후 얼어붙어 마지막 "ok" 체크인이 유실된 것. 그리고 그 로그에서 **`spot_day_stats` 테이블이 없다**는 경고를 발견 → 08-31 마이그레이션 후반부 미적용 확인 (3.6) | `await Sentry.flush()` 후 응답, `maxDuration = 120`(토스 잔재 청소가 길어지는 날 대비). 누락 테이블은 `2026-09-11_data_capture_remainder.sql`로 재생성 — **사용자가 SQL Editor에서 실행** |
+
+Sentry 도입 12시간 만에 "테이블 두 개가 열흘째 없었다"를 잡았다. 알림이 없었으면 마감 스냅샷과 메뉴 행동 데이터는 계속 비어 있었다.
 
 ### 10.17 스킬은 언제 실행되나
 - 세션이 시작될 때 Claude는 스킬의 **이름과 한 줄 설명만** 목록으로 받는다. 본문은 그때 읽지 않는다.
