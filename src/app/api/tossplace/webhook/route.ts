@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
             .select('id')
             .eq('event_type', 'order.order.created.v1')
             .gte('created_at', new Date(Date.now() - 10 * 60000).toISOString())
-            .like('payload->data->>orderKey', `%${uuid}-mv%`)
+            .like('payload->data->>orderKey', `%${uuid}%-mv%`)
             .limit(1);
           if (mv?.length) ids.delete(uuid);
         }
