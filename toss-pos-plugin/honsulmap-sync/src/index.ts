@@ -13,7 +13,7 @@ import { posPluginSdk } from "@tossplace/pos-plugin-sdk";
 
 const FEED_URL = "https://honsulmap.com/api/tossplugin/feed";
 const PLUGIN_KEY = "HSMPK-b3fe4a8c9f42148098bcf6497cd5c83639061d232e774064";
-const POLL_MS = 5000;
+const POLL_MS = 2000; // v5.3: 5초→2초 — QR 주문→포스 반영 평균 3초→1.5초 (유저 승인 백로그)
 const REFRESH_MS = 10 * 60 * 1000;
 
 type FeedItem = { name: string; price: number; qty: number; request?: string | null };
@@ -332,12 +332,24 @@ async function handleMove(mv: FeedMove): Promise<number[]> {
       } else {
         target = await sdk.order.add({
           orderKey: mvKey,
-          memo: src.memo ?? `혼술맵 QR · 좌석 ${mv.to_seat} (자리이동)`,
+          // 주방 전표에 자리이동임이 보이게 태그 — 재생성 전표를 보고 중복 조리하지 않도록
+          memo: `[자리이동] ${src.memo ?? `혼술맵 QR · 좌석 ${mv.to_seat}`}`,
           discounts: [],
           lineItems: lines,
           tableId: toTableId,
         });
       }
+      const st = src.tableId ?? src.table?.id;
+      if (st) tableOrders.delete(st);
+    }
+    if (target?.id) tableOrders.set(toTableId, String(target.id));
+    addAttempts.delete(mv.id);
+    // 레이스 근본 해결(v5.3) — 원 주문 "취소 전에" moved ack를 먼저 보낸다. 서버가 remap을
+    // 먼저 기록해야 곧 도착할 취소 웹훅을 이동 부산물로 정확히 판별한다 (9/10 00:58 실측:
+    // 취소 웹훅이 remap보다 1초 선착해 세션이 오폭 체크아웃됐던 사고의 원인 제거).
+    await ack(mv.id, "moved", target?.id);
+    remoteLog("info", `자리이동 완료 → 좌석 ${mv.to_seat} (포스 주문 ${srcs.length}건 합류)`);
+    for (const src of srcs) {
       try {
         await sdk.order.cancel(src.id);
       } catch (e) {
@@ -345,13 +357,7 @@ async function handleMove(mv: FeedMove): Promise<number[]> {
         // 재시도하면 중복되므로 완료 처리하고 수동 취소를 로그로 요청.
         remoteLog("error", `이동 후 원 주문 취소 실패 — 포스에서 수동 취소 필요 (${src.orderKey})`, e);
       }
-      const st = src.tableId ?? src.table?.id;
-      if (st) tableOrders.delete(st);
     }
-    if (target?.id) tableOrders.set(toTableId, String(target.id));
-    addAttempts.delete(mv.id);
-    remoteLog("info", `자리이동 완료 → 좌석 ${mv.to_seat} (포스 주문 ${srcs.length}건 합류)`);
-    await ack(mv.id, "moved", target?.id);
     return [];
   } catch (e) {
     const n = (addAttempts.get(mv.id)?.n ?? 0) + 1;
@@ -489,7 +495,7 @@ async function main() {
   merchantId = Number(merchant?.id ?? merchant?.merchantId);
   console.log("[hsm] 혼술맵 테이블 싱크 시작 — merchant", merchantId);
   // 버전을 로그에 남겨야 포스가 실제 어떤 버전을 로드했는지 서버에서 구분 가능
-  remoteLog("info", `플러그인 시작 v5.2 — merchant ${merchantId}`);
+  remoteLog("info", `플러그인 시작 v5.3 — merchant ${merchantId}`);
   await refreshTables();
   await refreshCatalog();
   // 테이블 변경(추가/이동/합석 등) 시 갱신 — on 미지원 환경 대비 try

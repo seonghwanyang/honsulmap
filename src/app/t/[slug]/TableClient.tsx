@@ -1306,10 +1306,10 @@ function CheckinSheet({
       {resumeAsk && (
         <div style={{ marginTop: 12, padding: '14px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.06)' }}>
           <p style={{ fontSize: 13.5, fontWeight: 800, color: INK, margin: 0, lineHeight: 1.6 }}>
-            혹시 시크릿(프라이빗) 모드를 쓰고 계신가요?
+            이 자리에 기존 주문이 있어요. 이어받으시겠어요?
           </p>
           <p style={{ fontSize: 12, color: FAINT, margin: '6px 0 12px', lineHeight: 1.6 }}>
-            이 자리에 이전 주문이 남아있어요. 본인 주문이면 그대로 이어받을 수 있어요.
+            시크릿(프라이빗) 모드나 다른 브라우저로 여셨다면, 본인 자리여도 이렇게 보일 수 있어요.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <button

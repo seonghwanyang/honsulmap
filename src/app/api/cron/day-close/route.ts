@@ -12,6 +12,10 @@ import { cancelStaleApiOrders } from '@/lib/tossplace';
 //   3) 만료됐는데 active로 남은 세션 정리
 // 최근 7일을 쓸어 크론이 하루 죽어도 다음 날 따라잡는다.
 
+// 평소엔 2초(09-11 실측)지만 5단계 토스 잔재 청소는 잔재 건수만큼 토스 호출(건당 최대 5초)이 늘어
+// 잔재가 많은 날은 수십 초가 된다. 기본 한도(플랜·설정에 따라 15초)에 잘리지 않게 넉넉히 준다.
+export const maxDuration = 120;
+
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`)
@@ -20,12 +24,15 @@ export async function GET(request: NextRequest) {
   // Sentry Cron Monitor — 매일 23:10 UTC(08:10 KST)에 체크인이 없거나 throw로 끝나면 메일.
   // Turbopack 빌드라 automaticVercelMonitors(webpack 전용)를 못 써서 여기서 직접 감싼다.
   // 5xx를 return하는 경로는 serverError()가 따로 보고한다.
-  return Sentry.withMonitor('day-close', runDayClose, {
+  const res = await Sentry.withMonitor('day-close', runDayClose, {
     schedule: { type: 'crontab', value: '10 23 * * *' },
     checkinMargin: 10,
     maxRuntime: 10,
     timezone: 'Etc/UTC',
   });
+  // 서버리스는 응답 직후 얼어붙을 수 있어 마지막 "ok" 체크인이 유실될 수 있다 — 보내고 나서 응답.
+  await Sentry.flush(2000);
+  return res;
 }
 
 async function runDayClose() {
