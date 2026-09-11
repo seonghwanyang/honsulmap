@@ -34,8 +34,9 @@ const inflight = new Set<string>();
 let demoAttempts = 0;
 let demoDone = false;
 // 주문별 반영 재시도 횟수 — 결제 진행 중엔 테이블 주문이 잠겨 add/addMenu가 거부되는데,
-// 결제는 보통 1분 내 끝나므로 ack 없이 두면 다음 폴링(5초)마다 자연 재시도된다.
-// 12회(약 60초) 소진 시에만 폴백(ack error → Open API 현황행). 90초 스윕보다 먼저 끝나게.
+// 결제는 보통 1분 내 끝나므로 ack 없이 두면 다음 폴링(2초)마다 자연 재시도된다.
+// 30회(약 60초) 소진 시에만 폴백(ack error → Open API 현황행). 90초 스윕보다 먼저 끝나게.
+// (v5.3: 폴링 5초→2초로 줄며 12회=24초로 윈도우가 줄어드는 부작용 → 30회로 보정)
 // at = 마지막 시도 시각 — 서버가 피드에서 내린(취소 등) 주문 항목의 누수 청소용 (검수 권고 2)
 const addAttempts = new Map<string, { n: number; at: number }>();
 
@@ -264,7 +265,7 @@ async function handle(order: FeedOrder) {
   } catch (e) {
     const n = (addAttempts.get(order.id)?.n ?? 0) + 1;
     addAttempts.set(order.id, { n, at: Date.now() });
-    if (n < 12) {
+    if (n < 30) {
       // 결제 중 잠금 등 일시 실패 가능성 — ack 없이 반환하면 다음 폴링에 재시도
       if (n === 1) remoteLog("warn", `주문 반영 일시 실패 — 재시도 시작 ${order.id}`, e);
       return;
@@ -362,7 +363,7 @@ async function handleMove(mv: FeedMove): Promise<number[]> {
   } catch (e) {
     const n = (addAttempts.get(mv.id)?.n ?? 0) + 1;
     addAttempts.set(mv.id, { n, at: Date.now() });
-    if (n < 12) {
+    if (n < 30) {
       if (n === 1) remoteLog("warn", `자리이동 일시 실패 — 재시도 시작 (좌석 ${mv.to_seat})`, e);
       return blockedT; // 미완료 — 관련 테이블 주문 투입 보류
     }
