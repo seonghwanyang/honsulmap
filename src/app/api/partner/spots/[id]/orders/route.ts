@@ -3,7 +3,7 @@ import { serverError } from '@/lib/serverError';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { businessDayStart, sessionExpiry } from '@/lib/tableDay';
-import { isTableTester } from '@/lib/tableTesters';
+import { isTableTester, isMemberOpenSpot } from '@/lib/tableTesters';
 import { sweepUnackedPluginOrders, tossFetchAll, tossMerchantId, tossPushMode } from '@/lib/tossplace';
 
 // 토스 포스 주문 원본 (조회 API 응답 중 보드에 필요한 필드만)
@@ -24,7 +24,7 @@ async function assertMember(spotId: string) {
   const {
     data: { user },
   } = await sb.auth.getUser();
-  if (!user || !isTableTester(user.email)) return null; // 베타: 테스터만
+  if (!user) return null;
   const admin = supabaseAdmin();
   const { data } = await admin
     .from('spot_members')
@@ -32,7 +32,10 @@ async function assertMember(spotId: string) {
     .eq('user_id', user.id)
     .eq('spot_id', spotId)
     .maybeSingle();
-  return data ? admin : null;
+  if (!data) return null; // 등록된 사장/직원만
+  // 베타: 테스터 화이트리스트. 단 멤버-오픈 가게(더끌림)는 멤버면 면제.
+  if (!isTableTester(user.email) && !isMemberOpenSpot(spotId)) return null;
+  return admin;
 }
 
 export async function GET(
@@ -122,6 +125,30 @@ export async function GET(
     for (const s of occRows) if (s.phone4_hash && byKey.has(s.phone4_hash)) seatVisits[s.seat_id] = byKey.get(s.phone4_hash)!;
   }
 
+  // 포스 연동 경고 — 플러그인이 남긴 "직원 조치용" 경고(사람말 문구)를 보드에 노출.
+  // 서버 로그에만 쌓이면 아무도 못 보므로, 조치 문구가 담긴 것만 골라 최근 30분·최대 3건.
+  const pluginAlerts: { msg: string; at: string }[] = [];
+  if (mid) {
+    const { data: logs } = await admin
+      .from('tossplace_events')
+      .select('payload, created_at')
+      .eq('event_type', 'plugin.log')
+      .eq('payload->>mid', mid)
+      .in('payload->>level', ['warn', 'error'])
+      .gte('created_at', new Date(Date.now() - 30 * 60000).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(10);
+    const seen = new Set<string>();
+    for (const l of logs ?? []) {
+      const msg = String((l.payload as { msg?: string })?.msg ?? '');
+      if (!msg || seen.has(msg)) continue;
+      if (!/정리|취소해 주세요|옮겨 주세요|직접|수동/.test(msg)) continue; // 내부 디버그 문구 제외
+      seen.add(msg);
+      pluginAlerts.push({ msg, at: l.created_at });
+      if (pluginAlerts.length >= 3) break;
+    }
+  }
+
   return NextResponse.json({
     orders: list,
     seat_totals: seatTotals,
@@ -129,6 +156,7 @@ export async function GET(
     seat_visits: seatVisits,
     pos_orders: posOrders,
     toss_connected: !!mid,
+    plugin_alerts: pluginAlerts,
   });
 }
 

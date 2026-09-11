@@ -181,6 +181,7 @@ function OrdersBoard() {
   const [spotSlug, setSpotSlug] = useState('');
   const [occupied, setOccupied] = useState<Set<string>>(new Set());
   const [seatVisits, setSeatVisits] = useState<Record<string, number>>({}); // 좌석별 누적 방문 일수
+  const [pluginAlerts, setPluginAlerts] = useState<{ msg: string; at: string }[]>([]); // 포스 연동 경고 (직원 조치용)
   // 알림음 설정 — 리로드 콜백에서 최신값을 읽도록 ref 미러링
   const [snd, setSnd] = useState<SoundSettings>(DEFAULT_SOUNDS);
   const [soundOpen, setSoundOpen] = useState(false);
@@ -252,6 +253,7 @@ function OrdersBoard() {
     setSongs(songList);
     setOccupied(new Set<string>(d.occupied_seat_ids ?? []));
     setSeatVisits(d.seat_visits ?? {});
+    setPluginAlerts(d.plugin_alerts ?? []);
     if (Array.isArray(d.pos_orders)) setPosOrders(d.pos_orders); // null = 이번 틱 미조회, 기존 유지
     setLoading(false);
   }, [id]);
@@ -571,6 +573,20 @@ function OrdersBoard() {
             ))}
           </Card>
         </Section>
+      )}
+
+      {/* 포스 연동 경고 — 직원 조치가 필요한 상황만 (유령 계산서 정리·자리이동 수동 반영 등) */}
+      {pluginAlerts.length > 0 && (
+        <Card style={{ padding: 16, border: '1.5px solid #fbbf24', background: '#fffbeb' }}>
+          <div style={{ fontSize: 13.5, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>⚠ 포스 확인 필요</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {pluginAlerts.map((a, i) => (
+              <div key={i} style={{ fontSize: 12.5, color: '#78350f', lineHeight: 1.6 }}>
+                {a.msg} <span style={{ color: '#b45309', fontSize: 11 }}>· {timeAgo(a.at)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* 알림음 설정 — 이벤트별 소리 선택 + 볼륨 + 미리듣기. 이 기기(보드)에만 저장 */}
