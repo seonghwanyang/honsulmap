@@ -49,6 +49,7 @@ const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
 // 기존 주문에 메뉴를 추가한다 — 직원이 그 테이블에 추가 입력하는 것과 동일.
 const tableOrders = new Map<number, string>(); // tableId → 열린 포스 주문 id (캐시)
 const staleLogged = new Set<string>(); // 이전 영업분 계산서 경고 — 재시도 스팸 방지 (주문 id별 1회)
+let tickCount = 0; // 역방향 싱크 주기 계산용 (5틱마다)
 
 // 영업일 시작(아침 8시 KST) — 열린 테이블 주문 검색 범위
 function businessDayStartIso(): string {
@@ -59,19 +60,30 @@ function businessDayStartIso(): string {
   return new Date(s.getTime() - 9 * 3600_000).toISOString();
 }
 
-async function fetchOpenOrders(): Promise<any[]> {
+// 열린 주문 조회 — 포스 API가 30분당 200회로 제한된다 (실측: 한도 초과 시 전면 실패로
+// 플러그인이 장님이 되어 "기존 계산서 못 봄 → 합류 실패 → 폴백" 연쇄, 9/11 01:20 좌석17
+// 사고). 15초 캐시 + 실패 시 직전 스냅샷 반환으로 호출 예산을 지킨다. force는 반영 검증
+// 등 최신 정합이 꼭 필요한 곳만 (add/addMenu 실패 직후 확인).
+let openCache: { at: number; data: any[] } = { at: 0, data: [] };
+let rateLogAt = 0;
+async function fetchOpenOrders(force = false): Promise<any[]> {
+  if (!force && Date.now() - openCache.at < 15_000) return openCache.data;
   try {
-    return (
+    const data =
       (await sdk.order.getOrders({
         start: businessDayStartIso(),
         end: new Date(Date.now() + 60_000).toISOString(),
         orderStates: ["OPENED"],
         size: 100,
-      })) ?? []
-    );
+      })) ?? [];
+    openCache = { at: Date.now(), data };
+    return data;
   } catch (e) {
-    remoteLog("warn", "열린 주문 조회 실패", e);
-    return [];
+    if (Date.now() - rateLogAt > 5 * 60_000) {
+      rateLogAt = Date.now();
+      remoteLog("warn", "열린 주문 조회 실패 — 직전 스냅샷으로 계속 동작", e);
+    }
+    return openCache.data; // 빈 배열로 오판하느니 낡은 스냅샷이 낫다
   }
 }
 
@@ -106,7 +118,7 @@ async function createOrAppend(dto: any, tableId: number | undefined, joinableAft
         tableOrders.set(tableId, target.id);
         return target.id;
       } catch (e) {
-        const after = (await fetchOpenOrders()).find((o: any) => o?.id === target.id);
+        const after = (await fetchOpenOrders(true)).find((o: any) => o?.id === target.id);
         if (after && (after.lineItems?.length ?? 0) >= before + dto.lineItems.length) {
           remoteLog("warn", `addMenu 응답 유실 — 반영 확인돼 성공 처리 t${tableId}`);
           tableOrders.set(tableId, target.id);
@@ -120,9 +132,10 @@ async function createOrAppend(dto: any, tableId: number | undefined, joinableAft
   try {
     const created = await sdk.order.add(dto);
     if (tableId && created?.id) tableOrders.set(tableId, created.id);
+    if (created) openCache.data = [...openCache.data, created]; // 15초 캐시에도 즉시 반영 — 연속 주문 합류 지연 방지
     return created?.id;
   } catch (e) {
-    const dup = (await fetchOpenOrders()).find((o: any) => o?.orderKey === dto.orderKey);
+    const dup = (await fetchOpenOrders(true)).find((o: any) => o?.orderKey === dto.orderKey);
     if (dup) {
       remoteLog("warn", `order.add 응답 유실 — orderKey로 확인돼 성공 처리 ${dto.orderKey}`);
       if (tableId && dup.id) tableOrders.set(tableId, dup.id);
@@ -334,7 +347,7 @@ async function handleMove(mv: FeedMove): Promise<number[]> {
         try {
           await sdk.order.addMenu(target.id, { discounts: [], lineItems: lines });
         } catch (e) {
-          const after = (await fetchOpenOrders()).find((o: any) => o?.id === target.id);
+          const after = (await fetchOpenOrders(true)).find((o: any) => o?.id === target.id);
           if (!after || (after.lineItems?.length ?? 0) < before + lines.length) throw e;
           remoteLog("warn", `이동 addMenu 응답 유실 — 반영 확인돼 진행 t${toTableId}`);
         }
@@ -348,6 +361,7 @@ async function handleMove(mv: FeedMove): Promise<number[]> {
           lineItems: lines,
           tableId: toTableId,
         });
+        if (target) openCache.data = [...openCache.data, target]; // 캐시 즉시 반영
       }
       const st = src.tableId ?? src.table?.id;
       if (st) tableOrders.delete(st);
@@ -496,8 +510,10 @@ async function tick() {
       }
       await handle(o);
     }
-    // 역방향 싱크 — 직원이 포스에서 직접 넣은 주문을 서버로 보고 (변경 시에만 전송)
-    await reportPosOrders(await fetchOpenOrders());
+    // 역방향 싱크 — 직원이 포스에서 직접 넣은 주문을 서버로 보고 (변경 시에만 전송).
+    // 조회 예산(30분 200회) 보호: 매 틱이 아니라 5틱(≈10초)마다 + 15초 캐시 경유.
+    tickCount++;
+    if (tickCount % 5 === 0) await reportPosOrders(await fetchOpenOrders());
   } catch (e) {
     remoteLog("error", "피드 조회 실패", e);
   }
