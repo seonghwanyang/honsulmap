@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { buildOpenApiOrderPayload, extractOrderUuid, ingestPosOrderReports, pushOrderToPos, type PosOrderReport } from '@/lib/tossplace';
+import { buildOpenApiOrderPayload, extractOrderUuid, ingestPosOrderReports, pushOrderToPos, tossPost, type PosOrderReport } from '@/lib/tossplace';
 import { businessDayStart } from '@/lib/tableDay';
 
 // 포스 플러그인 전용 피드 — 플러그인이 5초마다 끌어가 테이블에 주문을 직접 생성한다.
@@ -130,17 +130,20 @@ export async function GET(request: NextRequest) {
   // 내린다. 세션당 최신 마커만(연쇄 이동은 최종 목적지로 한 번에). 주문별 포스 주문 id는
   // 최신 ack(added/remap)의 toss_order_id. 구형 플러그인은 moves 필드를 무시하므로 무해.
   const latestToss = new Map<string, string>();
+  const latestOutcome = new Map<string, string>();
   for (const a of [...(acks ?? [])].sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)))) {
-    const p = a.payload as { order_id?: string; toss_order_id?: unknown };
+    const p = a.payload as { order_id?: string; toss_order_id?: unknown; outcome?: string };
     const uuid = p?.order_id ? extractOrderUuid(p.order_id) : '';
-    if (uuid && p?.toss_order_id != null) latestToss.set(uuid, String(p.toss_order_id));
+    if (!uuid) continue;
+    if (p?.toss_order_id != null) latestToss.set(uuid, String(p.toss_order_id));
+    if (p?.outcome) latestOutcome.set(uuid, p.outcome);
   }
   const markers = (moveRows ?? []).filter(
     (m) => !acked.has(m.id) && m.session_id && m.items.some((it) => it.item_name?.startsWith('자리 이동:')),
   );
   const latestMove = new Map<string, (typeof markers)[number]>();
   for (const m of markers) latestMove.set(m.session_id as string, m); // 오름차순이라 마지막이 최신
-  let moves: { id: string; to_seat: string; pos_order_ids: string[] }[] = [];
+  let moves: { id: string; to_seat: string; pos_order_ids: string[]; joinable_after?: string }[] = [];
   if (latestMove.size) {
     const { data: live } = await ctx.admin
       .from('table_orders')
@@ -163,6 +166,38 @@ export async function GET(request: NextRequest) {
         ],
       }))
       .filter((m) => m.pos_order_ids.length); // 옮길 포스 주문이 없으면 지시 불필요
+  }
+
+  // 재편입(rehome) — 결제 잠금 등으로 현황행 폴백된 주문을, 잠금이 풀리면 테이블 계산서로
+  // 편입시키는 지시. 이동과 같은 통로(moves)를 재사용: id=주문 uuid, pos_order_ids=[현황행
+  // 포스 id]. 플러그인이 moved ack를 보내면 서버가 현황행을 취소해 금액 이중 계상을 막는다.
+  // 카탈로그 미매칭(unmatched)은 테이블에도 못 실으므로 제외.
+  const rehomeCandidates = (orders ?? []).filter((o) => {
+    const oc = latestOutcome.get(o.id);
+    return oc === 'error' || oc === 'timeout-fallback';
+  });
+  for (const o of rehomeCandidates.slice(0, 5)) {
+    const { data: fbEv } = await ctx.admin
+      .from('tossplace_events')
+      .select('payload')
+      .eq('event_type', 'order.order.created.v1')
+      .gte('created_at', since)
+      .like('payload->data->>orderKey', `%${o.id}-fb`)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    const fbId = String((fbEv?.[0]?.payload as { data?: { orderId?: unknown } } | undefined)?.data?.orderId ?? '');
+    if (fbId) {
+      const s = o.session as { checked_in_at?: string } | { checked_in_at?: string }[] | null;
+      const at = Array.isArray(s) ? s[0]?.checked_in_at : s?.checked_in_at;
+      moves.push({
+        id: o.id,
+        to_seat: /^\d$/.test(o.seat_label) ? `0${o.seat_label}` : o.seat_label,
+        pos_order_ids: [fbId],
+        // 재편입도 커트라인 적용 — 유령 계산서가 테이블을 막고 있던 케이스라면
+        // 거기에 합류하지 말고 새 계산서를 시도해야 한다
+        joinable_after: at ? new Date(new Date(at).getTime() - 2 * 60000).toISOString() : undefined,
+      });
+    }
   }
 
   return NextResponse.json({ orders: pending, moves });
@@ -243,6 +278,20 @@ export async function POST(request: NextRequest) {
           );
         }
       }
+      // 재편입 정리 — 이 주문의 폴백 현황행(-fb)이 남아 있으면 Open API로 취소해 금액이
+      // 두 번 잡히지 않게 한다. 일반 자리이동 마커(₩0)는 -fb 생성 이력이 없어 자연히 무시.
+      const { data: fbEvs } = await ctx.admin
+        .from('tossplace_events')
+        .select('payload')
+        .eq('event_type', 'order.order.created.v1')
+        .gte('created_at', new Date(Date.now() - 2 * WINDOW_MIN * 60000).toISOString())
+        .like('payload->data->>orderKey', `%${orderId}-fb`);
+      for (const ev of fbEvs ?? []) {
+        const fbId = String((ev.payload as { data?: { orderId?: unknown } })?.data?.orderId ?? '');
+        if (fbId && fbId !== newTossId) {
+          await tossPost(`/merchants/${mid}/order/orders/${fbId}/cancel`, { cancelReason: '테이블 재편입 정리 (혼술맵)' });
+        }
+      }
     }
     return NextResponse.json({ ok: true });
   }
@@ -260,7 +309,15 @@ export async function POST(request: NextRequest) {
         .filter((it) => it.price > 0)
         .map((it) => ({ name: it.item_name, price: it.price, qty: it.qty, request: it.request }));
       if (items.length) {
-        await pushOrderToPos(mid, buildOpenApiOrderPayload({ orderKey: `${order.id}-fb`, seatLabel: order.seat_label, items }));
+        // 전표에 사유 인쇄 — 직원이 "왜 테이블이 아니라 현황이지?"를 바로 알게
+        const reason =
+          outcome === 'unmatched'
+            ? '포스에 없는 메뉴 — 메뉴 등록/싱크 확인'
+            : '결제 대기 — 끝나면 테이블로 자동 이동';
+        await pushOrderToPos(
+          mid,
+          buildOpenApiOrderPayload({ orderKey: `${order.id}-fb`, seatLabel: order.seat_label, items, reason }),
+        );
       }
     }
   }

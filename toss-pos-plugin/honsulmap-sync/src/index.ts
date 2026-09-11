@@ -18,8 +18,9 @@ const REFRESH_MS = 10 * 60 * 1000;
 
 type FeedItem = { name: string; price: number; qty: number; request?: string | null };
 type FeedOrder = { id: string; seat_label: string; total: number; items: FeedItem[]; joinable_after?: string | null };
-// 자리이동 지시 — pos_order_ids(옮길 포스 주문들)를 to_seat 테이블로 재생성+원본 취소
-type FeedMove = { id: string; to_seat: string; pos_order_ids: string[] };
+// 자리이동/재편입 지시 — pos_order_ids(옮길 포스 주문들)를 to_seat 테이블로 재생성+원본 취소.
+// joinable_after: 합류 커트라인 (이 시각 이전에 열린 계산서엔 합류 금지 — 유령 방지)
+type FeedMove = { id: string; to_seat: string; pos_order_ids: string[]; joinable_after?: string | null };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const sdk = posPluginSdk as any;
@@ -91,7 +92,11 @@ async function createOrAppend(dto: any, tableId: number | undefined, joinableAft
     );
     if (onTable.length && !joinable.length && !staleLogged.has(String(onTable[0]?.id))) {
       staleLogged.add(String(onTable[0]?.id));
-      remoteLog("warn", `t${tableId}에 이 손님 체크인 이전의 열린 계산서 — 합류 안 함, 포스에서 정리 필요 (${onTable[0]?.orderKey ?? onTable[0]?.id})`);
+      const tTitle = tables.find((t) => t?.id === tableId)?.title ?? tableId;
+      remoteLog(
+        "warn",
+        `${tTitle}번 테이블에 이전 손님 계산서가 남아 있어요 — 새 주문은 합치지 않았어요. 포스 주문내역(지난 날짜 포함)에서 그 계산서를 취소해 주세요.`,
+      );
     }
     const target = (knownId && joinable.find((o: any) => o?.id === knownId)) || joinable[0];
     if (target) {
@@ -306,7 +311,10 @@ async function handleMove(mv: FeedMove): Promise<number[]> {
     blockedT = [toTableId, ...srcs.map((s: any) => s.tableId ?? s.table?.id).filter(Boolean)];
     const srcIds = new Set(mv.pos_order_ids);
     let target: any = open.find(
-      (o: any) => (o?.tableId === toTableId || o?.table?.id === toTableId) && !srcIds.has(String(o?.id)),
+      (o: any) =>
+        (o?.tableId === toTableId || o?.table?.id === toTableId) &&
+        !srcIds.has(String(o?.id)) &&
+        (!mv.joinable_after || String(o?.openedAt ?? o?.createdAt ?? "") >= mv.joinable_after),
     );
     for (const src of srcs) {
       const mvKey = `${src.orderKey}-mv`;
@@ -333,8 +341,9 @@ async function handleMove(mv: FeedMove): Promise<number[]> {
       } else {
         target = await sdk.order.add({
           orderKey: mvKey,
-          // 주방 전표에 자리이동임이 보이게 태그 — 재생성 전표를 보고 중복 조리하지 않도록
-          memo: `[자리이동] ${src.memo ?? `혼술맵 QR · 좌석 ${mv.to_seat}`}`,
+          // 주방 전표에 성격이 보이게 태그 — 재생성 전표를 보고 중복 조리하지 않도록.
+          // -fb 원본 = 재편입(이미 현황 전표로 접수·조리된 주문의 테이블 정리용)
+          memo: `${/-fb$/.test(String(src.orderKey ?? '')) ? '[전표무시-테이블정리] 이미 접수된 주문' : '[자리이동]'} ${src.memo ?? `혼술맵 QR · 좌석 ${mv.to_seat}`}`,
           discounts: [],
           lineItems: lines,
           tableId: toTableId,
@@ -351,12 +360,15 @@ async function handleMove(mv: FeedMove): Promise<number[]> {
     await ack(mv.id, "moved", target?.id);
     remoteLog("info", `자리이동 완료 → 좌석 ${mv.to_seat} (포스 주문 ${srcs.length}건 합류)`);
     for (const src of srcs) {
+      // 재편입 원본(-fb 현황행)은 Open API 생성분이라 플러그인이 취소 못 함(채널 제한) —
+      // moved ack를 받은 서버가 Open API로 취소한다 (금액 이중 계상 방지 책임 분리)
+      if (/-fb$/.test(String(src.orderKey ?? ""))) continue;
       try {
         await sdk.order.cancel(src.id);
       } catch (e) {
         // 취소만 실패(원 테이블 결제 시작 등) — 메뉴는 이미 새 테이블에 반영됨.
         // 재시도하면 중복되므로 완료 처리하고 수동 취소를 로그로 요청.
-        remoteLog("error", `이동 후 원 주문 취소 실패 — 포스에서 수동 취소 필요 (${src.orderKey})`, e);
+        remoteLog("error", `자리는 옮겨졌는데 이전 테이블 계산서가 안 지워졌어요 — 포스에서 직접 취소해 주세요 (${src.orderKey})`, e);
       }
     }
     return [];
@@ -368,7 +380,7 @@ async function handleMove(mv: FeedMove): Promise<number[]> {
       return blockedT; // 미완료 — 관련 테이블 주문 투입 보류
     }
     addAttempts.delete(mv.id);
-    remoteLog("error", `자리이동 실패(재시도 소진) — 직원 수동 이동 필요 (좌석 ${mv.to_seat})`, e);
+    remoteLog("error", `좌석 ${mv.to_seat} 자리이동을 포스에 자동 반영하지 못했어요 — 포스의 테이블 이동 기능으로 직접 옮겨 주세요.`, e);
     await ack(mv.id, "error");
     return [];
   } finally {

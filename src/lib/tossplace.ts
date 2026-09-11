@@ -86,6 +86,8 @@ export function buildOpenApiOrderPayload(args: {
   orderKey: string;
   seatLabel: string;
   items: { name: string; price: number; qty: number; request?: string | null }[];
+  // 폴백 사유 — 전표/현황 메모 맨 앞에 인쇄돼 직원이 왜 테이블이 아닌 현황으로 왔는지 알게 함
+  reason?: string;
 }) {
   const total = args.items.reduce((acc, it) => acc + it.price * it.qty, 0);
   const taxAmount = Math.round((total * 10) / 110);
@@ -114,7 +116,7 @@ export function buildOpenApiOrderPayload(args: {
         taxExemptAmount: 0,
         totalAmount: total,
       },
-      memo: `혼술맵 QR 주문 · 좌석 ${args.seatLabel}`,
+      memo: `${args.reason ? `[${args.reason}] ` : ''}혼술맵 QR 주문 · 좌석 ${args.seatLabel}`,
       openedAt: new Date().toISOString(),
     },
     payments: [],
@@ -366,7 +368,10 @@ export async function sweepUnackedPluginOrders(
         payload: { order_id: o.id, outcome: 'timeout-fallback', mid },
         headers: {},
       });
-      await pushOrderToPos(mid, buildOpenApiOrderPayload({ orderKey: `${o.id}-fb`, seatLabel: o.seat_label, items }));
+      await pushOrderToPos(
+        mid,
+        buildOpenApiOrderPayload({ orderKey: `${o.id}-fb`, seatLabel: o.seat_label, items, reason: '포스 연결 지연 — 현황 접수' }),
+      );
       console.warn('[tossplugin] 플러그인 미응답 → Open API 폴백:', o.id);
     }
   } catch (e) {
