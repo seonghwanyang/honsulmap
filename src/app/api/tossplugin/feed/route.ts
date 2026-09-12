@@ -313,7 +313,7 @@ export async function POST(request: NextRequest) {
         const reason =
           outcome === 'unmatched'
             ? '포스에 없는 메뉴 — 메뉴 등록/싱크 확인'
-            : '결제 대기 — 끝나면 테이블로 자동 이동';
+            : '테이블 반영 실패 — 이 전표로 접수해 주세요'; // 자동 재편입은 v5.3 배포 후 활성 — 그 전엔 약속 문구 금지
         await pushOrderToPos(
           mid,
           buildOpenApiOrderPayload({ orderKey: `${order.id}-fb`, seatLabel: order.seat_label, items, reason }),
