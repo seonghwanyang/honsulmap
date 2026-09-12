@@ -661,7 +661,18 @@ E2E나 외부 감시가 Preview를 쳐야 할 땐 같은 화면의 **Protection 
 | `SyntaxError: Unexpected token 'else'` Android 앱 웹뷰(Chrome 117), 인라인 스크립트 | 우리 번들이 아니라 문서 인라인 위치(`app:///:1`)에서 난 문법 오류. 옛 WebView에 무언가 주입된 스크립트일 가능성이 큼. 1건 | 조치 없음. 여러 기기에서 재발하면 조사 |
 | `Cron failure: day-close` — timeout check-in | 로그 확인 결과 크론은 08:10에 실행됐고 수동 재실행은 **2초**에 끝난다. 즉 느려서가 아니라, 서버리스가 응답 직후 얼어붙어 마지막 "ok" 체크인이 유실된 것. 그리고 그 로그에서 **`spot_day_stats` 테이블이 없다**는 경고를 발견 → 08-31 마이그레이션 후반부 미적용 확인 (3.6) | `await Sentry.flush()` 후 응답, `maxDuration = 120`(토스 잔재 청소가 길어지는 날 대비). 누락 테이블은 `2026-09-11_data_capture_remainder.sql`로 재생성 — **사용자가 SQL Editor에서 실행** |
 
-Sentry 도입 12시간 만에 "테이블 두 개가 열흘째 없었다"를 잡았다. 알림이 없었으면 마감 스냅샷과 메뉴 행동 데이터는 계속 비어 있었다.
+| `NotSupportedError: The operation is not supported.` iOS 앱 웹뷰, 홈 (09-11) | 스택 없는 DOMException 거절. 홈에서 그런 API를 직접 부르는 코드가 없어 스토리 `<video>`가 만료된 IG 주소를 재생하려다 낸 것으로 추정. 조치 불가 | 스택 없는 DOMException 거절은 `beforeSend`에서 warning으로 낮춰 "high priority" 메일이 안 오게. 버리지는 않음 |
+| `ReferenceError: Can't find variable: EmptyRanges` iOS 앱 웹뷰, /feed (09-11) | 파일명 없는 프레임. 우리 번들이 아니라 웹뷰에 끼어든 스크립트 | `ignoreErrors` + `allowUrls`(honsulmap.com·app:/// 프레임만 수집) |
+
+Sentry 도입 12시간 만에 "테이블 두 개가 열흘째 없었다"를 잡았다. 알림이 없었으면 마감 스냅샷과 메뉴 행동 데이터는 계속 비어 있었다. 나머지 넷은 앱 웹뷰의 잡음이라 첫 하루에 필터를 조정했다. 앞으로 며칠은 이런 튜닝이 몇 번 더 있을 수 있다.
+
+### 10.20 스크래퍼 사고 (09-11) — 감시 엔드포인트가 첫날 잡음
+- 사용자가 `/api/health/scraper`를 열어 보니 `stale`, 마지막 수집 09-11 06:33 KST. UptimeRobot 등록 전이라 메일은 없었다.
+- 갤탭 SSH 확인: 스크래퍼 루프 프로세스가 없음. 마지막 사이클은 정상 완료(`processed=30 errors=0`) 후 `proot … terminated with signal 15`. 안드로이드가 SIGTERM으로 죽인 것. 재부팅 흔적은 없음.
+- 17:09 KST `bash ~/go`로 재시작 → 곧 `/api/health/scraper` 200, 이후 사이클 정상. **약 10.5시간 공백.**
+- 자가회복 설치(`scripts/_tab_heal.sh`): Termux:Boot 훅(`~/.termux/boot/start-scraper.sh`) 설치됨 → 재부팅 시 자동 시작. 15분 워치독은 `termux-job-scheduler`가 없어 건너뜀 → **Termux:API 앱 설치가 필요** (F-Droid, 5분). 그 전까진 SIGTERM으로 죽으면 재부팅 없인 안 살아난다.
+- 갤탭 IP가 `192.168.0.15`(문서)가 아니라 `192.168.45.214`에 있었다. `scripts/_tab_raw.sh`가 두 IP를 순서대로 시도하게 고침.
+- 교훈: 결과 감시(`last_scraped_at`)는 잘 작동했다. 남은 건 사람한테 닿는 알림(UptimeRobot 등록)과 자동 재시작(Termux:API)이다.
 
 ### 10.17 스킬은 언제 실행되나
 - 세션이 시작될 때 Claude는 스킬의 **이름과 한 줄 설명만** 목록으로 받는다. 본문은 그때 읽지 않는다.

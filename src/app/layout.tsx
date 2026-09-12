@@ -164,7 +164,7 @@ export default function RootLayout({
 
   return (
     <html lang="ko">
-      <body className="max-w-screen-md mx-auto bg-white">
+      <body className="max-w-3xl mx-auto bg-white">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
