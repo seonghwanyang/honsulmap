@@ -19,6 +19,9 @@ interface TossOrderRaw {
 // GET: 오늘 영업분 주문 + 좌석별 합계. PATCH: 상태 변경.
 // "오늘 영업분" = 직전 아침 8시(KST) 이후 — 새벽 장사가 전날 장부에 남게.
 
+// 포스 연동 경고 캐시 — spot별 30초 (2초 보드 폴링이 매번 로그를 조회하지 않게)
+const alertsCache = new Map<string, { at: number; data: { msg: string; at: string }[] }>();
+
 async function assertMember(spotId: string) {
   const sb = await createServerSupabase();
   const {
@@ -127,8 +130,14 @@ export async function GET(
 
   // 포스 연동 경고 — 플러그인이 남긴 "직원 조치용" 경고(사람말 문구)를 보드에 노출.
   // 서버 로그에만 쌓이면 아무도 못 보므로, 조치 문구가 담긴 것만 골라 최근 30분·최대 3건.
-  const pluginAlerts: { msg: string; at: string }[] = [];
-  if (mid) {
+  // 30초 메모리 캐시 — 보드가 2초마다 폴링하는데 매번 30분치 로그를 조회해 내려보내던 것이
+  // Supabase egress 폭증(무료 한도 초과·프로젝트 차단, 9/13)의 주범. 웜 인스턴스 기준
+  // 조회를 1/15로 줄인다.
+  let pluginAlerts: { msg: string; at: string }[] = [];
+  const cachedAlerts = alertsCache.get(id);
+  if (cachedAlerts && Date.now() - cachedAlerts.at < 30_000) {
+    pluginAlerts = cachedAlerts.data;
+  } else if (mid) {
     const { data: logs } = await admin
       .from('tossplace_events')
       .select('payload, created_at')
@@ -147,6 +156,7 @@ export async function GET(
       pluginAlerts.push({ msg, at: l.created_at });
       if (pluginAlerts.length >= 3) break;
     }
+    alertsCache.set(id, { at: Date.now(), data: pluginAlerts });
   }
 
   return NextResponse.json({

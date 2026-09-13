@@ -11,6 +11,8 @@ import { businessDayStart } from '@/lib/tableDay';
 // ack 저장은 tossplace_events 재사용(event_type='plugin.push.ack') — 마이그레이션 불필요.
 
 const WINDOW_MIN = 30;
+// 플러그인 로그 중복 저장 방지 — (mid|msg) → 마지막 저장 시각 (서버리스 웜 인스턴스 한정)
+const logDedupe = new Map<string, number>();
 
 function authed(request: NextRequest): boolean {
   const key = process.env.TOSSPLUGIN_FEED_KEY;
@@ -211,6 +213,14 @@ export async function POST(request: NextRequest) {
   // 플러그인 원격 로그 (토스 검수 권고 대응) — 미연동 매장(검수 환경) 로그도 받는다.
   if (body.log && typeof body.log === 'object') {
     const lg = body.log as { level?: unknown; msg?: unknown; detail?: unknown };
+    // 동일 메시지 스팸 차단 — 라이브 v5.2가 리밋 경고를 5초마다 쏴서(시간당 720건) DB가
+    // 수만 행으로 불어나 Supabase egress 한도 초과·프로젝트 차단까지 갔던 사고(9/13).
+    // 같은 (mid, msg)는 5분에 1회만 저장. 웜 인스턴스 메모리라 완벽하진 않아도 대부분 걸러진다.
+    const dedupeKey = `${mid}|${String(lg.msg ?? '').slice(0, 100)}`;
+    const lastAt = logDedupe.get(dedupeKey) ?? 0;
+    if (Date.now() - lastAt < 5 * 60_000) return NextResponse.json({ ok: true });
+    logDedupe.set(dedupeKey, Date.now());
+    if (logDedupe.size > 500) logDedupe.clear(); // 누수 방지
     await supabaseAdmin()
       .from('tossplace_events')
       .insert({
