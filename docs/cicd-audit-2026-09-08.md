@@ -298,6 +298,8 @@ PR 밖에서 클릭으로 할 것: Dependabot ON, main 보호 규칙, UptimeRobo
 - Preview는 Vercel 로그인 벽 뒤 (09-10 발견). dev 도메인을 Deployment Protection 예외에 넣어야 폰 확인이 된다. 10.18.
 - UptimeRobot은 예전에 등록돼 있었다 (09-09 정정. 08일엔 없다고 알았음). Phase 0에서 설정만 점검한다. 10.14.
 - Vercel은 Pro 플랜 (09-09). 런타임 로그 1일 보관. 그래도 알림 기능은 없어 Sentry는 여전히 필요하다.
+- Supabase도 Pro 플랜 (09-14, MCP로 확인). egress 사고는 spend cap이 막은 것. 10.21.
+- Sentry·Supabase·Vercel MCP 연결됨 (09-14). 10.22.
 - Next 패치와 `npm audit fix`는 테스트를 기다리지 않고 먼저 한다 (09-09). dev Preview에서 지도·체크인·주문을 눌러본 뒤 머지.
 - main 머지를 PR 방식으로 바꾸기로 함 (09-09). 단 "Preview에서 테스트가 안 돼 main에 올려 확인해 왔다"는 원인을 먼저 없앤다. Phase 1 참고.
 - 사람 리뷰 승인 필수 규칙은 넣지 않는다. 단독 개발이라 승인자가 없다. 코드 리뷰는 머지 전 별도 세션의 `/code-review`로 대체한다. 10.1.
@@ -674,7 +676,8 @@ Sentry 도입 12시간 만에 "테이블 두 개가 열흘째 없었다"를 잡�
 - **egress란**: DB에서 밖으로 나가는 데이터 총량. 행을 많이 읽을수록 늘어난다. 플랜마다 월 한도가 있다.
 - **원인** (`b8e1afc`, 다른 세션): 토스 플러그인의 레이트리밋 경고가 5초마다 같은 문구로 `tossplace_events`에 쌓여 수만 행이 됐고, 사장님 보드가 2초마다 최근 30분 로그를 통째로 조회했다. 수십 MB를 2초마다 내려받으면 하루에 수백 GB다. 어느 플랜 한도든 터진다.
 - **조치됨**: 같은 메시지 5분 dedupe, 보드 로그 조회 30초 캐시. 09-13 20:08 UTC 기준 `/api/health` 200, `/api/spots/markers` 200.
-- **남은 것 (사용자)**: ① Supabase 대시보드 → Settings → Usage에서 egress 그래프가 꺾였는지 확인. ② 플랜 결정: 무료(월 5GB)면 실서비스에 너무 얇다. 가게가 결제·주문에 쓰는 서비스라면 Pro(월 25달러, 250GB)가 맞다. Pro인데 spend cap이 걸려 있었다면 cap은 유지하고 코드로 막는 게 맞다. 이번처럼. ③ Supabase가 보내는 사용량 경고 메일(80% 도달)이 읽는 주소로 오는지 확인.
+- **플랜 확인 (09-14, MCP)**: Supabase는 **Pro**다. 즉 월 250GB를 넘겨 spend cap이 서비스를 막은 것. cap은 그대로 두는 게 맞다. 없었으면 GB당 과금이 조용히 쌓였을 것이다. 남은 확인은 Supabase 대시보드 Usage에서 egress 그래프가 꺾였는지, 사용량 경고 메일이 읽는 주소로 오는지.
+- **수정 후 24시간 요청 분포 (09-13, edge_logs)**: 총 7만 건. `store_table_config` GET 3.5만(플러그인 2초 폴링), `table_orders` GET 1.6만, `tossplace_events` GET 5.7천(보드 경고 조회, 30초 캐시 후), `spots` GET 4.4천·PATCH 2.7천(스크래퍼), `stories` POST 2.2천(스크래퍼). 폭증은 멈췄다. 다음 절감 후보는 플러그인이 매 폴링마다 읽는 `store_table_config`.
 - **교훈**: 감시는 있었다. `/api/health`가 DB 실패 때 503을 내니 UptimeRobot이 잡았어야 한다. 모니터가 홈 `/`만 보고 있었다면 못 잡았을 수 있다 → 10.14 점검 항목 그대로.
 
 ### 10.20 스크래퍼 사고 (09-11) — 감시 엔드포인트가 첫날 잡음
@@ -684,6 +687,18 @@ Sentry 도입 12시간 만에 "테이블 두 개가 열흘째 없었다"를 잡�
 - 자가회복 설치(`scripts/_tab_heal.sh`): Termux:Boot 훅(`~/.termux/boot/start-scraper.sh`) 설치됨 → 재부팅 시 자동 시작. 15분 워치독은 `termux-job-scheduler`가 없어 건너뜀 → **Termux:API 앱 설치가 필요** (F-Droid, 5분). 그 전까진 SIGTERM으로 죽으면 재부팅 없인 안 살아난다.
 - 갤탭 IP가 `192.168.0.15`(문서)가 아니라 `192.168.45.214`에 있었다. `scripts/_tab_raw.sh`가 두 IP를 순서대로 시도하게 고침.
 - 교훈: 결과 감시(`last_scraped_at`)는 잘 작동했다. 남은 건 사람한테 닿는 알림(UptimeRobot 등록)과 자동 재시작(Termux:API)이다.
+
+### 10.22 MCP 연결 (09-14) — Sentry·Supabase·Vercel을 Claude가 직접 본다
+| 서비스 | 식별자 | Claude가 할 수 있는 것 | 규칙 |
+|---|---|---|---|
+| Sentry | 조직 `synaptic-vl`, 프로젝트 `javascript-nextjs` (옛 앱 `react-native`도 같은 조직에 있고 아직 이벤트를 보낸다) | 이슈·이벤트 조회, 상태 변경(resolve·ignore), Seer 분석 | 메일 붙여 넣기 불필요. "센트리 봐" 한마디로 조회 |
+| Supabase | 조직 `nbiloaqfneviexbgmded`, 프로젝트 `kmhztgauczzqgqlehuow`, **Pro** | SQL 실행, 마이그레이션 적용, 로그(ClickHouse) 조회, 어드바이저 | **쓰기(SQL·마이그레이션)는 실행 전에 반드시 사용자에게 먼저 묻는다.** 조회는 자유 |
+| Vercel | 팀 `team_LRd4tlw1Ws9zBdxs0n7Oobva`, 프로젝트 `prj_30Pa5A4IsOZ9yCVE13HqEJfzFetu` | 배포·빌드 로그·런타임 로그·배포 보호 설정 조회. 환경변수는 CLI(`vercel env`) | 배포 보호 변경은 사용자 확인 후 |
+| UptimeRobot | 미연결 | API 키(`UPTIMEROBOT_API_KEY`)를 `.env.local`에 넣으면 모니터 조회·추가 가능 | 키는 채팅에 붙이지 않는다 |
+
+- Vercel 배포 보호는 `all_except_custom_domains`. **커스텀 도메인은 로그인 벽이 없다** → `dev.honsulmap.com`을 dev 브랜치에 붙이면 10.18의 설정 변경 없이 바로 폰에서 열린다.
+- 09-14 Sentry 정리: 해결된 4건 resolve(테이블 누락, 터널 테스트, egress 제한 2건), 잡음 5건은 "다시 늘면 재오픈" 조건으로 ignore. 남은 unresolved는 `auth SIGNED_OUT` 추적(의도된 warning)과 옛 앱 `react-native`의 이슈뿐.
+- `SENTRY_ORG`·`SENTRY_PROJECT`는 Vercel Production·Preview에 넣었다. 남은 건 `SENTRY_AUTH_TOKEN` 하나. 만드는 곳: `https://synaptic-vl.sentry.io/settings/auth-tokens/`.
 
 ### 10.17 스킬은 언제 실행되나
 - 세션이 시작될 때 Claude는 스킬의 **이름과 한 줄 설명만** 목록으로 받는다. 본문은 그때 읽지 않는다.
