@@ -34,10 +34,13 @@ Sentry.init({
     /^chrome-extension:\/\//,
     /^moz-extension:\/\//,
     /^safari(-web)?-extension:\/\//,
+    // 인스타그램·페이스북 인앱 브라우저가 페이지에 끼워 넣는 자기 스크립트 (app://navigation_performance_logger_android 등).
+    // "Error invoking postMessage: Java object is gone"이 여기서 난다 (09-12). 우리 번들은 app:///_next/ 로 시작해 host가 없다.
+    /^app:\/\/[^/]/,
   ],
-  // 스택이 있는 에러는 우리 번들에서 난 것만 받는다 (원본 URL 또는 소스맵용 app:/// 경로).
+  // 스택이 있는 에러는 우리 번들에서 난 것만 받는다 (원본 URL 또는 소스맵용 app:///_next/ 경로).
   // 스택이 아예 없는 이벤트에는 적용되지 않는다.
-  allowUrls: [/https?:\/\/(www\.)?honsulmap\.com/, /^app:\/\//],
+  allowUrls: [/https?:\/\/(www\.)?honsulmap\.com/, /^app:\/\/\/_next\//],
 
   beforeSend(event, hint) {
     // iOS 웹뷰가 스택 없이 던지는 DOMException 계열 unhandledrejection(NotSupportedError 등)은
