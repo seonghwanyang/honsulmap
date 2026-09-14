@@ -2,8 +2,20 @@
 // 실패는 전부 null로 흡수한다: 토스 장애가 우리 보드/설정을 죽이면 안 됨.
 
 import { businessDayStart } from '@/lib/tableDay';
+import { reportError } from '@/lib/serverError';
 
 const BASE = 'https://open-api.tossplace.com/api-public/openapi/v1';
+
+// Open API 실패는 null로 흡수하지만(보드가 죽으면 안 됨) 조용히 사라지면 한도 초과 같은 장애를 못 본다.
+// 경로별 5분에 한 번만 Sentry warning으로 남긴다. (플러그인 SDK의 30분 200회와 별개 버킷이지만
+// Open API 자체 한도는 문서 미확인 — 걸리면 여기서 처음 보이게)
+const tossWarnAt = new Map<string, number>();
+function warnTossOnce(key: string, err: unknown, extra: Record<string, unknown>) {
+  const last = tossWarnAt.get(key) ?? 0;
+  if (Date.now() - last < 5 * 60_000) return;
+  tossWarnAt.set(key, Date.now());
+  reportError(err, { level: 'warning', extra: { where: 'toss open api', ...extra } });
+}
 
 export async function tossFetch<T = unknown>(path: string, timeoutMs = 4000): Promise<T | null> {
   const ak = process.env.TOSSPLACE_ACCESS_KEY;
@@ -11,16 +23,27 @@ export async function tossFetch<T = unknown>(path: string, timeoutMs = 4000): Pr
   if (!ak || !sk) return null;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const pathKey = path.split('?')[0];
   try {
     const res = await fetch(`${BASE}${path}`, {
       headers: { 'x-access-key': ak, 'x-secret-key': sk },
       signal: ctrl.signal,
       cache: 'no-store',
     });
-    const d = (await res.json().catch(() => null)) as { resultType?: string; success?: T } | null;
-    if (!res.ok || d?.resultType !== 'SUCCESS') return null;
+    const d = (await res.json().catch(() => null)) as
+      | { resultType?: string; success?: T; error?: { code?: string; message?: string } | null }
+      | null;
+    if (!res.ok || d?.resultType !== 'SUCCESS') {
+      warnTossOnce(
+        `get:${pathKey}`,
+        new Error(`toss open api ${res.status}: ${d?.error?.message ?? d?.resultType ?? 'no body'}`),
+        { path: pathKey, status: res.status, code: d?.error?.code },
+      );
+      return null;
+    }
     return d.success ?? null;
-  } catch {
+  } catch (e) {
+    warnTossOnce(`get:${pathKey}:exception`, e, { path: pathKey });
     return null;
   } finally {
     clearTimeout(timer);

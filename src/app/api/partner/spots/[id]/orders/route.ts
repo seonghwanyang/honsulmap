@@ -22,6 +22,20 @@ interface TossOrderRaw {
 // 포스 연동 경고 캐시 — spot별 30초 (2초 보드 폴링이 매번 로그를 조회하지 않게)
 const alertsCache = new Map<string, { at: number; data: { msg: string; at: string }[] }>();
 
+// 포스 주문 목록(토스 Open API) 캐시 — merchant별 15초. 보드 폴링이 2초로 줄면서 3틱마다 조회가
+// 15초→6초(30분 300회)로 빨라졌고, 보드를 여러 기기에서 열면 그만큼 곱해진다. 플러그인 SDK의
+// 30분 200회 한도와는 별개 버킷임을 실측(09-15 02:00 KST, SDK 429 중에도 Open API 200)했지만,
+// Open API 자체 한도는 문서 미확인이라 서버에서 한 번 묶어 모든 보드가 같은 응답을 나눠 쓴다.
+const posOrdersCache = new Map<string, { at: number; data: PosOrderRow[] }>();
+type PosOrderRow = {
+  id: string;
+  order_number: string;
+  state: string;
+  created_at: string;
+  total: number;
+  items: { name: string; qty: number; price: number }[];
+};
+
 async function assertMember(spotId: string) {
   const sb = await createServerSupabase();
   const {
@@ -77,10 +91,11 @@ export async function GET(
     void sweepUnackedPluginOrders(admin, id, mid);
   }
   const wantPos = request.nextUrl.searchParams.get('pos') === '1';
-  let posOrders:
-    | { id: string; order_number: string; state: string; created_at: string; total: number; items: { name: string; qty: number; price: number }[] }[]
-    | null = null; // null = 이번 응답엔 토스 미조회 (클라이언트가 기존 값 유지)
-  if (mid && wantPos) {
+  let posOrders: PosOrderRow[] | null = null; // null = 이번 응답엔 토스 미조회 (클라이언트가 기존 값 유지)
+  const cachedPos = mid ? posOrdersCache.get(mid) : undefined;
+  if (mid && wantPos && cachedPos && Date.now() - cachedPos.at < 15_000) {
+    posOrders = cachedPos.data;
+  } else if (mid && wantPos) {
     const dayStart = businessDayStart();
     const states = ['OPENED', 'COMPLETED', 'CANCELLED'].map((s) => `orderStates=${s}`).join('&');
     const raw = await tossFetchAll<TossOrderRaw>(
@@ -103,6 +118,7 @@ export async function GET(
           items,
         };
       });
+    if (raw !== null) posOrdersCache.set(mid, { at: Date.now(), data: posOrders }); // 토스 실패(null)는 캐시하지 않음
   }
 
   const list = orders ?? [];
