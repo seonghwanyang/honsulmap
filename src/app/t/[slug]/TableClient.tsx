@@ -348,11 +348,16 @@ export default function TableClient({
   const claimQuest = async (q: Quest) => {
     if (!session) return setCheckinOpen(true);
     if (!confirm(`'${q.title}' 달성으로 신고할까요?\n직원이 확인 후 보상을 드려요.`)) return;
-    const res = await fetch(`/api/t/${spot.slug}/quests`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: session.id, quest_id: q.id }),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`/api/t/${spot.slug}/quests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: session.id, quest_id: q.id }),
+      });
+    } catch {
+      return showToast('연결이 끊겼어요. 다시 시도해 주세요.');
+    }
     const d = await res.json().catch(() => ({}));
     if (!res.ok && res.status !== 409) return showToast(d.error || '전송에 실패했어요.');
     showToast('달성 알림을 보냈어요! 직원이 곧 확인해요 🎉');
@@ -398,11 +403,20 @@ export default function TableClient({
         };
       }
       setBusy(true);
-      const res = await fetch(`/api/t/${spot.slug}/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: session.id, items, client_key: orderKeyRef.current.key }),
-      });
+      let res: Response;
+      try {
+        res = await fetch(`/api/t/${spot.slug}/orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: session.id, items, client_key: orderKeyRef.current.key }),
+        });
+      } catch {
+        // 응답 자체가 못 온 경우(폰 데이터 끊김·페이지 이탈) — 버튼을 풀고 안내. 멱등키는 유지되어
+        // 재탭하면 같은 키로 재시도된다. (9/14 21:34 좌석8 실측: 여기서 unhandled rejection + busy 고착)
+        setBusy(false);
+        showToast('연결이 끊겼어요. 다시 시도해 주세요.');
+        return false;
+      }
       setBusy(false);
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
