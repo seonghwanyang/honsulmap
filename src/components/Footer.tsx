@@ -7,8 +7,8 @@ import { CITIES } from '@/lib/types';
 export default function Footer() {
   const pathname = usePathname();
   // Map page is a fullscreen interactive canvas; the owner portal has its own
-  // chrome — skip the consumer footer in both.
-  if (pathname === '/' || pathname.startsWith('/partner')) return null;
+  // chrome — skip the consumer footer in both. 관리자 화면(/admin)에도 소비자 푸터는 불필요.
+  if (pathname === '/' || pathname.startsWith('/partner') || pathname.startsWith('/admin')) return null;
 
   return (
     <footer

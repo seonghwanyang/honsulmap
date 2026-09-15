@@ -22,6 +22,12 @@ const addDays = (day: string, n: number) => {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
+
+// 스토리 수는 비교군 매칭에만 쓰이고, 그 기간은 광고 그룹 전/후 7일 창의 합집합으로 고정이다
+// (첫 게재 -7일 ~ 마지막 게재 +6일). 그 밖의 날짜까지 읽던 2.7만 행을 여기로 줄인다.
+const AD_DATES = AD_GROUPS.map((g) => g.adDate as string).sort();
+const STORY_D0 = addDays(AD_DATES[0], -7);
+const STORY_D1 = addDays(AD_DATES[AD_DATES.length - 1], 6);
 const kstDay = (iso: string) => new Date(new Date(iso).getTime() + 9 * 3600_000).toISOString().slice(0, 10);
 
 type Daily = Record<string, number>;
@@ -33,16 +39,19 @@ const windowStats = (daily: Daily, d0: string, d1: string) => {
 };
 const pct = (before: number, after: number) => (before > 0 ? ((after - before) / before) * 100 : null);
 
-// PostgREST Max Rows(1000) 대응 페이지네이션 수집.
-async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; from <= 200_000; from += 1000) {
-    const { data, error } = await page(from, from + 999);
-    if (error) throw new Error(error.message);
-    out.push(...(data ?? []));
-    if (!data || data.length < 1000) break;
-  }
-  return out;
+// PostgREST Max Rows(1000) 대응 페이지네이션 수집 — 첫 페이지에서 총 건수(count: 'exact')를 받고
+// 나머지 페이지는 동시에 요청한다. 순차로 돌 땐 뷰가 페이지마다 재집계돼 44왕복 ≈ 6~16초였다 (09-15 실측).
+async function fetchAll<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; count: number | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const first = await page(0, 999);
+  if (first.error) throw new Error(first.error.message);
+  const total = first.count ?? 0;
+  const rest: PromiseLike<{ data: T[] | null; error: { message: string } | null }>[] = [];
+  for (let from = 1000; from < total; from += 1000) rest.push(page(from, from + 999));
+  const pages = await Promise.all(rest);
+  for (const p of pages) if (p.error) throw new Error(p.error.message);
+  return [...(first.data ?? []), ...pages.flatMap((p) => p.data ?? [])];
 }
 
 export async function GET(request: NextRequest) {
@@ -57,13 +66,21 @@ export async function GET(request: NextRequest) {
     // 마이그레이션: src/data/migrations/2026-08-18_view_stats_daily.sql
     const [spots, viewDaily, storyDaily] = await Promise.all([
       fetchAll<{ id: string; name: string; city: string | null; instagram_id: string | null }>(
-        (a, b) => sb.from('spots').select('id, name, city, instagram_id').order('id').range(a, b),
+        (a, b) => sb.from('spots').select('id, name, city, instagram_id', { count: 'exact' }).order('id').range(a, b),
       ),
       fetchAll<{ spot_id: string; day: string; views: number }>(
-        (a, b) => sb.from('spot_views_daily').select('spot_id, day, views').gte('day', SINCE_DAY).order('spot_id').order('day').range(a, b),
+        (a, b) => sb.from('spot_views_daily').select('spot_id, day, views', { count: 'exact' }).gte('day', SINCE_DAY).order('spot_id').order('day').range(a, b),
       ),
       fetchAll<{ spot_id: string; day: string; stories: number }>(
-        (a, b) => sb.from('story_counts_daily').select('spot_id, day, stories').gte('day', SINCE_DAY).order('spot_id').order('day').range(a, b),
+        (a, b) =>
+          sb
+            .from('story_counts_daily')
+            .select('spot_id, day, stories', { count: 'exact' })
+            .gte('day', STORY_D0)
+            .lte('day', STORY_D1)
+            .order('spot_id')
+            .order('day')
+            .range(a, b),
       ),
     ]);
 

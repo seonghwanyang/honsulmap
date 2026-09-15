@@ -124,7 +124,7 @@ export default function AdminMonitorPage() {
         <button
           type="button"
           onClick={load}
-          className="text-xs px-3 py-1.5 rounded bg-white"
+          className="text-xs px-3 py-1.5 rounded bg-white whitespace-nowrap flex-shrink-0"
           style={{ border: '1px solid #e5e7eb', color: '#374151' }}
         >
           새로고침
@@ -257,11 +257,11 @@ function StoreCard({ s, thresholds }: { s: Store; thresholds: Monitor['threshold
                   </th>
                 </tr>
                 <tr style={{ color: GRAY }}>
-                  <th className="text-left px-3 py-1 font-medium">좌석</th>
-                  <th className="text-right px-3 py-1 font-medium">금액</th>
-                  <th className="text-left px-3 py-1 font-medium">접수</th>
-                  <th className="text-left px-3 py-1 font-medium">경과</th>
-                  <th className="text-left px-3 py-1 font-medium">상태</th>
+                  <th className="text-left px-3 py-1 font-medium whitespace-nowrap">좌석</th>
+                  <th className="text-right px-3 py-1 font-medium whitespace-nowrap">금액</th>
+                  <th className="text-left px-3 py-1 font-medium whitespace-nowrap">접수</th>
+                  <th className="text-left px-3 py-1 font-medium whitespace-nowrap">경과</th>
+                  <th className="text-left px-3 py-1 font-medium whitespace-nowrap">상태</th>
                 </tr>
               </thead>
               <tbody>

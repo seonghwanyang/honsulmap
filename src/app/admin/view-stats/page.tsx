@@ -133,7 +133,7 @@ export default function ViewStatsPage() {
   }, []);
 
   if (error) return <p className="text-sm" style={{ color: '#ef4444' }}>{error}</p>;
-  if (!stats) return <p className="text-sm" style={{ color: '#9ca3af' }}>집계 중… (조회 로그 전체를 읽어요, 몇 초 걸립니다)</p>;
+  if (!stats) return <p className="text-sm" style={{ color: '#9ca3af' }}>집계 중…</p>;
 
   const days = dayRange(stats.sinceDay, stats.today);
 

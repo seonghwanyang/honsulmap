@@ -37,6 +37,9 @@ export default function AdminSpotsPage() {
     key: null,
     dir: 'desc',
   });
+  // 처음엔 150행만 그린다 — 755곳 × 8칸을 한 번에 그리면 폰에서 스크롤이 버벅인다. 검색·필터가
+  // 주 사용법이라 대부분 이 안에서 끝나고, 필요하면 "더 보기".
+  const [limit, setLimit] = useState(150);
 
   const toggleSort = (key: 'view' | 'visit') =>
     setSort((s) =>
@@ -227,7 +230,7 @@ export default function AdminSpotsPage() {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((s, i) => (
+              {sorted.slice(0, limit).map((s, i) => (
                 <tr
                   key={s.id}
                   style={{ borderTop: i > 0 ? '1px solid #f3f4f6' : 'none' }}
@@ -271,6 +274,15 @@ export default function AdminSpotsPage() {
               ))}
             </tbody>
           </table>
+        )}
+        {!loading && sorted.length > limit && (
+          <button
+            onClick={() => setLimit((l) => l + 300)}
+            className="w-full py-2.5 text-xs"
+            style={{ borderTop: '1px solid #f3f4f6', color: '#374151', background: '#f8f9fa' }}
+          >
+            {sorted.length - limit}개 더 보기
+          </button>
         )}
       </div>
 
@@ -340,6 +352,7 @@ function Td({
         color: strong ? '#111827' : '#374151',
         fontWeight: strong ? 600 : 400,
         fontFamily: mono ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : undefined,
+        whiteSpace: 'nowrap', // 폰에서 가게명·slug가 3~4줄로 접히던 것 — 표는 어차피 가로 스크롤
       }}
     >
       {children}

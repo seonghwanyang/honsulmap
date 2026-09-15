@@ -1,36 +1,27 @@
 import Link from 'next/link';
+import AdminNav from './AdminNav';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh" style={{ background: '#f8f9fa' }}>
       <header
-        className="sticky top-0 z-20 flex items-center justify-between px-4 h-14"
+        className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 h-14"
         style={{
           background: '#ffffff',
           borderBottom: '1px solid #e5e7eb',
         }}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <Link
             href="/admin"
-            className="font-bold text-[15px]"
+            className="font-bold text-[15px] whitespace-nowrap flex-shrink-0"
             style={{ color: '#111827', textDecoration: 'none' }}
           >
             혼술맵 · Admin
           </Link>
-          <nav className="flex items-center gap-1 text-xs">
-            <AdminNavLink href="/admin">대시보드</AdminNavLink>
-            <AdminNavLink href="/admin/monitor">모니터</AdminNavLink>
-            <AdminNavLink href="/admin/performance">성과</AdminNavLink>
-            <AdminNavLink href="/admin/view-stats">조회수</AdminNavLink>
-            <AdminNavLink href="/admin/spots">가게</AdminNavLink>
-            <AdminNavLink href="/admin/requests">요청</AdminNavLink>
-            <AdminNavLink href="/admin/claims">사장님</AdminNavLink>
-            <AdminNavLink href="/admin/reports">신고</AdminNavLink>
-            <AdminNavLink href="/admin/notices">공지</AdminNavLink>
-          </nav>
+          <AdminNav />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
           <a
             href="https://www.google.com/adsense/"
             target="_blank"
@@ -53,17 +44,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </header>
       <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
     </div>
-  );
-}
-
-function AdminNavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="px-2.5 py-1.5 rounded"
-      style={{ color: '#374151', textDecoration: 'none' }}
-    >
-      {children}
-    </Link>
   );
 }
