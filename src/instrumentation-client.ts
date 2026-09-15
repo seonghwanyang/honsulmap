@@ -52,6 +52,12 @@ Sentry.init({
     if (isRejection && noFrames && typeof DOMException !== 'undefined' && hint.originalException instanceof DOMException) {
       event.level = 'warning';
     }
+    // 브라우저가 서버에 못 닿았을 때의 TypeError들(폰 데이터 끊김·페이지 이탈 중 요청). 페이지 이동 중
+    // 스트림이 끊기면 React가 "network error"를 던지고 error.tsx가 잡아 보고한다(09-15 /region/daegu).
+    // 서버 장애가 아니라 조치할 게 없으니 warning으로. 서버가 죽은 경우는 /api/health와 UptimeRobot이 본다.
+    if (ex?.type === 'TypeError' && /^(network error|Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.?)$/.test(ex.value ?? '')) {
+      event.level = 'warning';
+    }
     return event;
   },
 });
