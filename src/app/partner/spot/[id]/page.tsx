@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthGate from '../../AuthGate';
 import { Card, Chip, PageHeader, Spinner, buttonStyle } from '../../ui';
+import StoreInsights from './StoreInsights';
 import { track } from '@/lib/analytics';
 import ChatRoom from '@/components/chat/ChatRoom';
 import NoticeBanner from '@/components/partner/NoticeBanner';
@@ -389,17 +390,6 @@ function SpotManageContent() {
   const scrollToGuide = (target: string) =>
     document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  const trend = statsData?.trend;
-  let trendText = '—';
-  let trendColor = '#111827';
-  if (trend) {
-    if (trend.pct != null) {
-      trendText = `${trend.pct > 0 ? '▲' : trend.pct < 0 ? '▼' : ''}${Math.abs(trend.pct)}%`;
-      trendColor = trend.pct > 0 ? '#16a34a' : trend.pct < 0 ? '#dc2626' : '#111827';
-    } else if (trend.views7d > 0) {
-      trendText = '새로 집계 중';
-    }
-  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -497,67 +487,22 @@ function SpotManageContent() {
         </Card>
       )}
 
-      {/* 통계 — 상대평가(상위%) + 주간 추세 */}
+      {/* 통계 — 지역 순위 + 가게 분석(CRM) */}
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={sectionLabel}>통계</h2>
-          <Link
-            href={`/partner/spot/${id}/insights`}
-            style={{ fontSize: 12.5, fontWeight: 700, color: '#2563eb', textDecoration: 'none', whiteSpace: 'nowrap' }}
-          >
-            가게 분석 자세히 →
-          </Link>
-        </div>
-        {!statsData ? (
-          <Card style={{ padding: 16 }}>
-            <p style={{ fontSize: 12.5, color: '#9ca3af' }}>불러오는 중…</p>
-          </Card>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {statsData.region.ranks ? (
-              <>
-                <div className="grid grid-cols-3" style={{ gap: 10 }}>
-                  <RankCard label="조회수" regionName={statsData.region.name} regionSize={statsData.region.size} region={statsData.region.ranks.views} nationalSize={statsData.national.size} national={statsData.national.ranks?.views ?? null} />
-                  <RankCard label="좋아요" regionName={statsData.region.name} regionSize={statsData.region.size} region={statsData.region.ranks.likes} nationalSize={statsData.national.size} national={statsData.national.ranks?.likes ?? null} />
-                  <RankCard label="다녀왔어요" regionName={statsData.region.name} regionSize={statsData.region.size} region={statsData.region.ranks.visits} nationalSize={statsData.national.size} national={statsData.national.ranks?.visits ?? null} />
-                </div>
-                <p style={{ fontSize: 11, color: '#9ca3af', padding: '0 2px', lineHeight: 1.5 }}>
-                  {statsData.region.label} 기준. 조회수는 방문자가 가게 화면을 연 횟수.
-                </p>
-              </>
-            ) : (
-              <Card style={{ padding: 16 }}>
-                <p style={{ fontSize: 12.5, color: '#6b7280', lineHeight: 1.6 }}>
-                  {statsData.region.label} 가게가 아직 적어 순위를 낼 수 없어요. 데이터가 더 쌓이면 순위를 보여드릴게요.
-                </p>
-              </Card>
-            )}
-            <div className="grid grid-cols-2" style={{ gap: 10 }}>
-              <Card style={{ padding: '14px 16px' }}>
-                <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>이번 주 조회 추세</div>
-                <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: trendColor }}>
-                  {trendText}
-                </div>
-              </Card>
-              {/* 혜택 사용 = "혼술맵이 보낸 손님" — 어트리뷰션 카운터 (playbook) */}
-              <Card style={{ padding: '14px 16px' }}>
-                <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>혜택 사용 (방문 인증)</div>
-                <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: '#111827' }}>
-                  {statsData.redemptions.total}건
-                </div>
-                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>이번 주 {statsData.redemptions.d7}건</div>
-              </Card>
-              {/* 찜 = 단골 후보이자, 예정된 "찜한 손님 푸시"의 발송 대상 크기 */}
-              <Card style={{ padding: '14px 16px' }}>
-                <div style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 600 }}>찜한 손님</div>
-                <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: '-0.5px', color: '#ea580c' }}>
-                  {data?.stats.favorites ?? 0}명
-                </div>
-                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>새 소식 푸시를 받게 될 손님</div>
-              </Card>
+        <h2 style={sectionLabel}>통계</h2>
+        {statsData?.region.ranks && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+            <div className="grid grid-cols-3" style={{ gap: 10 }}>
+              <RankCard label="조회수" regionName={statsData.region.name} regionSize={statsData.region.size} region={statsData.region.ranks.views} nationalSize={statsData.national.size} national={statsData.national.ranks?.views ?? null} />
+              <RankCard label="좋아요" regionName={statsData.region.name} regionSize={statsData.region.size} region={statsData.region.ranks.likes} nationalSize={statsData.national.size} national={statsData.national.ranks?.likes ?? null} />
+              <RankCard label="다녀왔어요" regionName={statsData.region.name} regionSize={statsData.region.size} region={statsData.region.ranks.visits} nationalSize={statsData.national.size} national={statsData.national.ranks?.visits ?? null} />
             </div>
+            <p style={{ fontSize: 11, color: '#9ca3af', padding: '0 2px', lineHeight: 1.5 }}>
+              {statsData.region.label} 지역 순위 · 조회수는 방문자가 가게 화면을 연 횟수
+            </p>
           </div>
         )}
+        <StoreInsights spotId={id} />
       </section>
 
       {/* 혜택 */}
