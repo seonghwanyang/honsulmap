@@ -499,7 +499,15 @@ function SpotManageContent() {
 
       {/* 통계 — 상대평가(상위%) + 주간 추세 */}
       <section>
-        <h2 style={sectionLabel}>통계</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={sectionLabel}>통계</h2>
+          <Link
+            href={`/partner/spot/${id}/insights`}
+            style={{ fontSize: 12.5, fontWeight: 700, color: '#2563eb', textDecoration: 'none', whiteSpace: 'nowrap' }}
+          >
+            가게 분석 자세히 →
+          </Link>
+        </div>
         {!statsData ? (
           <Card style={{ padding: 16 }}>
             <p style={{ fontSize: 12.5, color: '#9ca3af' }}>불러오는 중…</p>
